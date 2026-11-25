@@ -33,7 +33,7 @@
   AF.PART_KEYS = Object.keys(AF.PARTS);
 
   // Derived robot stats from part levels.
-  AF.stats = function (p) {
+  AF.baseStats = function (p) {
     return {
       energy: 3 + Math.floor((p.arc - 1) / 2),          // 3,3,4,4,5
       maxHp: 30 + (p.frame - 1) * 12,                   // 30..78
@@ -45,6 +45,9 @@
       legs: p.legs,
     };
   };
+
+  // Pass a whole save to include pilot level and gear; pass parts for the robot alone.
+  AF.stats = (a) => (a && a.parts ? AF.fullStats(a) : AF.baseStats(a));
 
   // What each upgrade does, in words (for the workshop).
   AF.partEffect = function (key, lvl) {
@@ -61,10 +64,10 @@
 
   // Cost to upgrade FROM level n to n+1 (same table for every part).
   AF.UPGRADE_COST = {
-    1: { scrap: 8, copper: 4, credits: 10 },
-    2: { scrap: 14, copper: 8, silicon: 4, circuits: 1, credits: 30 },
-    3: { scrap: 20, copper: 12, silicon: 8, arcite: 3, circuits: 2, credits: 60 },
-    4: { scrap: 30, copper: 18, silicon: 12, arcite: 6, circuits: 4, credits: 100 },
+    1: { scrap: 8, copper: 4, credits: 1000 },
+    2: { scrap: 14, copper: 8, silicon: 4, circuits: 1, credits: 300 },
+    3: { scrap: 20, copper: 12, silicon: 8, arcite: 3, circuits: 2, credits: 600 },
+    4: { scrap: 30, copper: 18, silicon: 12, arcite: 6, circuits: 4, credits: 1000 },
   };
 
   // ---------- Terrain ----------
@@ -85,10 +88,10 @@
 
   // Resource nodes on the map.
   AF.NODES = {
-    scrap:   { res: 'scrap',   amount: [3, 5], respawn: 120, label: 'Scrap pile' },
-    copper:  { res: 'copper',  amount: [2, 4], respawn: 160, label: 'Copper vein' },
-    silicon: { res: 'silicon', amount: [2, 3], respawn: 180, label: 'Silicon dune' },
-    arcite:  { res: 'arcite',  amount: [1, 2], respawn: 260, label: 'Arcite crystal', arms: 2 },
+    scrap:   { res: 'scrap',   amount: [1, 3], respawn: 220, label: 'Scrap pile' },
+    copper:  { res: 'copper',  amount: [1, 2], respawn: 260, label: 'Copper vein' },
+    silicon: { res: 'silicon', amount: [1, 2], respawn: 280, label: 'Silicon crystals' },
+    arcite:  { res: 'arcite',  amount: [1, 1], respawn: 400, label: 'Arcite crystal', arms: 2 },
   };
 
   // ---------- Cards ----------
@@ -213,7 +216,9 @@
       loot: { arcite: [8, 8], circuits: [6, 6] } },
   };
   // Credits dropped per enemy tier [min, max]
-  AF.CREDITS_BY_TIER = { 1: [4, 9], 2: [10, 18], 3: [22, 34], 4: [250, 250] };
+  // Money dropped (in Bolts) and the chance that a bot drops money / each material at all.
+  AF.CREDITS_BY_TIER = { 1: [40, 90], 2: [100, 180], 3: [220, 340], 4: [2500, 2500] };
+  AF.DROP = { money: 0.6, material: 0.35, gear: { 1: 0.04, 2: 0.07, 3: 0.11 } };
 
   // ---------- The shared world ----------
   // Every player explores the same map: it's always built from this seed.
@@ -227,7 +232,7 @@
     archive:  { name: 'The Archive',         sign: 'ARCHIVE',  x: 8,  y: 2,  w: 6, h: 5, roof: '#7058b8', blurb: '' },
     hall:     { name: 'Town Hall',           sign: 'TOWN HALL', x: 19, y: 2, w: 7, h: 5, roof: '#4878c8', blurb: '' },
     cards:    { name: 'The Deckhouse',       sign: 'CARDS',    x: 28, y: 3,  w: 5, h: 4, roof: '#a050b8', blurb: 'Buy and sell cards and blueprints.' },
-    bank:     { name: 'Ironclad Bank',       sign: 'BANK',     x: 2,  y: 9,  w: 5, h: 4, roof: '#4a9a58', blurb: 'Store credits and materials safely.' },
+    bank:     { name: 'Ironclad Bank',       sign: 'BANK',     x: 2,  y: 9,  w: 5, h: 4, roof: '#4a9a58', blurb: 'Store money and materials safely.' },
     salvage:  { name: 'Salvage Exchange',    sign: 'SALVAGE',  x: 8,  y: 9,  w: 5, h: 4, roof: '#c88a30', blurb: 'Buy and sell card components.' },
     garage:   { name: 'Bolt & Gear Garage',  sign: 'GARAGE',   x: 19, y: 9,  w: 5, h: 4, roof: '#3868b8', blurb: 'Robot part upgrades, repairs and core paint.' },
     diner:    { name: 'Sparkplug Diner',     sign: 'DINER',    x: 26, y: 9,  w: 5, h: 4, roof: '#e05848', blurb: 'Food, healing and battle buffs for your pilot.' },

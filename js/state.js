@@ -38,9 +38,10 @@
     const parts = { arc: 1, frame: 1, legs: 1, arms: 1, weapon: 1, shield: 1 };
     const known = Object.keys(AF.CARDS).filter((k) => !AF.CARDS[k].bp);
     return AF.upgradeSave({
-      version: 3, slot: slot || 1, flags: { robot: false, intro: false }, quests: AF.Quests.fresh(), seed, steps: 0, parts,
+      version: 4, slot: slot || 1, flags: { robot: false, intro: false }, quests: AF.Quests.fresh(), seed, steps: 0, parts,
       hp: AF.stats(parts).maxHp,
-      res: { scrap: 6, copper: 2, silicon: 0, arcite: 0, circuits: 0 },
+      res: { scrap: 6, copper: 2, silicon: 0, arcite: 0, circuits: 0 }, credits: 300, level: 1, xp: 0, inv: [],
+      equip: { head: null, body: null, hands: null, feet: null, acc1: null, acc2: null },
       cards: AF.STARTER_DECK.map((id) => AF.newCard(id)),
       known, world: null, look, created: Date.now(),
       stats: { wins: 0, forged: 0 }, won: false,
@@ -55,10 +56,18 @@
       s.flags = { robot: true, intro: true };
       s.quests = Object.assign(AF.Quests.fresh(), { story: 's2', tut: 'declined' });
     }
+    // v4: money became Bolts/Gears/Cores (×10), plus levels and gear.
+    if (s.version < 4) {
+      s.version = 4;
+      if (s.credits != null) s.credits *= 10;
+      if (s.bank && s.bank.credits) s.bank.credits *= 10;
+    }
+    s.level = s.level || 1; s.xp = s.xp || 0; s.inv = s.inv || [];
+    s.equip = Object.assign({ head: null, body: null, hands: null, feet: null, acc1: null, acc2: null }, s.equip || {});
     s.flags = s.flags || { robot: false, intro: false };
     s.quests = s.quests || AF.Quests.fresh();
     s.look = s.look || Object.assign(AF.defaultLook('f'), { name: 'Pilot' });
-    if (s.credits == null) s.credits = 30;
+    if (s.credits == null) s.credits = 300;
     s.pilot = Object.assign({ vit: 20, perks: [], buffs: {}, rations: 2 }, s.pilot || {});
     s.bank = s.bank || { credits: 0, res: {} };
     s.unlocks = s.unlocks || [];
@@ -75,7 +84,7 @@
       const raw = localStorage.getItem(slotKey(n));
       if (!raw) return null;
       const s = JSON.parse(raw);
-      return s && s.version >= 1 && s.version <= 3 ? AF.upgradeSave(Object.assign(s, { slot: n })) : null;
+      return s && s.version >= 1 && s.version <= 4 ? AF.upgradeSave(Object.assign(s, { slot: n })) : null;
     } catch (e) { return null; }
   };
   AF.deleteSlot = function (n) { try { localStorage.removeItem(slotKey(n)); } catch (e) {} };
@@ -95,13 +104,13 @@
   AF.importCode = function (code, slot) {
     try {
       const s = JSON.parse(decodeURIComponent(escape(atob(code.trim()))));
-      if (!s || !s.parts || !(s.version >= 1 && s.version <= 3)) return null;
+      if (!s || !s.parts || !(s.version >= 1 && s.version <= 4)) return null;
       s.slot = slot;
       return AF.upgradeSave(s);
     } catch (e) { return null; }
   };
 
-  AF.pilotMaxVit = (s) => 20 + (s.pilot.perks.includes('endurance') ? 10 : 0);
+  AF.pilotMaxVit = (s) => 20 + (s.pilot.perks.includes('endurance') ? 10 : 0) + AF.stats(s).vit;
   AF.hasPerk = (s, id) => s.pilot.perks.includes(id);
 
   // ---------- Resource helpers ----------
@@ -112,7 +121,6 @@
   // Costs may include credits as well as materials.
   AF.canPay = (s, cost) => Object.keys(cost).every((k) => (k === 'credits' ? s.credits : (s.res[k] || 0)) >= cost[k]);
   AF.payCost = function (s, cost) { Object.keys(cost).forEach((k) => { if (k === 'credits') s.credits -= cost[k]; else s.res[k] -= cost[k]; }); };
-  AF.CREDIT_COLOR = '#ffd24a';
 
   AF.shadeHex = function (c, amt) {
     const n = parseInt(c.slice(1), 16), f = (v) => Math.max(0, Math.min(255, Math.round(v + amt)));
@@ -126,8 +134,8 @@
     const have = (k) => !res ? Infinity : res.res ? (k === 'credits' ? res.credits : res.res[k] || 0) : (res[k] || 0);
     return Object.keys(cost).map((k) => {
       const short = have(k) < cost[k] ? ' short' : '';
-      const c = k === 'credits' ? AF.CREDIT_COLOR : AF.RES[k].color, n = k === 'credits' ? 'Cr' : AF.RES[k].name;
-      return `<span class="cost${short}"><i class="chip" style="--c:${c}"></i>${cost[k]} ${n}</span>`;
+      if (k === 'credits') return `<span class="cost${short}">${AF.moneyHtml(cost[k])}</span>`;
+      return `<span class="cost${short}"><i class="chip" style="--c:${AF.RES[k].color}"></i>${cost[k]} ${AF.RES[k].name}</span>`;
     }).join('');
   };
 

@@ -6,7 +6,7 @@
   const $ = (s) => document.querySelector(s);
 
   UI.resBar = function (s) {
-    return `<span class="res" title="Credits"><i class="chip" style="--c:${AF.CREDIT_COLOR}"></i><b>${s.credits}</b><em>Credits</em></span>` +
+    return `<span class="res">${AF.moneyHtml(s.credits, false, true)}</span>` +
       AF.RES_KEYS.map((k) => `<span class="res" title="${AF.RES[k].name}"><i class="chip" style="--c:${AF.RES[k].color}"></i><b>${s.res[k] || 0}</b><em>${AF.RES[k].name}</em></span>`).join('');
   };
 
@@ -28,10 +28,11 @@
       head = `<h2>${b.name}</h2>`;
       body = `<p class="blurb">${b.blurb}</p>` + AF.Town.render(ctx, s);
     } else {
-      const tabs = [['quests', 'Quests'], ['deck', 'Deck'], ['forge', 'Forge'], ['robot', 'Robot'], ['map', 'Map']];
+      const tabs = [['quests', 'Quests'], ['pilot', 'Pilot'], ['deck', 'Deck'], ['forge', 'Forge'], ['robot', 'Robot'], ['map', 'Map']];
       head = `<h2>${ctx === 'forge' ? 'Rivet Forge' : 'Robot & deck'}</h2>
         <nav class="tabs">${tabs.map(([k, n]) => `<button class="tab${UI.tab === k ? ' on' : ''}" data-tab="${k}">${n}</button>`).join('')}</nav>`;
       if (UI.tab === 'quests') body = AF.Quests.logHtml(s);
+      if (UI.tab === 'pilot') body = AF.pilotTab(s);
       if (UI.tab === 'deck') AF.Quests.event(s, 'deck', {});
       if (UI.tab === 'robot') body = UI.robotTab(s, false);
       if (UI.tab === 'forge') body = forgeTab(s, ctx === 'forge');
@@ -48,12 +49,13 @@
       <div class="pbody">${body}</div>`;
     if (!shop && UI.tab === 'map') $('#explored').textContent = `${AF.World.drawMap($('#bigmap'), s)}% of the wasteland explored`;
     if (shop) AF.Town.afterRender(ctx, s);
+    if (!shop && UI.tab === 'pilot') AF.pilotTabAfter(s);
     AF.Pixel.paint($('#panel'), s);
   };
 
   // Robot parts. canUp = true only inside the Garage.
   UI.robotTab = function (s, canUp) {
-    const st = AF.stats(s.parts);
+    const st = AF.stats(s);
     const rows = AF.PART_KEYS.map((k) => {
       const lvl = s.parts[k], P = AF.PARTS[k], max = lvl >= AF.MAX_LVL;
       const cost = AF.UPGRADE_COST[lvl];
@@ -75,7 +77,7 @@
   };
 
   function forgeTab(s, atForge) {
-    const st = AF.stats(s.parts);
+    const st = AF.stats(s);
     const owned = (id) => s.cards.filter((c) => c.id === id).length;
     const ids = Object.keys(AF.CARDS);
     const known = ids.filter((id) => s.known.includes(id)), locked = ids.filter((id) => !s.known.includes(id));
@@ -90,7 +92,7 @@
   }
 
   function deckTab(s, atForge) {
-    const st = AF.stats(s.parts), n = AF.deckCards(s).length;
+    const st = AF.stats(s), n = AF.deckCards(s).length;
     const sorted = s.cards.slice().sort((a, b) => (b.inDeck - a.inDeck) || a.id.localeCompare(b.id) || (b.plus - a.plus));
     const upOk = atForge && AF.canPay(s, AF.CARD_UPGRADE_COST);
     return `<p class="hint"><b>${n}</b> cards in deck (min ${AF.DECK_MIN}, max ${AF.DECK_MAX}). Tap a card to move it in or out of your deck.
@@ -104,14 +106,15 @@
   UI.handle = function (t) {
     const s = AF.game.state;
     if (UI.ctx && UI.ctx !== 'forge' && AF.Town.handle(t, s)) return true;
-    const el = t.closest('[data-tab],[data-up],[data-forge],[data-toggle],[data-cup],[data-act]');
+    const el = t.closest('[data-tab],[data-up],[data-forge],[data-toggle],[data-cup],[data-act],[data-equip],[data-unequip]');
     if (!el) return false;
+    if (el.dataset.equip || el.dataset.unequip) { AF.equipToggle(s, el); AF.game.persist(); UI.render(); return true; }
     if (el.dataset.tab) { UI.tab = el.dataset.tab; UI.render(); return true; }
     if (el.dataset.up) {
       const k = el.dataset.up, cost = AF.UPGRADE_COST[s.parts[k]];
       if (UI.ctx !== 'garage' || !cost || !AF.canPay(s, cost)) return true;
       AF.payCost(s, cost); s.parts[k]++;
-      if (k === 'frame') s.hp = AF.stats(s.parts).maxHp;
+      if (k === 'frame') s.hp = AF.stats(s).maxHp;
       AF.sfx('forge'); AF.game.toast(`${AF.PARTS[k].name} upgraded to ${AF.PARTS[k].tiers[s.parts[k] - 1]}.`);
       AF.Quests.event(s, 'upgrade', { part: k, lvl: s.parts[k] });
       AF.game.persist(); UI.render(); return true;

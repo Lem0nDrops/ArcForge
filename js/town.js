@@ -6,45 +6,45 @@
 
   // ---------- Catalogs ----------
   // Salvage Exchange prices [buy, sell] per unit.
-  T.MARKET = { scrap: [4, 1], copper: [6, 2], silicon: [8, 3], arcite: [20, 8], circuits: [28, 12] };
+  T.MARKET = { scrap: [40, 10], copper: [60, 20], silicon: [80, 30], arcite: [200, 80], circuits: [280, 120] };
   T.RES_VALUE = { scrap: 3, copper: 5, silicon: 6, arcite: 15, circuits: 20 };
   T.RESTOCK = 120; // steps between Deckhouse restocks
 
   T.FOOD = {
     meals: [
-      { id: 'cheese', name: 'Gear Grilled Cheese', price: 5, vit: 6, text: 'Restores 6 vitality.' },
-      { id: 'stew', name: 'Rust Bucket Stew', price: 9, vit: 12, text: 'Restores 12 vitality.' },
-      { id: 'platter', name: 'Full Sparkplug Platter', price: 15, vit: 999, text: 'Restores all vitality.' },
+      { id: 'cheese', name: 'Gear Grilled Cheese', price: 50, vit: 6, text: 'Restores 6 vitality.' },
+      { id: 'stew', name: 'Rust Bucket Stew', price: 90, vit: 12, text: 'Restores 12 vitality.' },
+      { id: 'platter', name: 'Full Sparkplug Platter', price: 150, vit: 999, text: 'Restores all vitality.' },
     ],
     togo: [
-      { id: 'ration', name: 'Field Ration', price: 7, text: 'Carry it with you. Eat anywhere for +8 vitality. Holds 9.' },
+      { id: 'ration', name: 'Field Ration', price: 70, text: 'Carry it with you. Eat anywhere for +8 vitality. Holds 9.' },
     ],
     buffs: [
-      { id: 'hotsauce', name: 'Hot Sauce Shot', price: 10, battles: 3, text: 'Attacks deal +2 damage.' },
-      { id: 'oatmeal', name: 'Iron Oatmeal', price: 10, battles: 3, text: 'Gain 4 Block at the start of every turn.' },
-      { id: 'tea', name: 'Focus Tea', price: 14, battles: 3, text: 'Draw 1 extra card every turn.' },
-      { id: 'soda', name: 'Spark Soda', price: 12, battles: 3, text: '+1 energy on your first turn.' },
+      { id: 'hotsauce', name: 'Hot Sauce Shot', price: 100, battles: 3, text: 'Attacks deal +2 damage.' },
+      { id: 'oatmeal', name: 'Iron Oatmeal', price: 100, battles: 3, text: 'Gain 4 Block at the start of every turn.' },
+      { id: 'tea', name: 'Focus Tea', price: 140, battles: 3, text: 'Draw 1 extra card every turn.' },
+      { id: 'soda', name: 'Spark Soda', price: 120, battles: 3, text: '+1 energy on your first turn.' },
     ],
   };
   T.RATION_VIT = 8;
   T.RATION_MAX = 9;
 
   T.PERKS = [
-    { id: 'scavenger', name: 'Scavenger', price: 40, text: '+1 material from every resource node.' },
-    { id: 'endurance', name: 'Endurance', price: 45, text: '+10 max vitality, and you get hungry more slowly.' },
-    { id: 'medic', name: 'Field Medic', price: 50, text: 'Your robot repairs 5 HP after every win.' },
-    { id: 'haggler', name: 'Haggler', price: 50, text: '15% off in every shop.' },
-    { id: 'tactician', name: 'Tactician', price: 60, text: 'Draw 1 extra card on your first turn of each battle.' },
-    { id: 'salvager', name: 'Salvage Expert', price: 60, text: '+25% credits from battles.' },
-    { id: 'hunter', name: 'Blueprint Hunter', price: 70, text: 'Blueprints drop more often, even from small bots.' },
+    { id: 'scavenger', name: 'Scavenger', price: 400, text: '+1 material from every resource node.' },
+    { id: 'endurance', name: 'Endurance', price: 450, text: '+10 max vitality, and you get hungry more slowly.' },
+    { id: 'medic', name: 'Field Medic', price: 500, text: 'Your robot repairs 5 HP after every win.' },
+    { id: 'haggler', name: 'Haggler', price: 500, text: '15% off in every shop.' },
+    { id: 'tactician', name: 'Tactician', price: 600, text: 'Draw 1 extra card on your first turn of each battle.' },
+    { id: 'salvager', name: 'Salvage Expert', price: 600, text: '+25% money from battles.' },
+    { id: 'hunter', name: 'Blueprint Hunter', price: 700, text: 'Blueprints drop more often, even from small bots.' },
   ];
   T.PART_CREDITS = (lvl) => AF.UPGRADE_COST[lvl] ? AF.UPGRADE_COST[lvl].credits : 0;
 
   // ---------- Helpers ----------
-  const price = (s, n) => Math.ceil(n * (AF.hasPerk(s, 'haggler') ? 0.85 : 1));
-  const cr = (n, short) => `<span class="cost${short ? ' short' : ''}"><i class="chip" style="--c:${AF.CREDIT_COLOR}"></i>${n} Cr</span>`;
+  const price = (s, n) => Math.ceil(n * (AF.hasPerk(s, 'haggler') ? 0.85 : 1) * (1 - AF.stats(s).discount));
+  const cr = (n, short) => AF.moneyHtml(n, short);
   const btn = (label, attrs, ok, primary) => `<button class="btn sm${ok && primary ? ' primary' : ''}" ${attrs} ${ok ? '' : 'disabled'}>${label}</button>`;
-  T.cardValue = (id) => Math.round(Object.entries(AF.CARDS[id].recipe).reduce((a, [k, n]) => a + T.RES_VALUE[k] * n, 0) * 1.6 + 6);
+  T.cardValue = (id) => Math.round(Object.entries(AF.CARDS[id].recipe).reduce((a, [k, n]) => a + T.RES_VALUE[k] * n, 0) * 1.6 + 6) * 10;
 
   function stock(s) {
     const rot = Math.floor(s.steps / T.RESTOCK);
@@ -72,14 +72,14 @@
   };
 
   function cardsShop(s) {
-    const st = AF.stats(s.parts), k = stock(s);
+    const st = AF.stats(s), k = stock(s);
     const offers = k.cards.map((id, i) => {
       const p = price(s, T.cardValue(id)), sold = s.shop.bought.includes('c' + i);
       return AF.cardHtml(AF.cardDef({ id }), { st, footer: `<div class="cf">${cr(p, s.credits < p)}
         ${sold ? '<span class="own">Sold out</span>' : btn('Buy', `data-buy-card="${i}"`, s.credits >= p, true)}</div>` });
     }).join('');
     const bps = k.locked.map((id, i) => {
-      const p = price(s, 45 + T.cardValue(id) * 2), sold = s.shop.bought.includes('b' + i);
+      const p = price(s, 450 + T.cardValue(id) * 2), sold = s.shop.bought.includes('b' + i);
       return `<div class="row-item"><div><b>Blueprint: ${AF.esc(AF.CARDS[id].name)}</b><span class="muted">Learn to forge it at the Home Forge.</span></div>
         <div class="row">${cr(p, s.credits < p)}${sold ? '<span class="own">Sold out</span>' : btn('Buy', `data-buy-bp="${i}"`, s.credits >= p, true)}</div></div>`;
     }).join('') || '<p class="muted">You already know every blueprint.</p>';
@@ -101,15 +101,29 @@
   function salvageShop(s) {
     const rows = AF.RES_KEYS.map((k) => {
       const [b, sl] = T.MARKET[k], bp = price(s, b), have = s.res[k] || 0;
-      return `<div class="row-item"><div><b><i class="chip" style="--c:${AF.RES[k].color}"></i>${AF.RES[k].name}</b><span class="muted">You have ${have} · buy ${bp} Cr · sell ${sl} Cr</span></div>
+      return `<div class="row-item"><div><b><i class="chip" style="--c:${AF.RES[k].color}"></i>${AF.RES[k].name}</b><span class="muted">You have ${have} · buy ${AF.moneyText(bp)} · sell ${AF.moneyText(sl)}</span></div>
         <div class="row">${btn('Buy 1', `data-mkt="buy:${k}:1"`, s.credits >= bp, true)}${btn('Buy 5', `data-mkt="buy:${k}:5"`, s.credits >= bp * 5, true)}
         ${btn('Sell 1', `data-mkt="sell:${k}:1"`, have >= 1)}${btn('Sell 5', `data-mkt="sell:${k}:5"`, have >= 5)}${btn('Sell all', `data-mkt="sell:${k}:all"`, have >= 1)}</div></div>`;
     }).join('');
-    return `<p class="hint">Card components for forging. Short a few Copper? Buy it here. Got too much Scrap? Sell it for credits.</p><div class="list">${rows}</div>`;
+    return `<p class="hint">Card components for forging. Short a few Copper? Buy it here. Got too much Scrap? Sell it.</p><div class="list">${rows}</div>${gearSell(s)}`;
+  }
+
+  function gearSell(s) {
+    const bag = s.inv.filter((i) => !Object.values(s.equip).includes(i.uid));
+    if (!bag.length) return '';
+    return `<h3>Sell gear</h3><p class="hint">Unequipped gear only.</p><div class="list">${bag.map((i) => { const it = AF.ITEMS[i.id], v = Math.floor(AF.itemValue(i.id) * 0.4);
+      return `<div class="row-item"><div><b style="color:${AF.RARITY[it.rarity].color}">${AF.esc(it.name)}</b><span class="muted">${AF.itemText(i.id)}</span></div><div class="row">${cr(v)}${btn('Sell', `data-sellgear="${i.uid}"`, true)}</div></div>`; }).join('')}</div>`;
+  }
+  function gearShop(s) {
+    const ids = Object.keys(AF.ITEMS).filter((id) => AF.ITEMS[id].price);
+    return `<h3>Pilot gear</h3><p class="hint">Gear boosts your robot and pilot. Equip it from Robot & deck → Pilot.</p><div class="list">${ids.map((id) => {
+      const it = AF.ITEMS[id], pr = price(s, it.price), full = s.inv.length >= AF.INV_MAX;
+      return `<div class="row-item"><div><b style="color:${AF.RARITY[it.rarity].color}">${AF.esc(it.name)}</b><span class="muted">${AF.RARITY[it.rarity].name} · ${AF.EQ_SLOTS[it.slot === 'acc' ? 'acc1' : it.slot]} · ${AF.itemText(id)}</span></div>
+        <div class="row">${cr(pr, s.credits < pr)}${btn('Buy', `data-buygear="${id}"`, s.credits >= pr && !full, true)}</div></div>`; }).join('')}</div>`;
   }
 
   function garage(s) {
-    const st = AF.stats(s.parts), missing = st.maxHp - s.hp, repairCost = price(s, Math.ceil(missing / 3));
+    const st = AF.stats(s), missing = st.maxHp - s.hp, repairCost = price(s, missing * 4);
     const swatches = AF.LOOK.core.map(([c, n], i) => `<button class="sw${s.look.core === i ? ' on' : ''}" data-core="${i}" style="--c:${c}" aria-label="${n}" title="${n}"></button>`).join('');
     return `<div class="garage-top">
         <div class="row-item"><div><b>Repairs</b><span class="muted">Robot HP ${s.hp} / ${st.maxHp}</span></div>
@@ -128,9 +142,9 @@
     }).join('');
     return `<p class="hint">If your robot goes down you lose a quarter of what you're carrying. Anything in the bank is always safe.</p>
       <div class="list">
-        <div class="row-item"><div><b><i class="chip" style="--c:${AF.CREDIT_COLOR}"></i>Credits</b><span class="muted">Carrying ${s.credits} · in account ${s.bank.credits}</span></div>
-          <div class="row">${btn('Deposit 10', 'data-bank="dep:credits:10"', s.credits >= 10)}${btn('Deposit all', 'data-bank="dep:credits:all"', s.credits >= 1, true)}
-          ${btn('Withdraw 10', 'data-bank="wd:credits:10"', s.bank.credits >= 10)}${btn('Withdraw all', 'data-bank="wd:credits:all"', s.bank.credits >= 1)}</div></div>
+        <div class="row-item"><div><b>Money</b><span class="muted">Carrying ${AF.moneyText(s.credits)} · in account ${AF.moneyText(s.bank.credits)}</span></div>
+          <div class="row">${btn('Deposit 1 Gear', 'data-bank="dep:credits:100"', s.credits >= 100)}${btn('Deposit all', 'data-bank="dep:credits:all"', s.credits >= 1, true)}
+          ${btn('Withdraw 1 Gear', 'data-bank="wd:credits:100"', s.bank.credits >= 100)}${btn('Withdraw all', 'data-bank="wd:credits:all"', s.bank.credits >= 1)}</div></div>
         ${rows}</div>`;
   }
 
@@ -170,7 +184,8 @@
     const cv = `<canvas id="bq-preview" class="bq-preview"></canvas>`;
     return `<div class="bq-top">${cv}<div><p class="hint">Change your look any time in the wardrobe. New styles unlock here.</p>
         <button class="btn primary" data-wardrobe="1">Open wardrobe</button></div></div>
-      <h3>New arrivals</h3><div class="list">${items.map((it) => {
+      ${gearShop(s)}
+      <h3>Outfits & styles</h3><div class="list">${items.map((it) => {
         const own = AF.isUnlocked(s, it.slot, it.i), pr = price(s, it.pr);
         return `<div class="row-item${own ? ' owned' : ''}"><div><b>${it.name}</b><span class="muted">${it.label}</span></div>
           <div class="row">${own ? '<span class="own">Owned</span>' : cr(pr, s.credits < pr) + btn('Buy', `data-unlock="${it.slot}:${it.i}"`, s.credits >= pr, true)}</div></div>`;
@@ -184,11 +199,22 @@
 
   // ---------- Actions ----------
   T.handle = function (t, s) {
-    const el = t.closest('[data-buy-card],[data-buy-bp],[data-sell-card],[data-mkt],[data-repair],[data-core],[data-bank],[data-food],[data-perk],[data-unlock],[data-wardrobe],[data-rest]');
+    const el = t.closest('[data-buygear],[data-sellgear],[data-buy-card],[data-buy-bp],[data-sell-card],[data-mkt],[data-repair],[data-core],[data-bank],[data-food],[data-perk],[data-unlock],[data-wardrobe],[data-rest]');
     if (!el || el.disabled) return !!el;
     const d = el.dataset, ok = (msg) => { AF.sfx('forge'); if (msg) AF.game.toast(msg); AF.game.persist(); AF.UI.render(); return true; };
-    const spend = (n) => { if (s.credits < n) { AF.game.toast('Not enough credits.'); return false; } s.credits -= n; return true; };
+    const spend = (n) => { if (s.credits < n) { AF.game.toast('Not enough money.'); return false; } s.credits -= n; return true; };
 
+    if (d.buygear) {
+      const it = AF.ITEMS[d.buygear];
+      if (s.inv.length >= AF.INV_MAX) { AF.game.toast('Your bag is full.'); return true; }
+      if (!spend(price(s, it.price))) return true;
+      AF.giveItem(s, d.buygear); return ok(`Bought ${it.name}. Equip it from Robot & deck → Pilot.`);
+    }
+    if (d.sellgear) {
+      const i = s.inv.find((x) => x.uid === d.sellgear); if (!i || Object.values(s.equip).includes(i.uid)) return true;
+      const v = Math.floor(AF.itemValue(i.id) * 0.4); s.inv = s.inv.filter((x) => x !== i); s.credits += v;
+      return ok(`Sold ${AF.ITEMS[i.id].name} for ${AF.moneyText(v)}.`);
+    }
     if (d.buyCard != null) {
       const k = stock(s), i = +d.buyCard, id = k.cards[i], pr = price(s, T.cardValue(id));
       if (s.shop.bought.includes('c' + i) || !spend(pr)) return true;
@@ -197,7 +223,7 @@
     }
     if (d.buyBp != null) {
       const k = stock(s), i = +d.buyBp, id = k.locked[i];
-      if (!id || s.shop.bought.includes('b' + i) || !spend(price(s, 45 + T.cardValue(id) * 2))) return true;
+      if (!id || s.shop.bought.includes('b' + i) || !spend(price(s, 450 + T.cardValue(id) * 2))) return true;
       s.known.push(id); s.shop.bought.push('b' + i);
       return ok(`Learned the ${AF.CARDS[id].name} blueprint.`);
     }
@@ -208,16 +234,16 @@
       if (!pick) return true;
       s.cards = s.cards.filter((c) => c !== pick);
       const val = Math.floor(T.cardValue(id) * (plus ? 0.6 : 0.4)); s.credits += val;
-      return ok(`Sold ${AF.CARDS[id].name} for ${val} credits.`);
+      return ok(`Sold ${AF.CARDS[id].name} for ${AF.moneyText(val)}.`);
     }
     if (d.mkt) {
       const [act, k, q] = d.mkt.split(':'), [b, sl] = T.MARKET[k];
       if (act === 'buy') { const n = +q; if (!spend(price(s, b) * n)) return true; s.res[k] += n; return ok(); }
       const n = q === 'all' ? s.res[k] : Math.min(+q, s.res[k]); s.res[k] -= n; s.credits += n * sl;
-      return ok(`Sold ${n} ${AF.RES[k].name} for ${n * sl} credits.`);
+      return ok(`Sold ${n} ${AF.RES[k].name} for ${AF.moneyText(n * sl)}.`);
     }
     if (d.repair) {
-      const st = AF.stats(s.parts), pr = price(s, Math.ceil((st.maxHp - s.hp) / 3));
+      const st = AF.stats(s), pr = price(s, (st.maxHp - s.hp) * 4);
       if (!spend(pr)) return true; s.hp = st.maxHp; AF.sfx('heal');
       return ok('Robot fully repaired.');
     }

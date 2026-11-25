@@ -1,6 +1,6 @@
 # ArcForge
 
-An open-world card battler with a bright, modern hand-painted look. Explore a wasteland, gather materials, forge cards, and upgrade your robot part by part, then take down the Titan Core.
+An open-world card battler with a bright storybook look inspired by MapleStory: chibi characters, bold outlines and mushroom-cap houses. Explore a wasteland, gather materials, forge cards, and upgrade your robot part by part, then take down the Titan Core.
 
 Plain HTML, CSS and JavaScript. No build step, no frameworks. It runs in any browser, on GitHub Pages, and as a desktop app.
 
@@ -9,7 +9,7 @@ Plain HTML, CSS and JavaScript. No build step, no frameworks. It runs in any bro
 - **Locally:** double-click `index.html`. That's it.
 - **Online:** host it on GitHub Pages (below).
 
-Controls: WASD / arrow keys to walk (hold Shift to run). Face something and press E, Space or Enter to interact: talk, enter doors, read signs, gather resources, search ruins. `Q` opens your deck and quests, `M` the map, `R` eats a ration. On touch screens: the pad, A to interact, hold B to run, or drag on the map like a joystick. In battle: `1`–`9` play cards, `E` or Space ends your turn.
+Controls: WASD / arrow keys to walk (hold Shift to run). Face something and press E, Space or Enter to interact: talk, enter doors, read signs, gather resources, search ruins. `Q` opens your deck and quests, `I` your gear, `M` the map, `R` eats a ration. On touch screens: the pad, A to interact, hold B to run, or drag on the map like a joystick. In battle: `1`–`9` play cards, `E` or Space ends your turn.
 
 ## Put it on GitHub Pages
 
@@ -18,7 +18,7 @@ Controls: WASD / arrow keys to walk (hold Shift to run). Face something and pres
 3. **Settings → Pages → Build and deployment**, then set Source to *Deploy from a branch*, choose `main` and `/ (root)`, and save.
 4. After a minute your game is live at `https://<your-username>.github.io/ArcForge/`.
 
-After uploading an update, give GitHub Pages a few minutes, then hard-refresh (Ctrl+Shift+R / Cmd+Shift+R). Every file link in `index.html` ends in `?v=0.4.0`. When you change files yourself, bump that number everywhere in `index.html` so players' browsers fetch the new files instead of cached old ones.
+After uploading an update, give GitHub Pages a few minutes, then hard-refresh (Ctrl+Shift+R / Cmd+Shift+R). Every file link in `index.html` ends in `?v=0.5.0`. When you change files yourself, bump that number everywhere in `index.html` so players' browsers fetch the new files instead of cached old ones.
 
 Saves are kept in each player's browser. The Menu has a **save code** you can copy to move a save between devices.
 
@@ -28,13 +28,16 @@ Saves are kept in each player's browser. The Menu has a **save code** you can co
 |---|---|
 | **Pilot** | You play a customizable pilot (male/female, skin, hair style and color, top, bottoms, headwear, accessory) and your robot follows you around. Pick your robot's core color too. The pilot gets hungry in the wild; at zero vitality you're exhausted (−1 energy in battle, smaller harvests). |
 | **Save slots** | 4 slots for different players, each with its own pilot, world and progress. Saves from v0.1 move into slot 1 automatically. |
-| **Art style** | Modern hand-painted look drawn in code at full screen resolution (`js/render.js`): smooth terrain with rounded edges, soft shadows, animated water, warm lights, particles, and a 4-direction shaded pilot with a walk cycle. |
+| **Art style** | Storybook look drawn in code (`js/render.js`, `js/art.js`): bright terrain with inked edges, puffy trees, mushroom-cap houses, bold outlines on everything, big-headed chibi pilot and townsfolk, and a cartoon robot built from its parts. |
+| **Interiors** | Every building has a walk-in room with furniture and a keeper (`js/interiors.js`). Shop at the counter, rest in your bed, change clothes at the wardrobe, read books in the Archive. Step onto the door mat to leave. |
+| **Money** | Three coins: 100 Bolts = 1 Gear, 100 Gears = 1 Core. Bots only *sometimes* drop money or materials, and resource spots are rarer. |
+| **Levels & gear** | Earn XP from bots and quests. Levels add robot HP, vitality, hand size and energy. Pilot gear (head, body, hands, feet, 2 accessories) adds stats like HP, damage, block, drop luck, XP, money, walk speed and gathering. Gear drops from bots, comes from quests, or is sold at the Boutique. Open it with `I` or Robot & deck → Pilot. |
 | **Movement & interaction** | Smooth, constant-speed walking with running. Nothing happens by bumping: you face something and press the action button, and a prompt shows what you can do. |
 | **Battles** | Fully animated: cards deal in and fly out, your robot lunges or fires bolts, hits flash and shake, damage numbers pop, shields glow, heals sparkle, enemies telegraph and act on their own turn, and defeated bots burst apart. |
 | **Shared world** | Every player gets the same 96×96 map, built from `AF.WORLD_SEED` in `js/data.js`. Saves only store what changes (position, harvested nodes, searched ruins, enemies, explored area). |
 | **Story & tutorial** | A 6-part story questline (Mara → Mayor Bram → Archivist Lune → the Titan Core) and 7 optional tutorial tasks from Pip, each with rewards. Talk to townsfolk by walking into them. Quest log is in Robot & deck → Quests. |
 | **Rivet Hollow** | A hand-built town with 12 buildings, 9 townsfolk, signs, a pond and a fountain square. Walk into a door to enter: **Your House** (rest, wardrobe), **Rivet Forge** (forge and upgrade cards, build your deck), **The Deckhouse** (buy/sell cards and blueprints, restocks every 120 steps), **Salvage Exchange** (buy/sell card components), **Bolt & Gear Garage** (part upgrades, repairs, core paint), **Ironclad Bank** (store credits and materials safely), **Sparkplug Diner** (meals, Field Rations, 3-battle buffs), **Pilot Academy** (7 permanent skills), **Gearwear Boutique** (premium outfits plus a wardrobe). |
-| **Credits** | Earned from battles, ruins and selling. Lose a fight and you drop 25% of the credits and materials you're carrying; banked items are safe. |
+| **Losing** | Lose a fight and you drop 25% of the money and materials you're carrying; banked items are safe. |
 | **World** | 72×72 map from a random seed: grassland, forest, sand, rubble, water, mountains. Fog of war, resource nodes that regrow, ruins with blueprints, roaming enemies that get tougher the farther you go from home. |
 | **Robot parts** | Arc Core (energy per turn), Frame (HP), Locomotion (terrain you can cross: Treads → rubble, Hover Jets → water, Spider Legs → mountains), Arms (hand size, gathering, mining Arcite), Weapon (+damage), Shield (+block). Each goes to level 5, and the robot's look changes with every upgrade. |
 | **Cards** | 25 cards across Attack, Defend, Move, Repair and Tech. Starter cards can be forged right away. Advanced cards need blueprints from ruins or tougher enemies. Any card can be upgraded to a "+" version. |
@@ -48,6 +51,8 @@ index.html          screens and script tags
 css/style.css       all styling
 js/data.js          ★ content: resources, parts, cards, enemies, costs. Balance lives here.
 js/state.js         new game, save/load, save codes, sound effects
+js/items.js         ★ money tiers, levels & XP, gear catalog, equipment & bag
+js/interiors.js     ★ building rooms: layouts, keepers, furniture actions
 js/art.js           robot and enemy drawings (SVG, built from part levels)
 js/render.js        ★ the world renderer: terrain, buildings, props, lights, particles, prompts
 js/pilot.js         pilot looks catalog, 4-direction shaded pilot with walk cycle, character creator

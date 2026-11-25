@@ -9,12 +9,12 @@
     color: ['#2f5d8a', '#a83a32', '#3d7a44', '#d98c2b', '#6b4a8a', '#2a2a2e', '#e6e6e6', '#3fb6a8', '#e06a9a', '#7a5a3a'],
     core: [['#ffd75e', 'Solar'], ['#5ef2e1', 'Arc blue'], ['#ff6b5c', 'Ember'], ['#7ee08a', 'Toxic'],
            ['#c27bff', 'Void'], ['#7fb8ff', 'Glacier'], ['#ff9ad5', 'Bubblegum'], ['#ffffff', 'Starlight']],
-    hair: [['Buzz'], ['Short'], ['Spiky'], ['Curly'], ['Bob'], ['Long'], ['Ponytail'], ['Bun'], ['Mohawk', 30], ['Twin tails', 30]],
-    top: [['Tee'], ['Jacket'], ['Hoodie'], ['Overalls'], ['Lab coat', 40], ['Flight suit', 50], ['Armor vest', 60]],
+    hair: [['Buzz'], ['Short'], ['Spiky'], ['Curly'], ['Bob'], ['Long'], ['Ponytail'], ['Bun'], ['Mohawk', 300], ['Twin tails', 300]],
+    top: [['Tee'], ['Jacket'], ['Hoodie'], ['Overalls'], ['Lab coat', 400], ['Flight suit', 500], ['Armor vest', 600]],
     bottom: [['Pants'], ['Shorts'], ['Skirt']],
     hat: [['None'], ['Cap'], ['Beanie'], ['Goggles'], ['Hard hat'], ['Bandana'], ['Headphones'],
-          ['Antenna band', 25], ['Top hat', 35], ['Wizard hat', 45], ['Crown', 120]],
-    acc: [['None'], ['Scarf'], ['Glasses'], ['Backpack'], ['Tool belt', 30], ['Cape', 55], ['Jetpack', 90]],
+          ['Antenna band', 250], ['Top hat', 350], ['Wizard hat', 450], ['Crown', 1200]],
+    acc: [['None'], ['Scarf'], ['Glasses'], ['Backpack'], ['Tool belt', 300], ['Cape', 550], ['Jetpack', 900]],
   });
   AF.LOOK_SLOTS = [['hair', 'Hair style'], ['top', 'Top'], ['bottom', 'Bottoms'], ['hat', 'Headwear'], ['acc', 'Accessory']];
 
@@ -41,7 +41,7 @@
     if (dir === 'right') { g.translate(cx, 0); g.scale(-1, 1); g.translate(-cx, 0); dir = 'left'; }
     g.translate(cx, fy - H); g.scale(H, H);
     g.lineJoin = 'round'; g.lineCap = 'round';
-    const OL = 'rgba(40,28,48,.55)'; g.strokeStyle = OL; g.lineWidth = 0.014;
+    const OL = '#3a2638'; g.strokeStyle = OL; g.lineWidth = 0.022;
     const sk = L.skin[look.skin], hc = L.hairColor[look.hairColor], tc = L.color[look.topColor], bc = L.color[look.bottomColor];
     const f = look.body === 'f', top = L.top[look.top][0], hair = L.hair[look.hair][0], hat = L.hat[look.hat][0], acc = L.acc[look.acc][0];
     const suit = top === 'Flight suit', bottom = suit ? 'Pants' : L.bottom[look.bottom][0], legC = suit ? tc : bc;
@@ -102,7 +102,7 @@
       if (top === 'Armor vest') { rr(-0.11, 0.5, 0.22, 0.08, 0.02, '#a2abb9'); rr(-0.11, 0.6, 0.22, 0.08, 0.02, '#a2abb9'); }
       if (suit) { rr(-tw / 2, 0.66, tw, 0.03, 0.01, '#f8d048', false); rr(0.04, 0.52, 0.06, 0.05, 0.01, '#e8e8e8', false); }
       if (acc === 'Tool belt') { rr(-tw / 2, 0.69, tw, 0.04, 0.01, '#7a5030'); rr(0.06, 0.7, 0.05, 0.06, 0.01, '#9aa3ad'); }
-      if (acc === 'Backpack') { P(); g.moveTo(-0.09, 0.48); g.lineTo(-0.09, 0.64); g.moveTo(0.09, 0.48); g.lineTo(0.09, 0.64); g.lineWidth = 0.025; g.strokeStyle = '#6a4020'; g.stroke(); g.lineWidth = 0.014; g.strokeStyle = OL; }
+      if (acc === 'Backpack') { P(); g.moveTo(-0.09, 0.48); g.lineTo(-0.09, 0.64); g.moveTo(0.09, 0.48); g.lineTo(0.09, 0.64); g.lineWidth = 0.025; g.strokeStyle = '#6a4020'; g.stroke(); g.lineWidth = 0.022; g.strokeStyle = OL; }
       if (acc === 'Jetpack') { el(-0.17, 0.48, 0.04, 0.03, '#b6bec8'); el(0.17, 0.48, 0.04, 0.03, '#b6bec8'); }
     }
     if (back) {
@@ -121,7 +121,8 @@
     else { const a = moving ? s1 * 0.45 : 0.06; arm(-tw / 2 - 0.02, a + 0.08); arm(tw / 2 + 0.02, -a - 0.08); }
     if (acc === 'Scarf' && !back) { rr(side ? -0.11 : -0.15, 0.45, side ? 0.22 : 0.3, 0.06, 0.03, '#e8862e'); if (!side) rr(0.04, 0.48, 0.06, 0.14, 0.03, '#e8862e'); }
 
-    // --- head ---
+    // --- head (chibi: drawn 1.3× bigger, scaled from the neck) ---
+    g.save(); g.translate(side ? -0.02 : 0, 0.46); g.scale(1.3, 1.3); g.translate(side ? 0.02 : 0, -0.46);
     const hx = side ? -0.02 : 0, hy = 0.29, hr = 0.215;
     rr(hx - 0.04, 0.42, 0.08, 0.07, 0.02, mix(sk, -18), false);
     if (!side) { el(-0.205, 0.32, 0.035, 0.05, sk); el(0.205, 0.32, 0.035, 0.05, sk); }
@@ -129,8 +130,8 @@
     // face
     const blink = opt.blink;
     const eye = (x, y) => {
-      if (blink) { P(); g.moveTo(x - 0.025, y); g.lineTo(x + 0.025, y); g.lineWidth = 0.016; g.strokeStyle = '#2a2230'; g.stroke(); g.lineWidth = 0.014; g.strokeStyle = OL; return; }
-      el(x, y, 0.027, 0.04, '#2a2230', false); el(x + 0.008, y - 0.014, 0.01, 0.012, '#ffffff', false);
+      if (blink) { P(); g.moveTo(x - 0.032, y); g.quadraticCurveTo(x, y + 0.015, x + 0.032, y); g.lineWidth = 0.018; g.strokeStyle = '#2a2230'; g.stroke(); g.lineWidth = 0.022; g.strokeStyle = OL; return; }
+      el(x, y, 0.036, 0.054, '#2a2230', false); el(x, y + 0.016, 0.026, 0.026, '#5a4a8a', false); el(x + 0.01, y - 0.018, 0.013, 0.016, '#ffffff', false); el(x - 0.012, y + 0.02, 0.006, 0.006, '#ffffff', false);
     };
     if (!back) {
       if (side) {
@@ -139,7 +140,7 @@
         el(0.06, 0.32, 0.03, 0.045, sk);
         if (f) { P(); g.moveTo(-0.13, 0.29); g.lineTo(-0.155, 0.275); g.stroke(); }
       } else {
-        eye(-0.075, 0.31); eye(0.075, 0.31);
+        eye(-0.08, 0.315); eye(0.08, 0.315);
         el(-0.125, 0.37, 0.03, 0.017, 'rgba(255,130,130,.45)', false); el(0.125, 0.37, 0.03, 0.017, 'rgba(255,130,130,.45)', false);
         P(); g.arc(0, 0.38, 0.03, 0.35, Math.PI - 0.35); g.stroke();
         if (f && !blink) { P(); g.moveTo(-0.1, 0.29); g.lineTo(-0.118, 0.275); g.moveTo(0.1, 0.29); g.lineTo(0.118, 0.275); g.stroke(); }
@@ -175,14 +176,15 @@
       case 'Goggles': rr(hx - 0.22, hy - 0.1, 0.44, 0.04, 0.02, '#3a3a44'); if (!back) { const lx = side ? [-0.14] : [-0.08, 0.08]; lx.forEach((x) => { el(hx + x, hy - 0.08, 0.06, 0.05, '#58d8ec'); el(hx + x - 0.015, hy - 0.095, 0.015, 0.012, '#ffffff', false); }); } break;
       case 'Hard hat': dome('#f8c834', hy - 0.02, 0.232); rr(hx - 0.26 - (side ? 0.04 : 0), hy - 0.04, 0.52, 0.05, 0.02, '#dfa422'); rr(hx - 0.02, hy - 0.24, 0.04, 0.2, 0.02, '#dfa422', false); break;
       case 'Bandana': dome('#c43a3a', hy - 0.005, 0.222); [[-0.1, -0.1], [0.05, -0.16], [0.12, -0.06]].forEach(([x, y]) => el(hx + x, hy + y, 0.012, 0.012, '#fff', false)); el(hx + 0.2, hy + 0.0, 0.05, 0.03, '#c43a3a'); break;
-      case 'Headphones': P(); g.arc(hx, hy, 0.235, Math.PI * 1.05, Math.PI * 1.95); g.lineWidth = 0.035; g.strokeStyle = '#30303a'; g.stroke(); g.lineWidth = 0.014; g.strokeStyle = OL;
+      case 'Headphones': P(); g.arc(hx, hy, 0.235, Math.PI * 1.05, Math.PI * 1.95); g.lineWidth = 0.035; g.strokeStyle = '#30303a'; g.stroke(); g.lineWidth = 0.022; g.strokeStyle = OL;
         if (side) rr(hx + 0.02, hy - 0.02, 0.07, 0.12, 0.03, '#e46aa0'); else { rr(hx - 0.27, hy - 0.04, 0.07, 0.13, 0.03, '#e46aa0'); rr(hx + 0.2, hy - 0.04, 0.07, 0.13, 0.03, '#e46aa0'); } break;
       case 'Antenna band': rr(hx - 0.21, hy - 0.11, 0.42, 0.03, 0.01, '#a8b0ba'); P(); g.moveTo(hx - 0.1, hy - 0.11); g.lineTo(hx - 0.14, hy - 0.3); g.moveTo(hx + 0.1, hy - 0.11); g.lineTo(hx + 0.14, hy - 0.3); g.stroke(); el(hx - 0.14, hy - 0.31, 0.03, 0.03, core); el(hx + 0.14, hy - 0.31, 0.03, 0.03, core); break;
       case 'Top hat': el(hx, hy - 0.13, 0.25, 0.045, '#26262e'); rr(hx - 0.14, hy - 0.42, 0.28, 0.3, 0.03, grad('#2e2e38', hy - 0.42, hy - 0.12)); rr(hx - 0.14, hy - 0.2, 0.28, 0.05, 0, '#c43a3a', false); break;
       case 'Wizard hat': el(hx, hy - 0.12, 0.27, 0.05, '#5a44b0'); P(); g.moveTo(hx - 0.17, hy - 0.13); g.quadraticCurveTo(hx, hy - 0.4, hx + 0.12, hy - 0.5); g.quadraticCurveTo(hx + 0.08, hy - 0.3, hx + 0.17, hy - 0.13); g.closePath(); fillS(grad('#6a54c8', hy - 0.5, hy - 0.12)); el(hx + 0.02, hy - 0.25, 0.022, 0.022, '#f8d048', false); break;
       case 'Crown': P(); g.moveTo(hx - 0.15, hy - 0.12); g.lineTo(hx - 0.15, hy - 0.3); g.lineTo(hx - 0.075, hy - 0.2); g.lineTo(hx, hy - 0.33); g.lineTo(hx + 0.075, hy - 0.2); g.lineTo(hx + 0.15, hy - 0.3); g.lineTo(hx + 0.15, hy - 0.12); g.closePath(); fillS(grad('#ffd84a', hy - 0.33, hy - 0.12)); el(hx, hy - 0.16, 0.022, 0.022, '#e04858', false); break;
     }
-    if (acc === 'Glasses' && !back) { g.lineWidth = 0.016; g.strokeStyle = '#2a2230'; P(); if (side) g.roundRect(-0.16, 0.28, 0.08, 0.06, 0.02); else { g.roundRect(-0.12, 0.28, 0.09, 0.065, 0.02); g.roundRect(0.03, 0.28, 0.09, 0.065, 0.02); g.moveTo(-0.03, 0.305); g.lineTo(0.03, 0.305); } g.stroke(); g.lineWidth = 0.014; g.strokeStyle = OL; }
+    if (acc === 'Glasses' && !back) { g.lineWidth = 0.016; g.strokeStyle = '#2a2230'; P(); if (side) g.roundRect(-0.16, 0.28, 0.08, 0.06, 0.02); else { g.roundRect(-0.12, 0.28, 0.09, 0.065, 0.02); g.roundRect(0.03, 0.28, 0.09, 0.065, 0.02); g.moveTo(-0.03, 0.305); g.lineTo(0.03, 0.305); } g.stroke(); g.lineWidth = 0.022; g.strokeStyle = OL; }
+    g.restore();
     g.restore();
   };
 

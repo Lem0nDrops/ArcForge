@@ -37,7 +37,7 @@
 
   game.refresh = function () {
     const s = game.state; if (!s) return;
-    const st = AF.stats(s.parts), maxV = AF.pilotMaxVit(s);
+    const st = AF.stats(s), maxV = AF.pilotMaxVit(s);
     $('#hp').hidden = !s.flags.robot;
     $('#tracker').innerHTML = AF.Quests.tracker(s);
     $('#tracker').hidden = !$('#tracker').innerHTML;
@@ -47,6 +47,10 @@
     $('#vit span').textContent = `${s.look.name} ${s.pilot.vit} / ${maxV}`;
     $('#vit').classList.toggle('low', s.pilot.vit <= 5);
     $('#where').textContent = AF.World.describeHere(s);
+    const need = AF.xpNeed(s.level);
+    $('#lvl b').textContent = 'Lv ' + s.level;
+    $('#lvl i').style.width = (s.level >= AF.MAX_LEVEL ? 100 : Math.round((s.xp / need) * 100)) + '%';
+    $('#lvl').title = `${s.xp} / ${need} XP`;
     $('#hudres').innerHTML = AF.UI.resBar(s);
     $('#ration-btn').textContent = `Eat ration (${s.pilot.rations})`;
     const buffs = Object.entries(s.pilot.buffs).map(([k, n]) => {
@@ -62,7 +66,7 @@
   const VEC = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
   function step(dir, now) {
     const [dx, dy] = VEC[dir], s = game.state;
-    const dur = input.run ? RUN : WALK;
+    const dur = Math.round((input.run ? RUN : WALK) / (1 + AF.stats(s).speed));
     AF.Render.stepDur = dur;
     const ev = AF.World.move(s, dx, dy);
     if (ev && (ev.type === 'bump' || ev.type === 'blocked')) {
@@ -71,6 +75,7 @@
       return;
     }
     input.nextStep = now + dur;
+    if (ev && ev.type === 'exit') { input.held = []; fade(); }
     if (ev && ev.type === 'talk') { input.held = []; AF.Quests.talk(s, ev.npc); }
     if (ev && ev.type === 'msg') game.toast(ev.text);
     if (ev && ev.type === 'battle') { input.held = []; setTimeout(() => game.startBattle(ev.enemy, ev.ambush), Math.max(60, dur - 40)); }
@@ -83,13 +88,21 @@
     const s = game.state, ev = AF.World.interact(s);
     if (!ev) return;
     AF.sfx('card');
-    if (ev.type === 'door') { if (AF.SHOPS.includes(ev.id)) AF.UI.open(null, ev.id); else AF.Quests.door(s, ev.id); }
+    if (ev.type === 'door') { input.held = []; AF.Interiors.enter(s, ev.id); fade(); }
+    else if (ev.type === 'exit') fade();
+    else if (ev.type === 'shop') AF.UI.open(null, ev.id);
+    else if (ev.type === 'panel') AF.UI.open(ev.tab);
+    else if (ev.type === 'say') AF.Dialog.show([{ who: ev.who, text: ev.text }]);
+    else if (ev.type === 'wardrobe') AF.Creator.open({ mode: 'boutique', state: s, look: s.look, onDone: (look) => { s.look = look; game.persist(); game.toast('Looking sharp.'); }, onCancel: () => {} });
     else if (ev.type === 'talk') AF.Quests.talk(s, ev.npc);
     else if (ev.type === 'sign') AF.Dialog.show([{ text: ev.text }]);
     else if (ev.type === 'msg') game.toast(ev.text);
     input.held = [];
     game.persist(); game.refresh();
   };
+
+  function fade() { const f = $('#fade'); f.classList.remove('go'); void f.offsetWidth; f.classList.add('go'); }
+  game.levelFx = function () { const f = $('#lvlfx'); f.classList.remove('go'); void f.offsetWidth; f.classList.add('go'); };
 
   // ---------- Battle ----------
   game.startBattle = function (enemyRef, ambush) {
@@ -158,6 +171,7 @@
     if (dir) { e.preventDefault(); if (!input.held.includes(dir)) input.held.push(dir); return; }
     if (ACT.includes(e.key) && !e.repeat && !AF.UI.isOpen() && $('#menu').hidden) { e.preventDefault(); game.interact(); return; }
     if ((e.key === 'q' || e.key === 'Q' || e.key === 'Tab') && !AF.UI.isOpen()) { e.preventDefault(); AF.UI.open('deck'); }
+    if ((e.key === 'i' || e.key === 'I') && !AF.UI.isOpen()) AF.UI.open('pilot');
     if (e.key === 'm' || e.key === 'M') AF.UI.isOpen() ? AF.UI.close() : AF.UI.open('map');
     if (e.key === 'r' || e.key === 'R') { game.toast(AF.Town.eatRation(game.state)); game.persist(); game.refresh(); }
   });

@@ -121,11 +121,11 @@
       if (!free(x, y)) continue;
       const c = CH[t[I(x, y)]], roll = r(), d = Math.hypot(x - cx, y - cy);
       let n = null;
-      if ((c === 'grass' || c === 'forest') && roll < 0.03 && d > 22) n = 'scrap';
-      else if (c === 'rubble') n = roll < 0.07 ? 'copper' : roll < 0.1 ? 'scrap' : null;
-      else if (c === 'sand' && roll < 0.05) n = 'silicon';
-      else if (c === 'mountain' && roll < 0.07) n = 'arcite';
-      else if (c === 'forest' && roll < 0.008 && d > 26) n = 'arcite';
+      if ((c === 'grass' || c === 'forest') && roll < 0.012 && d > 22) n = 'scrap';
+      else if (c === 'rubble') n = roll < 0.025 ? 'copper' : roll < 0.035 ? 'scrap' : null;
+      else if (c === 'sand' && roll < 0.018) n = 'silicon';
+      else if (c === 'mountain' && roll < 0.025) n = 'arcite';
+      else if (c === 'forest' && roll < 0.004 && d > 26) n = 'arcite';
       if (n) nodes[key(x, y)] = n;
     }
     const starter = ['scrap', 'scrap', 'scrap', 'scrap', 'scrap', 'copper', 'copper', 'copper', 'silicon'];
@@ -211,6 +211,7 @@
   }
   // The thing directly in front of the pilot (used for the on-screen prompt).
   function facing(state) {
+    if (state.world.inside) return AF.Interiors.facing(state);
     const w = state.world, [dx, dy] = DXY[w.dir] || [0, 1], x = w.px + dx, y = w.py + dy;
     const t = thingAt(state, x, y);
     if (!t) return null;
@@ -225,7 +226,8 @@
 
   // A turn: the pilot steps, the robot follows, the world reacts.
   function move(state, dx, dy) {
-    const mp = map(), w = state.world, nx = w.px + dx, ny = w.py + dy, st = AF.stats(state.parts);
+    if (state.world.inside) return AF.Interiors.move(state, dx, dy);
+    const mp = map(), w = state.world, nx = w.px + dx, ny = w.py + dy, st = AF.stats(state);
     w.dir = DIRS[dx + ',' + dy];
     const c = terr(mp, nx, ny);
     if (!c) return { type: 'blocked', text: 'The edge of the known world.' };
@@ -246,7 +248,7 @@
     if (nowInTown && !wasInTown) msgs.push(`Back in ${AF.TOWN_NAME}.`);
 
     const p = state.pilot;
-    if (!nowInTown && state.steps % (AF.hasPerk(state, 'endurance') ? 16 : 12) === 0 && p.vit > 0) {
+    if (!nowInTown && state.steps % (12 + (AF.hasPerk(state, 'endurance') ? 4 : 0) + Math.round(AF.stats(state).hunger)) === 0 && p.vit > 0) {
       p.vit--;
       if (p.vit === 0) msgs.push('Your pilot is exhausted: less energy in battle and smaller harvests. Eat something!');
       else if (p.vit === 5) msgs.push('Your pilot is getting hungry.');
@@ -290,9 +292,10 @@
 
   // Press the interact button: act on whatever is in front of the pilot.
   function interact(state) {
+    if (state.world.inside) return AF.Interiors.interact(state);
     const t = facing(state);
     if (!t) return null;
-    const mp = map(), w = state.world, st = AF.stats(state.parts), p = state.pilot;
+    const mp = map(), w = state.world, st = AF.stats(state), p = state.pilot;
     if (t.kind === 'door') return { type: 'door', id: t.id };
     if (t.kind === 'talk') { const n = npcAt(t.x, t.y); n.dir = { down: 'up', up: 'down', left: 'right', right: 'left' }[w.dir]; return { type: 'talk', npc: t.npc }; }
     if (t.kind === 'sign') return { type: 'sign', text: t.text };
@@ -317,13 +320,13 @@
       w.opened[k] = 1;
       const locked = Object.keys(AF.CARDS).filter((id) => !state.known.includes(id));
       const r = AF.rng(AF.WORLD_SEED + t.x * 131 + t.y * 977 + state.steps);
-      const cr = AF.randInt(r, 8, 20);
+      const cr = AF.randInt(r, 80, 200);
       state.credits += cr;
       AF.sfx('forge'); AF.Render.burst(t.x + 0.5, t.y + 0.3, 'sparkle', 16);
       AF.Quests.event(state, 'ruin', {});
-      if (locked.length) { const id = locked[Math.floor(r() * locked.length)]; state.known.push(id); return { type: 'msg', text: `Ruin searched: blueprint for ${AF.CARDS[id].name} and ${cr} credits!` }; }
+      if (locked.length) { const id = locked[Math.floor(r() * locked.length)]; state.known.push(id); return { type: 'msg', text: `Ruin searched: blueprint for ${AF.CARDS[id].name} and ${AF.moneyText(cr)}!` }; }
       AF.gain(state.res, { circuits: 2, copper: 4 });
-      return { type: 'msg', text: `Ruin searched: 2 Circuits, 4 Copper and ${cr} credits.` };
+      return { type: 'msg', text: `Ruin searched: 2 Circuits, 4 Copper and ${AF.moneyText(cr)}.` };
     }
     return null;
   }
@@ -331,7 +334,7 @@
   function removeEnemy(state, id) { state.world.enemies = state.world.enemies.filter((e) => e.id !== id); }
   function sendHome(state) {
     const w = state.world, mp = map();
-    w.px = mp.spawn[0]; w.py = mp.spawn[1]; w.rx = w.px + 1; w.ry = w.py; w.dir = 'down';
+    w.inside = null; w.px = mp.spawn[0]; w.py = mp.spawn[1]; w.rx = w.px + 1; w.ry = w.py; w.dir = 'down';
     reveal(w); AF.Render.snap();
   }
   // Put the robot on a free tile next to the pilot.
@@ -342,8 +345,9 @@
       if (!mp.solid[y * W + x] && !npcAt(x, y)) { w.rx = x; w.ry = y; return; }
     }
   }
-  const inTown = (state) => inTownXY(state.world.px, state.world.py);
+  const inTown = (state) => !!state.world.inside || inTownXY(state.world.px, state.world.py);
   function describeHere(state) {
+    if (state.world.inside) return AF.BUILDINGS[state.world.inside].name;
     const mp = map(), w = state.world, k = key(w.px, w.py);
     const ahead = mp.doors[key(w.px, w.py - 1)];
     if (ahead) return AF.BUILDINGS[ahead].name;
@@ -352,7 +356,7 @@
     if (mp.ruins.includes(k)) return 'Searched ruin';
     return AF.TERRAIN[terr(mp, w.px, w.py)].name;
   }
-  function terrainHere(state) { return terr(map(), state.world.px, state.world.py); }
+  function terrainHere(state) { if (state.world.inside) return 'path'; return terr(map(), state.world.px, state.world.py); }
 
   function drawMap(canvas, state) {
     const mp = map(), w = state.world, g = canvas.getContext('2d'), s = 3;

@@ -25,19 +25,19 @@
   AF.QUESTS = {
     s1: { title: 'A Spark of Your Own', text: 'Engineer Mara has built your first robot. Find her outside the Rivet Forge (south-west).', obj: { type: 'talk' }, next: 's2' },
     s2: { title: "The Mayor's Request", text: 'Mayor Bram is waiting outside Town Hall (north).', obj: { type: 'talk' }, next: 's3' },
-    s3: { title: 'Static in the Fields', text: 'Defeat 3 rogue bots outside town, then report to Mayor Bram.', obj: { type: 'win', n: 3 }, turnIn: 'bram', reward: { credits: 40, rations: 2 }, next: 's4' },
-    s4: { title: 'Echoes in the Ruins', text: 'Search 2 ruins in the wilds, then bring the data to Archivist Lune.', obj: { type: 'ruin', n: 2 }, turnIn: 'lune', reward: { credits: 30, blueprint: 1 }, next: 's5' },
-    s5: { title: 'Over the Rubble', text: 'Upgrade to Treads at the Garage and defeat a tougher bot (yellow tag or higher). Report to Mayor Bram.', obj: { type: 'win', n: 1, minTier: 2 }, turnIn: 'bram', reward: { credits: 60 }, next: 's6' },
-    s6: { title: "The Titan's Call", text: "Climb to the Titan's lair in the far mountains (Spider Legs needed) and shut the Titan Core down. Then tell Mayor Bram.", obj: { type: 'boss', n: 1 }, turnIn: 'bram', reward: { credits: 200 }, next: 'end' },
+    s3: { title: 'Static in the Fields', text: 'Defeat 3 rogue bots outside town, then report to Mayor Bram.', obj: { type: 'win', n: 3 }, turnIn: 'bram', reward: { credits: 400, rations: 2, xp: 80 }, next: 's4' },
+    s4: { title: 'Echoes in the Ruins', text: 'Search 2 ruins in the wilds, then bring the data to Archivist Lune.', obj: { type: 'ruin', n: 2 }, turnIn: 'lune', reward: { credits: 300, blueprint: 1, xp: 100, item: 'scout_goggles' }, next: 's5' },
+    s5: { title: 'Over the Rubble', text: 'Upgrade to Treads at the Garage and defeat a tougher bot (yellow tag or higher). Report to Mayor Bram.', obj: { type: 'win', n: 1, minTier: 2 }, turnIn: 'bram', reward: { credits: 600, xp: 150, item: 'ranger_jacket' }, next: 's6' },
+    s6: { title: "The Titan's Call", text: "Climb to the Titan's lair in the far mountains (Spider Legs needed) and shut the Titan Core down. Then tell Mayor Bram.", obj: { type: 'boss', n: 1 }, turnIn: 'bram', reward: { credits: 5000, xp: 600 }, next: 'end' },
   };
   AF.TUTORIAL = {
-    t1: { title: 'First Harvest', text: 'Gather 5 Scrap from scrap piles outside town.', obj: { type: 'gather', res: 'scrap', n: 5 }, reward: { credits: 10 } },
-    t2: { title: 'First Fight', text: 'Win a battle against a rogue bot.', obj: { type: 'win', n: 1 }, reward: { credits: 10, rations: 1 } },
-    t3: { title: 'Forged in Fire', text: 'Forge a new card at the Rivet Forge.', obj: { type: 'forge', n: 1 }, reward: { credits: 15 } },
-    t4: { title: 'Tune-Up', text: 'Upgrade any robot part at the Bolt & Gear Garage.', obj: { type: 'upgrade', n: 1 }, reward: { credits: 20 } },
-    t5: { title: 'Fuel Up', text: 'Buy anything at the Sparkplug Diner.', obj: { type: 'food', n: 1 }, reward: { credits: 10 } },
-    t6: { title: 'Safe Keeping', text: 'Deposit credits or materials at the Ironclad Bank.', obj: { type: 'deposit', n: 1 }, reward: { credits: 10 } },
-    t7: { title: 'Know Your Deck', text: 'Open your deck with the "Robot & deck" button (or press Q).', obj: { type: 'deck', n: 1 }, reward: { credits: 5 } },
+    t1: { title: 'First Harvest', text: 'Gather 5 Scrap from scrap piles outside town.', obj: { type: 'gather', res: 'scrap', n: 5 }, reward: { credits: 100, xp: 20, item: 'work_gloves' } },
+    t2: { title: 'First Fight', text: 'Win a battle against a rogue bot.', obj: { type: 'win', n: 1 }, reward: { credits: 100, rations: 1, xp: 20 } },
+    t3: { title: 'Forged in Fire', text: 'Forge a new card at the Rivet Forge.', obj: { type: 'forge', n: 1 }, reward: { credits: 150, xp: 20 } },
+    t4: { title: 'Tune-Up', text: 'Upgrade any robot part at the Bolt & Gear Garage.', obj: { type: 'upgrade', n: 1 }, reward: { credits: 200, xp: 20, item: 'sneakers' } },
+    t5: { title: 'Fuel Up', text: 'Buy anything at the Sparkplug Diner.', obj: { type: 'food', n: 1 }, reward: { credits: 100, xp: 20 } },
+    t6: { title: 'Safe Keeping', text: 'Deposit money or materials at the Ironclad Bank.', obj: { type: 'deposit', n: 1 }, reward: { credits: 100, xp: 20, item: 'lunchbox' } },
+    t7: { title: 'Know Your Deck', text: 'Open your deck with the "Robot & deck" button (or press Q).', obj: { type: 'deck', n: 1 }, reward: { credits: 50, xp: 20 } },
   };
 
   const Q = (AF.Quests = {});
@@ -52,7 +52,9 @@
 
   function giveReward(state, rw) {
     const out = [];
-    if (rw.credits) { state.credits += rw.credits; out.push(`${rw.credits} credits`); }
+    if (rw.credits) { state.credits += rw.credits; out.push(AF.moneyText(rw.credits)); }
+    if (rw.xp) { const n = AF.gainXP(state, rw.xp); out.push(`${n} XP`); }
+    if (rw.item) { if (AF.giveItem(state, rw.item)) out.push(`a ${AF.ITEMS[rw.item].name}`); }
     if (rw.rations) { state.pilot.rations += rw.rations; out.push(`${rw.rations} Field Ration${rw.rations > 1 ? 's' : ''}`); }
     if (rw.card) { const c = AF.newCard(rw.card); c.inDeck = AF.deckCards(state).length < AF.DECK_MAX; state.cards.push(c); out.push(`a ${AF.CARDS[rw.card].name} card`); }
     if (rw.blueprint) {
@@ -197,13 +199,13 @@
           N('mara', "She's bonded to you now. She'll follow you anywhere."),
           N('mara', 'Oh! Mayor Bram wanted to see you. He\'s outside Town Hall, up north.'),
         ], { onDone: () => {
-          state.flags.robot = true; AF.World.placeRobot(state); AF.sfx('win');
+          state.flags.robot = true; AF.World.placeRobot(state); AF.sfx('win'); AF.gainXP(state, 20);
           advance(state); AF.game.persist(); AF.game.refresh();
         } });
         return say([N('mara', pick([
           'Bring me materials and I\'ll forge cards for you. Step up to the Forge door and press the action button.',
           'Treads will get you over the rubble east of town. The Garage can fit them.',
-          'If your robot takes a beating, the Garage fixes it up for a few credits.',
+          'If your robot takes a beating, the Garage fixes it up for a few Bolts.',
           'Upgraded cards hit harder. I can upgrade them inside the Forge for Scrap and a Circuit.',
         ]))]);
       case 'bram':
@@ -242,7 +244,7 @@
           : say([N('lune', `The ruins hold blueprint fragments and old Titan data logs. Search ${2 - qs.prog} more ruin${2 - qs.prog === 1 ? '' : 's'} (look for the blue glow) and bring me what you find.`)]);
         return say([N('lune', pick([
           'Before the Collapse, every robot drew power from the Titan Core. Now each one carries its own Arc Core.',
-          'Ruins still hold blueprints. The Deckhouse sells a few too, if you have the credits.',
+          'Ruins still hold blueprints. The Deckhouse sells a few too, if you have the Gears for it.',
           'Legend says the Titan\'s lair is ringed by cliffs no wheel can climb.',
         ]))]);
       case 'pip': {
@@ -257,7 +259,7 @@
         if (qs.tdone.length >= total && !qs.grad) return say([
           N('pip', 'You finished EVERY task! You\'re a real pilot now.'),
           N('pip', 'Here, a graduation gift. Capacitors make your next attack hit way harder.'),
-        ], { onDone: () => { qs.grad = true; const got = giveReward(state, { credits: 30, card: 'capacitor' }); AF.game.toast(`Graduation gift: ${got}.`, 5000); } });
+        ], { onDone: () => { qs.grad = true; const got = giveReward(state, { credits: 300, card: 'capacitor', xp: 50, item: 'lucky_bolt' }); AF.game.toast(`Graduation gift: ${got}.`, 5000); } });
         if (qs.grad) return say([N('pip', 'Look at you go, {name}! Come back and tell me about your adventures.')]);
         const left = Object.entries(AF.TUTORIAL).filter(([k]) => !qs.tdone.includes(k));
         return say([N('pip', `${qs.tdone.length} of ${total} tasks done! Next up: ${left[0][1].title}. ${left[0][1].text}`)]);
@@ -270,7 +272,7 @@
     }
   };
 
-  Q.door = function (state, id) {
+  Q.door = function (state, id) { // (interiors handle most doors now)
     const notes = {
       archive: [T('The Archive door is locked. A note reads: "Out front. —Lune"')],
       hall: [T('Town Hall is closed for repairs. Mayor Bram is standing outside.')],

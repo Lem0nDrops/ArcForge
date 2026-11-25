@@ -9,7 +9,7 @@
     opts = opts || {};
     const def = AF.ENEMIES[enemyRef.type];
     this.state = state; this.ref = enemyRef; this.def = def;
-    this.st = AF.stats(state.parts);
+    this.st = AF.stats(state);
     this.p = { hp: Math.min(state.hp, this.st.maxHp), max: this.st.maxHp, block: 0, energy: 0, charge: 0, tune: 0, fortify: 0 };
     this.e = { hp: def.hp, max: def.hp, block: 0, aim: 0, power: 0, stun: 0, i: 0 };
     this.dist = opts.ambush ? Math.max(0, def.start - 1) : def.start;
@@ -160,12 +160,24 @@
     if (this.over === 'win') {
       s.hp = this.p.hp;
       if (AF.hasPerk(s, 'medic')) s.hp = Math.min(this.st.maxHp, s.hp + 5);
-      for (const [k, [lo, hi]] of Object.entries(this.def.loot)) { const n = lo + Math.floor(Math.random() * (hi - lo + 1)); if (n) out.loot[k] = n; }
+      // Drops are chances, not guarantees. Drop luck from gear raises every chance.
+      const st = AF.stats(s), luck = st.luck, boss = !!this.def.boss;
+      for (const [k, [lo, hi]] of Object.entries(this.def.loot)) {
+        if (!boss && Math.random() > AF.DROP.material + luck) continue;
+        const n = Math.max(1, lo + Math.floor(Math.random() * (hi - lo + 1))); out.loot[k] = n;
+      }
       if (this.salvage) out.loot.scrap = (out.loot.scrap || 0) + this.salvage;
       AF.gain(s.res, out.loot);
-      const [clo, chi] = AF.CREDITS_BY_TIER[this.def.tier];
-      out.credits = Math.round((clo + Math.floor(Math.random() * (chi - clo + 1))) * (AF.hasPerk(s, 'salvager') ? 1.25 : 1));
-      s.credits += out.credits;
+      if (boss || Math.random() < AF.DROP.money + luck) {
+        const [clo, chi] = AF.CREDITS_BY_TIER[this.def.tier];
+        out.credits = Math.round((clo + Math.floor(Math.random() * (chi - clo + 1))) * (AF.hasPerk(s, 'salvager') ? 1.25 : 1) * (1 + st.money));
+        s.credits += out.credits;
+      }
+      if (boss || Math.random() < AF.DROP.gear[this.def.tier] + luck / 2) {
+        const id = AF.rollGear(this.def.tier, boss);
+        if (AF.giveItem(s, id)) out.gear = id; else out.bagFull = id;
+      }
+      out.xp = AF.gainXP(s, AF.XP_BY_TIER[this.def.tier]);
       const locked = Object.keys(AF.CARDS).filter((id) => !s.known.includes(id)), hunter = AF.hasPerk(s, 'hunter');
       if ((this.def.tier >= 2 || hunter) && locked.length && Math.random() < (hunter ? 0.5 : 0.3)) { out.blueprint = locked[Math.floor(Math.random() * locked.length)]; s.known.push(out.blueprint); }
       s.stats.wins++;
@@ -381,13 +393,16 @@
     if (out.result === 'win') return `
       <h2>${out.boss ? 'The Titan Core falls' : 'Victory!'}</h2>
       <p>${out.boss ? 'The lair goes quiet. Head back to Rivet Hollow and tell Mayor Bram.' : `${AF.esc(b.def.name)} scrapped.`}</p>
-      <div class="loot"><span class="cost"><i class="chip" style="--c:${AF.CREDIT_COLOR}"></i>+${out.credits} Credits</span>${lootRows}</div>
+      <div class="loot"><span class="cost xpgain">+${out.xp} XP</span>${out.credits ? `<span class="cost">${AF.moneyHtml(out.credits)}</span>` : ''}${lootRows}</div>
+      ${!out.credits && !lootRows && !out.gear ? '<p class="muted">No drops this time.</p>' : ''}
+      ${out.gear ? `<p class="gear-drop" style="--rc:${AF.RARITY[AF.ITEMS[out.gear].rarity].color}">${AF.itemIcon(out.gear)}<span>Gear found: <b>${AF.esc(AF.ITEMS[out.gear].name)}</b><small>${AF.itemText(out.gear)}</small></span></p>` : ''}
+      ${out.bagFull ? '<p class="muted">Gear dropped, but your bag is full.</p>' : ''}
       ${out.blueprint ? `<p class="bp">Blueprint recovered: <b>${AF.esc(AF.CARDS[out.blueprint].name)}</b></p>` : ''}
       <button class="btn primary" data-act="close-result">Continue</button>`;
     return `
       <h2>Robot down</h2>
-      <p>Your recovery beacon hauled you and your robot back to ${AF.TOWN_NAME}. Some credits and materials were lost on the way, and your pilot is worn out. Banked items are always safe.</p>
-      <div class="loot">${out.credits ? `<span class="cost"><i class="chip" style="--c:${AF.CREDIT_COLOR}"></i>${out.credits} Credits</span>` : ''}${lootRows || (out.credits ? '' : '<span class="muted">Nothing lost.</span>')}</div>
+      <p>Your recovery beacon hauled you and your robot back to ${AF.TOWN_NAME}. Some money and materials were lost on the way, and your pilot is worn out. Banked items are always safe.</p>
+      <div class="loot">${out.credits ? `<span class="cost">${AF.moneyHtml(out.credits)}</span>` : ''}${lootRows || (out.credits ? '' : '<span class="muted">Nothing lost.</span>')}</div>
       <button class="btn primary" data-act="close-result">Back to town</button>`;
   };
 
