@@ -37,65 +37,167 @@
       const nst = AF.stats(s);
       s.hp = nst.maxHp; s.pilot.vit = AF.pilotMaxVit(s);
       const p = AF.levelPerks(s.level), extra = s.level === 5 || s.level === 15 ? ' +1 card in hand!' : s.level === 10 ? ' +1 energy per turn!' : '';
-      setTimeout(() => { AF.sfx('win'); AF.game && AF.game.toast(`Level up! You're now level ${s.level}. Robot HP and pilot vitality refilled.${extra}`, 5000); }, 400);
+      setTimeout(() => { AF.sfx('win'); AF.game && AF.game.toast(`Level up! You're now level ${s.level}. Automaton HP and pilot vitality refilled.${extra}`, 5000); }, 400);
       if (AF.game && AF.game.levelFx) AF.game.levelFx();
     }
     return n;
   };
 
-  // ---------- Gear ----------
+  // ---------- Wearables: every piece shows on your pilot, and most give stats ----------
   AF.RARITY = {
-    common: { name: 'Common', color: '#8a94a6' }, uncommon: { name: 'Uncommon', color: '#2fae62' },
-    rare: { name: 'Rare', color: '#3a7cf0' }, epic: { name: 'Epic', color: '#9a4ee0' },
+    common: { name: 'Common', color: '#9aa4b4' }, uncommon: { name: 'Uncommon', color: '#3ec46e' },
+    rare: { name: 'Rare', color: '#3aa0ff' }, epic: { name: 'Epic', color: '#b46aff' },
   };
-  AF.EQ_SLOTS = { head: 'Head', body: 'Body', hands: 'Hands', feet: 'Feet', acc1: 'Accessory', acc2: 'Accessory' };
-  // price in Bolts; 0 = drop only
+  AF.EQ_SLOTS = { hat: 'Hat', face: 'Face', top: 'Top', bottom: 'Bottom', shoes: 'Shoes', gloves: 'Gloves', cape: 'Back', tool: 'Tool', charm1: 'Charm', charm2: 'Charm' };
+  AF.WEAR_SLOTS = ['hat', 'face', 'top', 'bottom', 'shoes', 'gloves', 'cape', 'tool'];
+  const I = (name, slot, rarity, price, stats, s, a, b, set) => ({ name, slot, rarity, price, stats, vis: s ? { s, a, b } : null, set });
+  // price in Bolts (0 = not sold: starter, quest or drop only)
   AF.ITEMS = {
-    leather_cap:     { name: 'Leather Cap', slot: 'head', rarity: 'common', price: 150, stats: { block: 1 } },
-    scout_goggles:   { name: 'Scout Goggles', slot: 'head', rarity: 'uncommon', price: 600, stats: { luck: 0.08 } },
-    miner_helmet:    { name: "Miner's Helmet", slot: 'head', rarity: 'uncommon', price: 700, stats: { gather: 1 } },
-    pilot_visor:     { name: 'Pilot Visor', slot: 'head', rarity: 'rare', price: 2200, stats: { hp: 8, dmg: 1 } },
-    titan_helm:      { name: 'Titan Helm', slot: 'head', rarity: 'epic', price: 0, stats: { hp: 15, block: 2 } },
-    padded_vest:     { name: 'Padded Vest', slot: 'body', rarity: 'common', price: 200, stats: { hp: 5 } },
-    ranger_jacket:   { name: 'Ranger Jacket', slot: 'body', rarity: 'uncommon', price: 800, stats: { hp: 4, speed: 0.08 } },
-    chef_apron:      { name: "Chef's Apron", slot: 'body', rarity: 'uncommon', price: 650, stats: { hunger: 6, vit: 5 } },
-    arc_plate:       { name: 'Arc Plate Armor', slot: 'body', rarity: 'rare', price: 3000, stats: { hp: 14, block: 1 } },
-    storm_coat:      { name: 'Stormweave Coat', slot: 'body', rarity: 'epic', price: 0, stats: { hp: 10, dmg: 2, speed: 0.1 } },
-    work_gloves:     { name: 'Work Gloves', slot: 'hands', rarity: 'common', price: 180, stats: { gather: 1 } },
-    power_gauntlets: { name: 'Power Gauntlets', slot: 'hands', rarity: 'uncommon', price: 900, stats: { dmg: 1 } },
-    spark_gloves:    { name: 'Spark Gloves', slot: 'hands', rarity: 'rare', price: 2600, stats: { dmg: 2, luck: 0.05 } },
-    sneakers:        { name: 'Comfy Sneakers', slot: 'feet', rarity: 'common', price: 160, stats: { speed: 0.1 } },
-    trail_boots:     { name: 'Trail Boots', slot: 'feet', rarity: 'uncommon', price: 750, stats: { speed: 0.12, hunger: 4 } },
-    rocket_boots:    { name: 'Rocket Boots', slot: 'feet', rarity: 'epic', price: 0, stats: { speed: 0.3 } },
-    lunchbox:        { name: 'Lunchbox Charm', slot: 'acc', rarity: 'common', price: 250, stats: { vit: 6 } },
-    lucky_bolt:      { name: 'Lucky Bolt Charm', slot: 'acc', rarity: 'uncommon', price: 800, stats: { luck: 0.12 } },
-    scholar_pendant: { name: "Scholar's Pendant", slot: 'acc', rarity: 'uncommon', price: 900, stats: { xp: 0.2 } },
-    merchant_ring:   { name: "Merchant's Ring", slot: 'acc', rarity: 'rare', price: 2400, stats: { discount: 0.1, money: 0.15 } },
-    magnet_band:     { name: 'Magnet Bracelet', slot: 'acc', rarity: 'rare', price: 2800, stats: { money: 0.25 } },
-    focus_lens:      { name: 'Focus Lens', slot: 'acc', rarity: 'rare', price: 3200, stats: { hand: 1 } },
-    core_amulet:     { name: 'Core Amulet', slot: 'acc', rarity: 'epic', price: 0, stats: { energy: 1 } },
+    // hats
+    leather_cap: I('Leather Cap', 'hat', 'common', 150, { block: 1 }, 'cap', '#9a6438', '#5a3a20'),
+    red_bandana: I('Red Bandana', 'hat', 'common', 120, { luck: 0.03 }, 'bandana', '#d83a3a', '#ffffff', 'waste'),
+    beanie_blue: I('Cozy Beanie', 'hat', 'common', 150, { hunger: 2 }, 'beanie', '#3a7cf0', '#ffffff'),
+    ribbon_bow: I('Ribbon Bow', 'hat', 'common', 180, { money: 0.03 }, 'bow', '#ff6aa8', '#ffffff', 'pastel'),
+    chef_hat: I("Chef's Toque", 'hat', 'common', 200, { vit: 3 }, 'chef', '#ffffff', '#e4e4ea', 'chef'),
+    hardhat: I('Forge Hard Hat', 'hat', 'uncommon', 600, { hp: 4 }, 'hardhat', '#f8c834', '#d89a1a', 'forge'),
+    miner_helmet: I("Miner's Helmet", 'hat', 'uncommon', 700, { gather: 1 }, 'miner', '#e86a2a', '#fff2a0'),
+    aviator_cap: I('Aviator Cap', 'hat', 'uncommon', 700, { speed: 0.05 }, 'aviator', '#9a6438', '#e8d8b0', 'sky'),
+    beret: I("Archivist's Beret", 'hat', 'uncommon', 500, { xp: 0.05 }, 'beret', '#6a52a8', '#3a2a5a', 'scholar'),
+    cowboy_hat: I('Ranger Hat', 'hat', 'uncommon', 800, { speed: 0.05, luck: 0.03 }, 'cowboy', '#b07a44', '#5a3a20'),
+    flower_crown: I('Flower Crown', 'hat', 'uncommon', 600, { vit: 4 }, 'flowers', '#ff7a9a', '#5ccf5a'),
+    headphones: I('Headphones', 'hat', 'uncommon', 550, { xp: 0.04 }, 'headphones', '#e46aa0', '#30303a'),
+    pilot_visor: I('Pilot Visor', 'hat', 'rare', 2200, { hp: 8, dmg: 1 }, 'visorcap', '#2a3a5a', '#5ef2e1'),
+    top_hat: I('Gentleman Top Hat', 'hat', 'rare', 2500, { money: 0.1 }, 'tophat', '#26262e', '#c43a3a'),
+    wizard_hat: I('Sparkwizard Hat', 'hat', 'rare', 2800, { xp: 0.1 }, 'wizard', '#6a54c8', '#f8d048'),
+    arc_helm: I('Arc Helm', 'hat', 'epic', 0, { hp: 10, block: 1 }, 'knight', '#4a6aa8', '#5ef2e1', 'arc'),
+    titan_helm: I('Titan Helm', 'hat', 'epic', 0, { hp: 15, block: 2 }, 'knight', '#c8a060', '#ff5a5a'),
+    crown: I('Royal Crown', 'hat', 'epic', 0, { luck: 0.1, money: 0.1 }, 'crown', '#ffd84a', '#e04858'),
+    // face
+    glasses: I('Round Glasses', 'face', 'common', 150, { xp: 0.03 }, 'glasses', '#2a2230', '#bfe8ff'),
+    bandit_mask: I('Dust Mask', 'face', 'common', 180, { hunger: 3 }, 'mask', '#8a7a6a', '#5a4a3a', 'waste'),
+    scout_goggles: I('Scout Goggles', 'face', 'uncommon', 600, { luck: 0.08 }, 'goggles', '#58d8ec', '#3a3a44', 'sky'),
+    welding_goggles: I('Welding Goggles', 'face', 'uncommon', 650, { block: 1 }, 'goggles', '#ff9a30', '#3a3a44', 'forge'),
+    heart_shades: I('Heart Shades', 'face', 'uncommon', 500, { money: 0.05 }, 'hearts', '#ff4a8a', '#ffffff', 'pastel'),
+    eyepatch: I('Pirate Patch', 'face', 'uncommon', 450, { dmg: 1 }, 'eyepatch', '#2a2230', '#2a2230'),
+    monocle: I('Brass Monocle', 'face', 'rare', 2000, { xp: 0.1, luck: 0.03 }, 'monocle', '#d8a840', '#e8f6ff', 'scholar'),
+    // tops
+    basic_tee: I('Basic Tee', 'top', 'common', 0, {}, 'tee', '#4a8cf0', '#ffffff', 'starter'),
+    padded_vest: I('Padded Vest', 'top', 'common', 200, { hp: 5 }, 'vest', '#8a6a4a', '#f2ece0'),
+    scrap_vest: I('Scrap Vest', 'top', 'common', 250, { hp: 4 }, 'vest', '#b08a5a', '#6a8a9a', 'waste'),
+    hoodie_orange: I('Comfy Hoodie', 'top', 'common', 250, { vit: 2 }, 'hoodie', '#ff8a3a', '#ffffff'),
+    striped_sweater: I('Striped Sweater', 'top', 'common', 300, { hunger: 2 }, 'sweater', '#e8584a', '#ffffff'),
+    overalls_denim: I('Tinker Overalls', 'top', 'common', 0, { gather: 1 }, 'overalls', '#3a6ab0', '#f6d860'),
+    ranger_jacket: I('Ranger Jacket', 'top', 'uncommon', 800, { hp: 4, speed: 0.08 }, 'jacket', '#3d8a4a', '#f0e8c8'),
+    chef_apron: I("Chef's Apron", 'top', 'uncommon', 650, { hunger: 6, vit: 5 }, 'apron', '#ffffff', '#e05848', 'chef'),
+    forge_apron: I('Leather Apron', 'top', 'uncommon', 700, { hp: 6 }, 'apron', '#8a5a34', '#e8d8c8', 'forge'),
+    pastel_dress: I('Pastel Dress', 'top', 'uncommon', 700, { money: 0.05, vit: 3 }, 'dress', '#ffb0d4', '#ffffff', 'pastel'),
+    scholar_coat: I('Archivist Coat', 'top', 'uncommon', 800, { xp: 0.06 }, 'coat', '#5a4a8a', '#e8d8a8', 'scholar'),
+    lab_coat: I('Lab Coat', 'top', 'uncommon', 700, { xp: 0.05 }, 'coat', '#f4f6f8', '#5ac8d8'),
+    flight_jacket: I('Flight Jacket', 'top', 'rare', 2400, { hp: 6, speed: 0.06 }, 'jacket', '#8a5a34', '#f2e6c8', 'sky'),
+    arc_plate: I('Arc Plate', 'top', 'rare', 3000, { hp: 14, block: 1 }, 'armor', '#5a74b0', '#5ef2e1', 'arc'),
+    storm_coat: I('Stormweave Coat', 'top', 'epic', 0, { hp: 10, dmg: 2, speed: 0.1 }, 'coat', '#3a3a8a', '#9ad8ff'),
+    // bottoms
+    basic_pants: I('Basic Pants', 'bottom', 'common', 0, {}, 'pants', '#3a3e52', '#2a2c3a', 'starter'),
+    denim_shorts: I('Denim Shorts', 'bottom', 'common', 0, { speed: 0.03 }, 'shorts', '#3a6ab0', '#2a4a80'),
+    pleated_skirt: I('Pleated Skirt', 'bottom', 'common', 0, {}, 'skirt', '#3a3a6a', '#ffffff'),
+    cargo_pants: I('Cargo Pants', 'bottom', 'common', 250, { hp: 2 }, 'cargo', '#6a6a4a', '#4a4a32', 'waste'),
+    work_pants: I('Work Pants', 'bottom', 'common', 250, { hp: 2 }, 'pants', '#5a4a3a', '#3a2a20', 'forge'),
+    frilly_skirt: I('Frilly Skirt', 'bottom', 'common', 300, { money: 0.03 }, 'skirt', '#ff9ac8', '#ffffff', 'pastel'),
+    slacks: I('Archivist Slacks', 'bottom', 'common', 300, { xp: 0.03 }, 'pants', '#3a2a5a', '#2a1a3a', 'scholar'),
+    checker_pants: I('Checkered Pants', 'bottom', 'common', 250, { vit: 2 }, 'checker', '#f2f2f2', '#2a2a30', 'chef'),
+    flight_pants: I('Flight Pants', 'bottom', 'uncommon', 600, { speed: 0.04 }, 'cargo', '#a8865a', '#6a4a2a', 'sky'),
+    arc_greaves: I('Arc Greaves', 'bottom', 'epic', 0, { hp: 6, block: 1 }, 'greaves', '#5a74b0', '#5ef2e1', 'arc'),
+    // shoes
+    basic_shoes: I('Basic Shoes', 'shoes', 'common', 0, {}, 'sneakers', '#4a4e58', '#e8e8e8', 'starter'),
+    sneakers: I('Comfy Sneakers', 'shoes', 'common', 160, { speed: 0.1 }, 'sneakers', '#e8584a', '#ffffff'),
+    dust_boots: I('Dust Boots', 'shoes', 'common', 250, { hunger: 2 }, 'boots', '#8a6a4a', '#5a3a20', 'waste'),
+    ribbon_shoes: I('Ribbon Shoes', 'shoes', 'common', 280, { money: 0.03 }, 'flats', '#ff6aa8', '#ffffff', 'pastel'),
+    loafers: I('Loafers', 'shoes', 'common', 280, { xp: 0.03 }, 'flats', '#5a3a20', '#8a5a34', 'scholar'),
+    clogs: I('Kitchen Clogs', 'shoes', 'common', 200, { hunger: 3 }, 'flats', '#ffffff', '#e05848', 'chef'),
+    steel_boots: I('Steel-toe Boots', 'shoes', 'uncommon', 600, { block: 1 }, 'boots', '#4a4e58', '#9aa2b0', 'forge'),
+    trail_boots: I('Trail Boots', 'shoes', 'uncommon', 750, { speed: 0.12, hunger: 4 }, 'boots', '#6a4a2a', '#c8a070'),
+    arc_sabatons: I('Arc Sabatons', 'shoes', 'epic', 0, { speed: 0.1, block: 1 }, 'boots', '#5a74b0', '#5ef2e1', 'arc'),
+    rocket_boots: I('Rocket Boots', 'shoes', 'epic', 0, { speed: 0.3 }, 'rocket', '#e8584a', '#ffd84a', 'sky'),
+    // gloves
+    mittens: I('Cozy Mittens', 'gloves', 'common', 150, { vit: 2 }, 'gloves', '#e8584a', '#ffffff'),
+    work_gloves: I('Work Gloves', 'gloves', 'common', 180, { gather: 1 }, 'gloves', '#d0a870', '#8a6a40', 'forge'),
+    power_gauntlets: I('Power Gauntlets', 'gloves', 'uncommon', 900, { dmg: 1 }, 'gauntlets', '#7a86a0', '#ff9a30'),
+    spark_gloves: I('Spark Gloves', 'gloves', 'rare', 2600, { dmg: 2, luck: 0.05 }, 'gloves', '#3a3a8a', '#5ef2e1'),
+    arc_gauntlets: I('Arc Gauntlets', 'gloves', 'epic', 0, { dmg: 2, block: 1 }, 'gauntlets', '#5a74b0', '#5ef2e1', 'arc'),
+    // back
+    patch_scarf: I('Patchwork Scarf', 'cape', 'common', 200, { luck: 0.04 }, 'scarf', '#d08a4a', '#8a5a34', 'waste'),
+    backpack: I('Explorer Pack', 'cape', 'common', 300, { gather: 1 }, 'backpack', '#9a6034', '#d0a870'),
+    hero_cape: I('Hero Cape', 'cape', 'uncommon', 800, { hp: 4 }, 'cape', '#c83246', '#ffd860'),
+    glider_wings: I('Glider Wings', 'cape', 'rare', 3200, { speed: 0.12 }, 'wings', '#f2ead0', '#9a6438', 'sky'),
+    jetpack: I('Jetpack', 'cape', 'rare', 3500, { speed: 0.15 }, 'jetpack', '#a0aab8', '#ff9a30'),
+    arc_cape: I('Arc Cape', 'cape', 'epic', 0, { dmg: 1, hp: 6 }, 'cape', '#34448a', '#5ef2e1', 'arc'),
+    // tools (held)
+    wrench: I('Trusty Wrench', 'tool', 'common', 0, {}, 'wrench', '#a8b0bc', '#6a7280', 'starter'),
+    spatula: I('Golden Spatula', 'tool', 'uncommon', 600, { vit: 5 }, 'spatula', '#d8d8e0', '#e0a020', 'chef'),
+    lantern: I('Brass Lantern', 'tool', 'uncommon', 700, { luck: 0.06 }, 'lantern', '#d8a840', '#fff2a0', 'scholar'),
+    forge_hammer: I('Forge Hammer', 'tool', 'uncommon', 900, { dmg: 1, hp: 3 }, 'hammer', '#8a8e98', '#9a6438', 'forge'),
+    spark_staff: I('Spark Staff', 'tool', 'rare', 2800, { dmg: 1, xp: 0.08 }, 'staff', '#9a6438', '#c27bff'),
+    arc_blade: I('Arc Blade', 'tool', 'epic', 0, { dmg: 3 }, 'sword', '#bfe8ff', '#5ef2e1', 'arc'),
+    // charms (not visible)
+    lunchbox: I('Lunchbox Charm', 'charm', 'common', 250, { vit: 6 }),
+    lucky_bolt: I('Lucky Bolt Charm', 'charm', 'uncommon', 800, { luck: 0.12 }),
+    scholar_pendant: I("Scholar's Pendant", 'charm', 'uncommon', 900, { xp: 0.2 }),
+    merchant_ring: I("Merchant's Ring", 'charm', 'rare', 2400, { discount: 0.1, money: 0.15 }),
+    magnet_band: I('Magnet Bracelet', 'charm', 'rare', 2800, { money: 0.25 }),
+    focus_lens: I('Focus Lens', 'charm', 'rare', 3200, { hand: 1 }),
+    core_amulet: I('Core Amulet', 'charm', 'epic', 0, { energy: 1 }),
   };
-  AF.INV_MAX = 30;
+  // Outfit sets: wear 3 or 5 pieces of a set for a bonus.
+  AF.SETS = {
+    waste: { name: 'Wastelander', b3: { gather: 1 }, b5: { luck: 0.1 } },
+    forge: { name: 'Forgehand', b3: { hp: 5 }, b5: { block: 1, dmg: 1 } },
+    sky: { name: 'Skyrunner', b3: { speed: 0.1 }, b5: { xp: 0.1, speed: 0.1 } },
+    pastel: { name: 'Pastel Pop', b3: { money: 0.1 }, b5: { xp: 0.15 } },
+    scholar: { name: 'Archivist', b3: { xp: 0.1 }, b5: { hand: 1 } },
+    chef: { name: 'Diner Crew', b3: { hunger: 8 }, b5: { vit: 10 } },
+    arc: { name: 'Arcknight', b3: { dmg: 2 }, b5: { energy: 1 } },
+  };
+  AF.STARTER_OUTFITS = {
+    scavenger: { name: 'Scavenger', items: ['red_bandana', 'scrap_vest', 'cargo_pants', 'dust_boots'] },
+    tinker: { name: 'Tinker', items: ['overalls_denim', 'basic_pants', 'basic_shoes', 'work_gloves', 'wrench'] },
+    dreamer: { name: 'Dreamer', items: ['beanie_blue', 'striped_sweater', 'pleated_skirt', 'basic_shoes'] },
+  };
+  AF.BASE_WARDROBE = ['basic_tee', 'basic_pants', 'basic_shoes', 'denim_shorts', 'pleated_skirt', 'wrench'];
+
   const STAT_TEXT = {
-    hp: (v) => `+${v} robot HP`, block: (v) => `+${v} Block per defend card`, dmg: (v) => `+${v} damage per hit`, energy: (v) => `+${v} energy per turn`,
+    hp: (v) => `+${v} automaton HP`, block: (v) => `+${v} Block per defend card`, dmg: (v) => `+${v} damage per hit`, energy: (v) => `+${v} energy per turn`,
     hand: (v) => `+${v} card in hand`, gather: (v) => `+${v} material per harvest`, luck: (v) => `+${Math.round(v * 100)}% drop chance`,
     xp: (v) => `+${Math.round(v * 100)}% XP`, money: (v) => `+${Math.round(v * 100)}% money from battles`, speed: (v) => `+${Math.round(v * 100)}% walk speed`,
-    hunger: (v) => `Get hungry ${v} steps slower`, vit: (v) => `+${v} max vitality`, discount: (v) => `${Math.round(v * 100)}% off in shops`,
+    hunger: (v) => `Hungry ${v} steps slower`, vit: (v) => `+${v} max vitality`, discount: (v) => `${Math.round(v * 100)}% off in shops`,
   };
-  AF.itemText = (id) => Object.entries(AF.ITEMS[id].stats).map(([k, v]) => STAT_TEXT[k](v)).join(' · ');
+  AF.statText = (st) => Object.entries(st).map(([k, v]) => STAT_TEXT[k](v)).join(' · ') || 'Just for style';
+  AF.itemText = (id) => AF.statText(AF.ITEMS[id].stats);
   AF.itemValue = (id) => { const it = AF.ITEMS[id]; return it.price || { common: 200, uncommon: 800, rare: 2500, epic: 8000 }[it.rarity]; };
+  AF.slotOf = (id) => AF.ITEMS[id].slot;
 
-  let uidc = 1;
-  AF.newItem = (id) => ({ uid: 'i' + Date.now().toString(36) + (uidc++), id });
+  // Owning an item adds it to your collection forever. Duplicates turn into Bolts.
+  AF.owns = (s, id) => s.owned.includes(id);
   AF.giveItem = function (s, id) {
-    if (s.inv.length >= AF.INV_MAX) return false;
-    s.inv.push(AF.newItem(id)); return true;
+    if (!AF.ITEMS[id]) return false;
+    if (AF.owns(s, id)) { const v = Math.floor(AF.itemValue(id) * 0.3); s.credits += v; return { dup: true, value: v }; }
+    s.owned.push(id); return true;
   };
-  AF.equippedIds = (s) => Object.values(s.equip).filter(Boolean).map((uid) => (s.inv.find((i) => i.uid === uid) || {}).id).filter(Boolean);
+  AF.equippedIds = (s) => Object.values(s.equip).filter((id) => id && AF.ITEMS[id]);
+  AF.wear = function (s, id) {
+    const sl = AF.slotOf(id);
+    const key = sl === 'charm' ? (s.equip.charm1 === id || s.equip.charm2 === id ? null : !s.equip.charm1 ? 'charm1' : !s.equip.charm2 ? 'charm2' : 'charm1') : sl;
+    if (sl === 'charm' && key === null) { if (s.equip.charm1 === id) s.equip.charm1 = null; else s.equip.charm2 = null; return; }
+    s.equip[key] = s.equip[key] === id ? null : id;
+  };
+  // Everything the drawing code needs: base features + what's worn.
+  AF.appearance = function (s) { const o = {}; AF.WEAR_SLOTS.forEach((k) => { if (s.equip[k]) o[k] = s.equip[k]; }); return Object.assign({}, s.look, { outfit: o }); };
 
-  // Random gear drop for an enemy tier
+  AF.setCounts = function (s) {
+    const c = {}; AF.equippedIds(s).forEach((id) => { const st = AF.ITEMS[id].set; if (st && AF.SETS[st]) c[st] = (c[st] || 0) + 1; }); return c;
+  };
+
   AF.rollGear = function (tier, boss) {
-    const pool = (r) => Object.keys(AF.ITEMS).filter((id) => AF.ITEMS[id].rarity === r);
+    const pool = (r) => Object.keys(AF.ITEMS).filter((id) => AF.ITEMS[id].rarity === r && AF.ITEMS[id].set !== 'starter' && !AF.STARTER_ONLY.includes(id));
     let r;
     if (boss) r = 'epic';
     else {
@@ -104,74 +206,114 @@
     }
     const p = pool(r); return p[Math.floor(Math.random() * p.length)];
   };
+  AF.STARTER_ONLY = ['overalls_denim', 'denim_shorts', 'pleated_skirt'];
 
-  // ---------- Combined stats: robot parts + pilot level + gear ----------
+  // ---------- Combined stats: automaton parts + pilot level + worn items + set bonuses ----------
   AF.fullStats = function (s) {
     const st = AF.baseStats(s.parts), lp = AF.levelPerks(s.level || 1);
     Object.assign(st, { luck: 0, xp: 0, money: 0, speed: 0, hunger: 0, vit: lp.vit, discount: 0 });
     st.maxHp += lp.hp; st.hand += lp.hand; st.energy += lp.energy;
-    for (const id of AF.equippedIds(s)) {
-      for (const [k, v] of Object.entries(AF.ITEMS[id].stats)) {
-        if (k === 'hp') st.maxHp += v; else st[k] = (st[k] || 0) + v;
-      }
-    }
-    st.hand = Math.min(st.hand, 9);
+    const add = (stats) => { for (const [k, v] of Object.entries(stats)) { if (k === 'hp') st.maxHp += v; else st[k] = (st[k] || 0) + v; } };
+    AF.equippedIds(s).forEach((id) => add(AF.ITEMS[id].stats));
+    for (const [set, n] of Object.entries(AF.setCounts(s))) { if (n >= 3) add(AF.SETS[set].b3); if (n >= 5) add(AF.SETS[set].b5); }
+    st.hand = Math.min(st.hand, 9); st.energy = Math.min(st.energy, 7);
     return st;
   };
 
-  // ---------- Gear icons ----------
-  AF.itemIcon = function (id) {
-    const it = AF.ITEMS[id], c = AF.RARITY[it.rarity].color;
-    const shapes = {
-      head: `<path d="M8 22 Q8 8 20 8 Q32 8 32 22 Z" fill="${c}"/><rect x="5" y="21" width="30" height="6" rx="3" fill="${c}" opacity=".8"/>`,
-      body: `<path d="M10 10 L16 7 Q20 11 24 7 L30 10 L34 18 L29 20 L29 33 L11 33 L11 20 L6 18 Z" fill="${c}"/>`,
-      hands: `<path d="M12 33 L12 16 Q12 12 15 12 L15 20 L15 9 Q15 6 18 6 Q21 6 21 9 L21 19 L21 8 Q21 5 24 5 Q27 5 27 8 L27 20 L27 12 Q27 9 30 10 Q32 11 31 14 L29 33 Z" fill="${c}"/>`,
-      feet: `<path d="M12 8 L22 8 L22 24 L33 27 Q35 28 34 32 L10 32 Z" fill="${c}"/>`,
-      acc: `<circle cx="20" cy="22" r="10" fill="${c}"/><circle cx="20" cy="22" r="4.5" fill="#fff" opacity=".7"/><path d="M14 6 L20 13 L26 6" stroke="${c}" stroke-width="3" fill="none"/>`,
+  // ---------- Icons ----------
+  AF.itemIcon = function (id, locked) {
+    const it = AF.ITEMS[id], v = it.vis || { a: AF.RARITY[it.rarity].color, b: '#ffffff' };
+    const a = locked ? '#5a6070' : v.a, b = locked ? '#3a4050' : v.b;
+    const sh = {
+      hat: `<path d="M7 26 Q7 9 20 9 Q33 9 33 26 Z" fill="${a}"/><rect x="4" y="24" width="32" height="6" rx="3" fill="${b}"/>`,
+      face: `<circle cx="13" cy="21" r="7" fill="${b}"/><circle cx="27" cy="21" r="7" fill="${b}"/><path d="M6 21 a7 7 0 0 1 14 0 M20 21 a7 7 0 0 1 14 0 M20 20 h0" stroke="${a}" stroke-width="3" fill="none"/>`,
+      top: `<path d="M10 10 L16 7 Q20 11 24 7 L30 10 L35 18 L29 21 L29 34 L11 34 L11 21 L5 18 Z" fill="${a}"/><path d="M16 7 Q20 13 24 7" fill="${b}"/>`,
+      bottom: `<path d="M11 6 H29 L31 34 H22 L20 16 L18 34 H9 Z" fill="${a}"/><rect x="11" y="6" width="18" height="5" fill="${b}"/>`,
+      shoes: `<path d="M8 14 L19 14 L19 24 L33 27 Q36 29 34 33 L7 33 Z" fill="${a}"/><rect x="7" y="29" width="28" height="4" fill="${b}"/>`,
+      gloves: `<path d="M12 34 L12 16 Q12 12 15 12 L15 20 L15 9 Q15 6 18 6 Q21 6 21 9 L21 19 L21 8 Q21 5 24 5 Q27 5 27 8 L27 20 L27 12 Q27 9 30 10 Q32 11 31 14 L29 34 Z" fill="${a}"/><rect x="11" y="29" width="19" height="5" fill="${b}"/>`,
+      cape: `<path d="M12 6 H28 L34 34 Q20 30 6 34 Z" fill="${a}"/><path d="M12 6 H28 L26 10 H14 Z" fill="${b}"/>`,
+      tool: `<path d="M8 32 L24 16" stroke="${b}" stroke-width="5" stroke-linecap="round"/><circle cx="27" cy="13" r="8" fill="${a}"/>`,
+      charm: `<circle cx="20" cy="23" r="10" fill="${a}"/><circle cx="20" cy="23" r="4.5" fill="#fff" opacity=".7"/><path d="M14 6 L20 13 L26 6" stroke="${a}" stroke-width="3" fill="none"/>`,
     };
-    return `<svg viewBox="0 0 40 40" class="iico"><g stroke="#2a2030" stroke-width="2" stroke-linejoin="round">${shapes[it.slot]}</g></svg>`;
+    return `<svg viewBox="0 0 40 40" class="iico${locked ? ' locked' : ''}"><g stroke="#1a1420" stroke-width="2" stroke-linejoin="round">${sh[it.slot]}</g></svg>`;
   };
 
-  // ---------- Pilot tab (equipment + inventory) ----------
+  // ---------- Pilot tab: stats, what's worn, set bonuses ----------
   AF.pilotTab = function (s) {
-    const st = AF.stats(s), need = AF.xpNeed(s.level);
+    const st = AF.stats(s), need = AF.xpNeed(s.level), sets = AF.setCounts(s);
     const slot = (k) => {
-      const uid = s.equip[k], it = uid && s.inv.find((i) => i.uid === uid);
-      return `<button class="eq-slot${it ? ' full' : ''}" data-unequip="${k}" ${it ? `style="--rc:${AF.RARITY[AF.ITEMS[it.id].rarity].color}"` : 'disabled'}>
-        <small>${AF.EQ_SLOTS[k]}</small>${it ? `${AF.itemIcon(it.id)}<b>${AF.esc(AF.ITEMS[it.id].name)}</b>` : '<span class="muted">Empty</span>'}</button>`;
+      const id = s.equip[k], it = id && AF.ITEMS[id];
+      return `<div class="eq-slot${it ? ' full' : ''}" ${it ? `style="--rc:${AF.RARITY[it.rarity].color}"` : ''}><small>${AF.EQ_SLOTS[k]}</small>${it ? `${AF.itemIcon(id)}<b>${AF.esc(it.name)}</b>` : '<span class="muted">—</span>'}</div>`;
     };
-    const bag = s.inv.filter((i) => !Object.values(s.equip).includes(i.uid));
-    const sum = [['Robot HP', st.maxHp], ['Energy', st.energy], ['Hand', st.hand], ['Attack', '+' + st.dmg], ['Defense', '+' + st.block], ['Gathering', '+' + (st.gather - 1)],
+    const sum = [['Automaton HP', st.maxHp], ['Energy', st.energy], ['Hand', st.hand], ['Attack', '+' + st.dmg], ['Defense', '+' + st.block], ['Gathering', '+' + (st.gather - 1)],
       ['Drop luck', '+' + Math.round(st.luck * 100) + '%'], ['XP bonus', '+' + Math.round(st.xp * 100) + '%'], ['Money bonus', '+' + Math.round(st.money * 100) + '%'], ['Walk speed', '+' + Math.round(st.speed * 100) + '%'], ['Max vitality', AF.pilotMaxVit(s)]];
+    const setRows = Object.entries(sets).map(([k, n]) => `<div class="setrow"><b>${AF.SETS[k].name}</b> ${n} worn · <span class="${n >= 3 ? 'on' : ''}">3: ${AF.statText(AF.SETS[k].b3)}</span> · <span class="${n >= 5 ? 'on' : ''}">5: ${AF.statText(AF.SETS[k].b5)}</span></div>`).join('');
     return `<div class="pilot-tab">
       <div class="pt-card">
-        <canvas class="pt-pic" width="150" height="214"></canvas>
-        <div class="lvl"><b>Level ${s.level}</b><span>${s.level >= AF.MAX_LEVEL ? 'Max level' : `${s.xp} / ${need} XP`}</span></div>
+        <canvas class="pt-pic" width="200" height="270"></canvas>
+        <div class="lvl"><b>${AF.esc(s.look.name)} · Lv ${s.level}</b><span>${s.level >= AF.MAX_LEVEL ? 'Max level' : `${s.xp} / ${need} XP`}</span></div>
         <div class="bar xp"><i style="width:${s.level >= AF.MAX_LEVEL ? 100 : Math.round((s.xp / need) * 100)}%"></i></div>
-        <p class="hint">Earn XP by defeating bots and finishing quests. Each level: +3 robot HP and +1 vitality. Level 5 and 15: +1 card in hand. Level 10: +1 energy.</p>
         <dl class="statlist">${sum.map(([a, b]) => `<dt>${a}</dt><dd>${b}</dd>`).join('')}</dl>
       </div>
       <div>
-        <h3>Equipment</h3>
+        <h3>Wearing</h3>
         <div class="eq-grid">${Object.keys(AF.EQ_SLOTS).map(slot).join('')}</div>
-        <h3>Bag <span class="muted">${s.inv.length} / ${AF.INV_MAX}</span></h3>
-        ${bag.length ? `<div class="bag">${bag.map((i) => { const it = AF.ITEMS[i.id]; return `<button class="item" data-equip="${i.uid}" style="--rc:${AF.RARITY[it.rarity].color}">
-          ${AF.itemIcon(i.id)}<span><b>${AF.esc(it.name)}</b><small>${AF.RARITY[it.rarity].name} ${AF.EQ_SLOTS[it.slot === 'acc' ? 'acc1' : it.slot]}</small><em>${AF.itemText(i.id)}</em></span></button>`; }).join('')}</div>`
-          : '<p class="hint">Your bag is empty. Bots sometimes drop gear, and the Boutique sells some.</p>'}
-        <p class="hint">Tap gear to equip it, tap an equipped slot to take it off. Sell spare gear at the Salvage Exchange.</p>
+        <h3>Set bonuses</h3>${setRows || '<p class="hint">Wear 3 or more pieces from the same set for a bonus. See the Wardrobe tab.</p>'}
+        <p class="hint">Levels: each gives +3 automaton HP and +1 vitality. Level 5 and 15: +1 card in hand. Level 10: +1 energy.</p>
+        <button class="btn primary" data-tab="wardrobe">Open wardrobe</button>
       </div></div>`;
   };
   AF.pilotTabAfter = function (s) {
     const c = document.querySelector('.pt-pic'); if (!c) return;
-    const g = c.getContext('2d'); g.clearRect(0, 0, 150, 214); AF.drawPilot(g, 0, 30, 180, s.look, 0);
+    const g = c.getContext('2d'); g.clearRect(0, 0, c.width, c.height);
+    const t = performance.now();
+    AF.drawPilotAt(g, c.width / 2, c.height - 12, c.height * 0.88, AF.appearance(s), 'down', 0, { t });
   };
-  AF.equipToggle = function (s, el) {
-    if (el.dataset.equip) {
-      const it = s.inv.find((i) => i.uid === el.dataset.equip); if (!it) return;
-      const slot = AF.ITEMS[it.id].slot;
-      const key = slot === 'acc' ? (!s.equip.acc1 ? 'acc1' : !s.equip.acc2 ? 'acc2' : 'acc1') : slot;
-      s.equip[key] = it.uid; AF.sfx('forge'); AF.game.toast(`Equipped ${AF.ITEMS[it.id].name}.`);
-    } else if (el.dataset.unequip) { s.equip[el.dataset.unequip] = null; AF.sfx('card'); }
+
+  // ---------- Wardrobe tab: the collection book ----------
+  AF.WARDROBE_FILTER = 'all';
+  AF.wardrobeTab = function (s) {
+    const ids = Object.keys(AF.ITEMS), total = ids.length, have = ids.filter((id) => AF.owns(s, id)).length;
+    const f = AF.WARDROBE_FILTER;
+    const groups = [['hat', 'Hats'], ['face', 'Face'], ['top', 'Tops'], ['bottom', 'Bottoms'], ['shoes', 'Shoes'], ['gloves', 'Gloves'], ['cape', 'Back'], ['tool', 'Tools'], ['charm', 'Charms']];
+    const filt = [['all', 'All'], ...groups].map(([k, n]) => `<button class="opt${f === k ? ' on' : ''}" data-wfilter="${k}">${n}</button>`).join('');
+    const worn = AF.equippedIds(s);
+    const cards = groups.filter(([k]) => f === 'all' || f === k).map(([k, n]) => {
+      const list = ids.filter((id) => AF.ITEMS[id].slot === k);
+      return `<h3>${n} <span class="muted">${list.filter((id) => AF.owns(s, id)).length} / ${list.length}</span></h3><div class="wgrid">${list.map((id) => {
+        const it = AF.ITEMS[id], own = AF.owns(s, id), on = worn.includes(id);
+        if (!own) return `<div class="witem locked" title="${it.price ? 'Sold at the Boutique' : 'Found on bots, in quests or ruins'}">${AF.itemIcon(id, true)}<b>???</b><small>${it.price ? 'Boutique' : it.rarity === 'epic' ? 'Rare drop' : 'Find it'}</small></div>`;
+        return `<button class="witem${on ? ' on' : ''}" data-wear="${id}" style="--rc:${AF.RARITY[it.rarity].color}">${AF.itemIcon(id)}<b>${AF.esc(it.name)}</b><small>${it.set ? (AF.SETS[it.set] ? AF.SETS[it.set].name + ' · ' : '') : ''}${AF.RARITY[it.rarity].name}</small><em>${AF.itemText(id)}</em>${on ? '<span class="worn">Worn</span>' : ''}</button>`;
+      }).join('')}</div>`;
+    }).join('');
+    const presets = [0, 1, 2].map((i) => {
+      const p = s.presets[i];
+      return `<div class="preset"><b>Outfit ${i + 1}</b>${p ? `<button class="btn sm primary" data-preset-wear="${i}">Wear</button>` : '<span class="muted">Empty</span>'}<button class="btn sm" data-preset-save="${i}">Save current</button></div>`;
+    }).join('');
+    const setList = Object.entries(AF.SETS).map(([k, st]) => {
+      const pieces = ids.filter((id) => AF.ITEMS[id].set === k), got = pieces.filter((id) => AF.owns(s, id)).length;
+      return `<div class="setrow"><b>${st.name}</b> ${got}/${pieces.length} collected · 3: ${AF.statText(st.b3)} · 5: ${AF.statText(st.b5)}</div>`;
+    }).join('');
+    return `<div class="wardrobe">
+      <div class="wd-top"><canvas class="pt-pic wd-pic" width="200" height="270"></canvas>
+        <div><div class="collect"><b>Collection</b><span>${have} / ${total}</span><div class="bar xp"><i style="width:${Math.round((have / total) * 100)}%"></i></div></div>
+        <p class="hint">Everything you wear shows on your pilot. Tap an item to put it on or take it off. Duplicates you find turn into Bolts.</p>
+        <div class="presets">${presets}</div></div></div>
+      <div class="opts">${filt}</div>
+      ${cards}
+      <h3>Outfit sets</h3><div class="sets">${setList}</div></div>`;
+  };
+  AF.wardrobeAfter = function (s) {
+    const c = document.querySelector('.wd-pic'); if (!c) return;
+    const g = c.getContext('2d'); g.clearRect(0, 0, c.width, c.height);
+    AF.drawPilotAt(g, c.width / 2, c.height - 12, c.height * 0.88, AF.appearance(s), 'down', 0, {});
+  };
+  AF.wardrobeHandle = function (s, el) {
+    if (el.dataset.wfilter) { AF.WARDROBE_FILTER = el.dataset.wfilter; return true; }
+    if (el.dataset.wear) { AF.wear(s, el.dataset.wear); AF.sfx('card'); }
+    if (el.dataset.presetSave) { s.presets[+el.dataset.presetSave] = Object.assign({}, s.equip); AF.game.toast('Outfit saved.'); }
+    if (el.dataset.presetWear) { const p = s.presets[+el.dataset.presetWear]; if (p) { Object.keys(s.equip).forEach((k) => { s.equip[k] = p[k] && AF.owns(s, p[k]) ? p[k] : null; }); AF.sfx('forge'); } }
     const st = AF.stats(s); s.hp = Math.min(s.hp, st.maxHp); s.pilot.vit = Math.min(s.pilot.vit, AF.pilotMaxVit(s));
+    return true;
   };
 })();

@@ -2,28 +2,27 @@
 (function () {
   const AF = (window.AF = window.AF || {});
   const $ = (s) => document.querySelector(s);
-  const look = (o) => Object.assign({ name: '', body: 'm', skin: 1, hair: 1, hairColor: 1, top: 0, topColor: 0, bottom: 0, bottomColor: 5, hat: 0, acc: 0, core: 1 }, o);
 
   // ---------- Townsfolk (x, y in town tiles) ----------
   AF.NPCS = {
-    mara: { name: 'Engineer Mara', x: 8, y: 24, dir: 'left', look: look({ body: 'f', skin: 2, hair: 6, hairColor: 5, top: 3, topColor: 6, bottomColor: 0, hat: 3, acc: 4 }) },
-    bram: { name: 'Mayor Bram', x: 24, y: 7, dir: 'down', look: look({ skin: 3, hair: 0, hairColor: 9, top: 1, topColor: 0, hat: 8, acc: 2 }) },
-    lune: { name: 'Archivist Lune', x: 13, y: 7, dir: 'down', look: look({ body: 'f', skin: 0, hair: 5, hairColor: 7, top: 4, topColor: 4, bottom: 2, bottomColor: 4, acc: 2 }) },
-    pip: { name: 'Pip', x: 14, y: 24, dir: 'down', look: look({ skin: 1, hair: 2, hairColor: 3, top: 2, topColor: 3, bottom: 1, bottomColor: 0, hat: 1, acc: 3 }) },
-    rook: { name: 'Guard Rook', x: 18, y: 26, dir: 'left', look: look({ skin: 4, hair: 1, hairColor: 0, top: 6, topColor: 2, hat: 4 }) },
-    tess: { name: 'Tess', x: 9, y: 16, wander: true, look: look({ body: 'f', skin: 2, hair: 9, hairColor: 6, top: 0, topColor: 8, bottom: 2, bottomColor: 6 }),
-      lines: ["I'm gonna be a pilot too someday! My robot will have a JETPACK.", 'Did you know the pond fish glow at night? Mara says it\'s arc runoff.', 'Gus says the Titan used to light up the whole sky.'] },
-    gus: { name: 'Old Gus', x: 24, y: 16, wander: true, look: look({ skin: 0, hair: 0, hairColor: 9, top: 2, topColor: 9, hat: 2 }),
-      lines: ['Back in my day, the Arc Fountain could power the whole town.', 'Bots out there act on a pattern. Watch what they plan to do next, then stay out of reach.', 'Bank your credits, kid. The wilds take a cut if your robot goes down.'] },
-    nell: { name: 'Nell', x: 29, y: 15, wander: true, look: look({ body: 'f', skin: 5, hair: 7, hairColor: 0, top: 1, topColor: 1, acc: 1 }),
+    mara: { name: 'Engineer Mara', x: 8, y: 24, dir: 'left', look: AF.npcLook({ body: 'f', skin: 2, hair: 6, hairColor: 5, eyes: 1, eyeColor: 1 }, ['welding_goggles', 'overalls_denim', 'work_pants', 'steel_boots', 'work_gloves', 'wrench']) },
+    bram: { name: 'Mayor Bram', x: 24, y: 7, dir: 'down', look: AF.npcLook({ skin: 3, hair: 0, hairColor: 9, eyes: 2 }, ['top_hat', 'monocle', 'scholar_coat', 'slacks', 'loafers']) },
+    lune: { name: 'Archivist Lune', x: 13, y: 7, dir: 'down', look: AF.npcLook({ body: 'f', skin: 0, hair: 4, hairColor: 7, eyes: 0, eyeColor: 3 }, ['beret', 'glasses', 'scholar_coat', 'pleated_skirt', 'loafers', 'lantern']) },
+    pip: { name: 'Pip', x: 14, y: 24, dir: 'down', look: AF.npcLook({ skin: 1, hair: 2, hairColor: 3, eyes: 1, eyeColor: 5 }, ['aviator_cap', 'hoodie_orange', 'denim_shorts', 'sneakers', 'backpack']) },
+    rook: { name: 'Guard Rook', x: 18, y: 26, dir: 'left', look: AF.npcLook({ skin: 4, hair: 1, hairColor: 0, eyes: 3 }, ['arc_helm', 'arc_plate', 'arc_greaves', 'arc_sabatons', 'hero_cape', 'arc_blade']) },
+    tess: { name: 'Tess', x: 9, y: 16, wander: true, look: AF.npcLook({ body: 'f', skin: 2, hair: 6, hairColor: 6, eyes: 1, eyeColor: 3 }, ['ribbon_bow', 'pastel_dress', 'ribbon_shoes']),
+      lines: ["I'm gonna be a pilot too someday! My automaton will have a JETPACK.", 'Did you know the pond fish glow at night? Mara says it\'s arc runoff.', 'Gus says the Titan used to light up the whole sky.'] },
+    gus: { name: 'Old Gus', x: 24, y: 16, wander: true, look: AF.npcLook({ skin: 0, hair: 0, hairColor: 9, eyes: 2 }, ['cowboy_hat', 'padded_vest', 'cargo_pants', 'trail_boots']),
+      lines: ['Back in my day, the Arc Fountain could power the whole town.', 'Bots out there act on a pattern. Watch what they plan to do next, then stay out of reach.', 'Bank your credits, kid. The wilds take a cut if your automaton goes down.'] },
+    nell: { name: 'Nell', x: 29, y: 15, wander: true, look: AF.npcLook({ body: 'f', skin: 5, hair: 7, hairColor: 0, eyes: 0, eyeColor: 2 }, ['flower_crown', 'striped_sweater', 'frilly_skirt', 'clogs']),
       lines: ['The Diner\'s Focus Tea is the only thing keeping me awake.', 'Copper veins show up in the rubble east of here. You\'ll need Treads.', 'The Deckhouse restocks every so often. Check back!'] },
-    vik: { name: 'Vik', x: 12, y: 26, wander: true, look: look({ skin: 3, hair: 3, hairColor: 1, top: 0, topColor: 2, bottom: 1, bottomColor: 9 }),
+    vik: { name: 'Vik', x: 12, y: 26, wander: true, look: AF.npcLook({ skin: 3, hair: 8, hairColor: 1, eyes: 3, eyeColor: 4 }, ['eyepatch', 'flight_jacket', 'flight_pants', 'dust_boots', 'patch_scarf']),
       lines: ['Spark Spitters shoot from far away. Get a Rail Shot or close the gap fast!', 'Ruins have a little blue light while nobody\'s searched them yet.', 'I traded three Scrap for a sandwich once. Worth it.'] },
   };
 
   // ---------- Quests ----------
   AF.QUESTS = {
-    s1: { title: 'A Spark of Your Own', text: 'Engineer Mara has built your first robot. Find her outside the Rivet Forge (south-west).', obj: { type: 'talk' }, next: 's2' },
+    s1: { title: 'A Spark of Your Own', text: 'Engineer Mara has built your first automaton. Find her outside the Rivet Forge (south-west).', obj: { type: 'talk' }, next: 's2' },
     s2: { title: "The Mayor's Request", text: 'Mayor Bram is waiting outside Town Hall (north).', obj: { type: 'talk' }, next: 's3' },
     s3: { title: 'Static in the Fields', text: 'Defeat 3 rogue bots outside town, then report to Mayor Bram.', obj: { type: 'win', n: 3 }, turnIn: 'bram', reward: { credits: 400, rations: 2, xp: 80 }, next: 's4' },
     s4: { title: 'Echoes in the Ruins', text: 'Search 2 ruins in the wilds, then bring the data to Archivist Lune.', obj: { type: 'ruin', n: 2 }, turnIn: 'lune', reward: { credits: 300, blueprint: 1, xp: 100, item: 'scout_goggles' }, next: 's5' },
@@ -34,10 +33,10 @@
     t1: { title: 'First Harvest', text: 'Gather 5 Scrap from scrap piles outside town.', obj: { type: 'gather', res: 'scrap', n: 5 }, reward: { credits: 100, xp: 20, item: 'work_gloves' } },
     t2: { title: 'First Fight', text: 'Win a battle against a rogue bot.', obj: { type: 'win', n: 1 }, reward: { credits: 100, rations: 1, xp: 20 } },
     t3: { title: 'Forged in Fire', text: 'Forge a new card at the Rivet Forge.', obj: { type: 'forge', n: 1 }, reward: { credits: 150, xp: 20 } },
-    t4: { title: 'Tune-Up', text: 'Upgrade any robot part at the Bolt & Gear Garage.', obj: { type: 'upgrade', n: 1 }, reward: { credits: 200, xp: 20, item: 'sneakers' } },
+    t4: { title: 'Tune-Up', text: 'Upgrade any automaton part at the Bolt & Gear Garage.', obj: { type: 'upgrade', n: 1 }, reward: { credits: 200, xp: 20, item: 'sneakers' } },
     t5: { title: 'Fuel Up', text: 'Buy anything at the Sparkplug Diner.', obj: { type: 'food', n: 1 }, reward: { credits: 100, xp: 20 } },
     t6: { title: 'Safe Keeping', text: 'Deposit money or materials at the Ironclad Bank.', obj: { type: 'deposit', n: 1 }, reward: { credits: 100, xp: 20, item: 'lunchbox' } },
-    t7: { title: 'Know Your Deck', text: 'Open your deck with the "Robot & deck" button (or press Q).', obj: { type: 'deck', n: 1 }, reward: { credits: 50, xp: 20 } },
+    t7: { title: 'Know Your Deck', text: 'Open your deck with the "Party" button (or press Q).', obj: { type: 'deck', n: 1 }, reward: { credits: 50, xp: 20 } },
   };
 
   const Q = (AF.Quests = {});
@@ -54,7 +53,7 @@
     const out = [];
     if (rw.credits) { state.credits += rw.credits; out.push(AF.moneyText(rw.credits)); }
     if (rw.xp) { const n = AF.gainXP(state, rw.xp); out.push(`${n} XP`); }
-    if (rw.item) { if (AF.giveItem(state, rw.item)) out.push(`a ${AF.ITEMS[rw.item].name}`); }
+    if (rw.item) { const r = AF.giveItem(state, rw.item); out.push(r && r.dup ? AF.moneyText(r.value) : `${AF.ITEMS[rw.item].name} (new outfit piece)`); }
     if (rw.rations) { state.pilot.rations += rw.rations; out.push(`${rw.rations} Field Ration${rw.rations > 1 ? 's' : ''}`); }
     if (rw.card) { const c = AF.newCard(rw.card); c.inDeck = AF.deckCards(state).length < AF.DECK_MAX; state.cards.push(c); out.push(`a ${AF.CARDS[rw.card].name} card`); }
     if (rw.blueprint) {
@@ -177,11 +176,11 @@
     D.show([
       T('Rivet Hollow. A scrappy little town on the edge of the Shattered Wastes.'),
       T('Ten years ago the Titan Core, the great arc reactor beneath the old city, fell silent. Then the bots it once guided turned wild.'),
-      T('Today, {name}, you finally become a pilot. Engineer Mara has been building a robot just for you.'),
+      T('Today, {name}, you finally become a pilot. Engineer Mara has been building an automaton just for you.'),
       T('Move with the arrow keys or WASD (hold Shift to run), or the pad on a touch screen. Face something and press E, Space or the A button to talk, read, enter, gather or search.'),
       T('Would you like tutorial tasks while you play? Pip will reward you for each one.'),
     ], { choices: [
-      { label: 'Yes, show me', fn: () => { state.quests.tut = 'active'; AF.game.toast('Tutorial on. Check your tasks in Robot & deck → Quests.', 5000); after(); } },
+      { label: 'Yes, show me', fn: () => { state.quests.tut = 'active'; AF.game.toast('Tutorial on. Check your tasks in Party → Quests.', 5000); after(); } },
       { label: 'No thanks', fn: () => { state.quests.tut = 'declined'; after(); } },
     ] });
     function after() { state.flags.intro = true; AF.game.persist(); setTimeout(() => AF.game.toast('Quest: find Engineer Mara outside the Rivet Forge (south-west of here).', 6000), 300); }
@@ -193,27 +192,28 @@
     switch (id) {
       case 'mara':
         if (s === 's1') return say([
-          N('mara', "There you are, {name}! I was up all night finishing her."),
-          N('mara', "Every pilot in Rivet Hollow needs a robot, and this one's yours: scrap frame, a Spark Cell core and a set of trusty wheels."),
-          T('Mara flips a switch. The robot\'s core flickers to life and glows in your favourite colour.'),
-          N('mara', "She's bonded to you now. She'll follow you anywhere."),
-          N('mara', 'Oh! Mayor Bram wanted to see you. He\'s outside Town Hall, up north.'),
+          N('mara', "There you are, {name}! I was up all night finishing it."),
+          N('mara', "Every pilot in Rivet Hollow needs an automaton, and this one's yours: scrap frame, a Spark Cell core and a set of trusty wheels."),
+          T('Mara flips a switch. The automaton\'s core flickers to life and glows in your favourite colour.'),
+          N('mara', 'Every automaton needs a name, and a look all its own. Go on, make it yours!'),
+          N('mara', "It's bonded to you now. It'll follow you anywhere."),
         ], { onDone: () => {
           state.flags.robot = true; AF.World.placeRobot(state); AF.sfx('win'); AF.gainXP(state, 20);
           advance(state); AF.game.persist(); AF.game.refresh();
+          AF.Studio.open(state, { first: true, onDone: () => D.show([N('mara', `${AF.botName(state)}! Perfect. You can restyle them any time at the Garage.`), N('mara', 'Oh! Mayor Bram wanted to see you. He\'s outside Town Hall, up north.')]) });
         } });
         return say([N('mara', pick([
           'Bring me materials and I\'ll forge cards for you. Step up to the Forge door and press the action button.',
           'Treads will get you over the rubble east of town. The Garage can fit them.',
-          'If your robot takes a beating, the Garage fixes it up for a few Bolts.',
+          'If your automaton takes a beating, the Garage fixes it up for a few Bolts.',
           'Upgraded cards hit harder. I can upgrade them inside the Forge for Scrap and a Circuit.',
         ]))]);
       case 'bram':
         if (s === 's1') return say([N('bram', 'Ah, our newest pilot! Go see Mara at the Rivet Forge first. She has something for you.')]);
         if (s === 's2') return say([
-          N('bram', 'So Mara finished your robot! A fine-looking machine.'),
+          N('bram', 'So Mara finished your automaton! A fine-looking machine.'),
           N('bram', 'You know the story. When the Titan Core went dark, its bots went wild. Lately they\'re getting bolder, prowling right outside our gates.'),
-          N('bram', 'Take your robot out and defeat 3 rogue bots. Watch their next move, and step out of reach when they wind up a big hit!'),
+          N('bram', 'Take your automaton out and defeat 3 rogue bots. Watch their next move, and step out of reach when they wind up a big hit!'),
         ], { onDone: () => advance(state) });
         if (s === 's3') return qs.ready ? say([
           N('bram', 'Excellent work! The fields are quieter already.'),
@@ -225,9 +225,9 @@
         if (s === 's5') return qs.ready ? say([
           N('bram', 'You beat one of the heavy bots? Rivet Hollow is lucky to have you.'),
           N('bram', 'Lune\'s readings point to the Titan\'s lair, deep in the far mountains. Only Spider Legs can climb those cliffs.'),
-          N('bram', 'Get your robot ready. When you are... shut that thing down.'),
+          N('bram', 'Get your automaton ready. When you are... shut that thing down.'),
         ], { onDone: () => { const got = turnIn(state); AF.game.toast(`Reward: ${got}.`, 4500); } })
-          : say([N('bram', 'Fit your robot with Treads at the Garage, then take on one of the tougher bots out past the rubble.')]);
+          : say([N('bram', 'Fit your automaton with Treads at the Garage, then take on one of the tougher bots out past the rubble.')]);
         if (s === 's6') return qs.ready ? say([
           N('bram', 'The Titan Core... quiet at last? Look! The Arc Fountain is glowing brighter than ever!'),
           N('bram', 'You did it, {name}. Rivet Hollow will tell stories about you for years.'),
@@ -243,7 +243,7 @@
         ], { onDone: () => { const got = turnIn(state); AF.game.toast(`Reward: ${got}.`, 4500); } })
           : say([N('lune', `The ruins hold blueprint fragments and old Titan data logs. Search ${2 - qs.prog} more ruin${2 - qs.prog === 1 ? '' : 's'} (look for the blue glow) and bring me what you find.`)]);
         return say([N('lune', pick([
-          'Before the Collapse, every robot drew power from the Titan Core. Now each one carries its own Arc Core.',
+          'Before the Collapse, every automaton drew power from the Titan Core. Now each one carries its own Arc Core.',
           'Ruins still hold blueprints. The Deckhouse sells a few too, if you have the Gears for it.',
           'Legend says the Titan\'s lair is ringed by cliffs no wheel can climb.',
         ]))]);
@@ -253,7 +253,7 @@
           N('pip', 'Hi, I\'m Pip! I help new pilots learn the ropes.'),
           N('pip', 'Want some tutorial tasks? I\'ll pay you a little for every one you finish!'),
         ], { choices: [
-          { label: 'Sure!', fn: () => { qs.tut = 'active'; AF.game.toast('Tutorial on. See Robot & deck → Quests.'); AF.game.persist(); } },
+          { label: 'Sure!', fn: () => { qs.tut = 'active'; AF.game.toast('Tutorial on. See Party → Quests.'); AF.game.persist(); } },
           { label: 'Not now', fn: () => { qs.tut = 'declined'; AF.game.persist(); } },
         ] });
         if (qs.tdone.length >= total && !qs.grad) return say([
@@ -265,8 +265,8 @@
         return say([N('pip', `${qs.tdone.length} of ${total} tasks done! Next up: ${left[0][1].title}. ${left[0][1].text}`)]);
       }
       case 'rook':
-        if (!state.flags.robot) return say([N('rook', 'Whoa, hold it! The wilds are crawling with rogue bots. Nobody leaves town without a robot.'), N('rook', 'Go see Engineer Mara outside the Rivet Forge.')]);
-        return say([N('rook', pick(['Stay sharp out there. The farther you go from town, the tougher the bots get.', 'Bots with red tags are the nastiest. Steer clear until your robot\'s upgraded.', 'If your robot goes down, the recovery beacon brings you home. You\'ll drop some loot, though.']))]);
+        if (!state.flags.robot) return say([N('rook', 'Whoa, hold it! The wilds are crawling with rogue bots. Nobody leaves town without an automaton.'), N('rook', 'Go see Engineer Mara outside the Rivet Forge.')]);
+        return say([N('rook', pick(['Stay sharp out there. The farther you go from town, the tougher the bots get.', 'Bots with red tags are the nastiest. Steer clear until your automaton is upgraded.', 'If your automaton goes down, the recovery beacon brings you home. You\'ll drop some loot, though.']))]);
       default:
         return say([N(id, pick(n.lines))]);
     }

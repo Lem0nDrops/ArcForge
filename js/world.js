@@ -196,7 +196,7 @@
   }
   const npcAt = (x, y) => npcList().find((n) => n.x === x && n.y === y);
 
-  // ---------- A turn: the pilot moves, the robot follows, the world reacts ----------
+  // ---------- A turn: the pilot moves, the automaton follows, the world reacts ----------
   const DXY = { down: [0, 1], up: [0, -1], left: [-1, 0], right: [1, 0] };
   // What's on a tile that blocks walking and can be interacted with.
   function thingAt(state, x, y) {
@@ -224,7 +224,7 @@
   }
   function face(state, dir) { state.world.dir = dir; }
 
-  // A turn: the pilot steps, the robot follows, the world reacts.
+  // A turn: the pilot steps, the automaton follows, the world reacts.
   function move(state, dx, dy) {
     if (state.world.inside) return AF.Interiors.move(state, dx, dy);
     const mp = map(), w = state.world, nx = w.px + dx, ny = w.py + dy, st = AF.stats(state);
@@ -337,7 +337,7 @@
     w.inside = null; w.px = mp.spawn[0]; w.py = mp.spawn[1]; w.rx = w.px + 1; w.ry = w.py; w.dir = 'down';
     reveal(w); AF.Render.snap();
   }
-  // Put the robot on a free tile next to the pilot.
+  // Put the automaton on a free tile next to the pilot.
   function placeRobot(state) {
     const mp = map(), w = state.world;
     for (const [dx, dy] of [[0, 1], [1, 0], [-1, 0], [0, -1]]) {

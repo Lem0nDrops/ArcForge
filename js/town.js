@@ -32,7 +32,7 @@
   T.PERKS = [
     { id: 'scavenger', name: 'Scavenger', price: 400, text: '+1 material from every resource node.' },
     { id: 'endurance', name: 'Endurance', price: 450, text: '+10 max vitality, and you get hungry more slowly.' },
-    { id: 'medic', name: 'Field Medic', price: 500, text: 'Your robot repairs 5 HP after every win.' },
+    { id: 'medic', name: 'Field Medic', price: 500, text: 'Your automaton repairs 5 HP after every win.' },
     { id: 'haggler', name: 'Haggler', price: 500, text: '15% off in every shop.' },
     { id: 'tactician', name: 'Tactician', price: 600, text: 'Draw 1 extra card on your first turn of each battle.' },
     { id: 'salvager', name: 'Salvage Expert', price: 600, text: '+25% money from battles.' },
@@ -105,29 +105,30 @@
         <div class="row">${btn('Buy 1', `data-mkt="buy:${k}:1"`, s.credits >= bp, true)}${btn('Buy 5', `data-mkt="buy:${k}:5"`, s.credits >= bp * 5, true)}
         ${btn('Sell 1', `data-mkt="sell:${k}:1"`, have >= 1)}${btn('Sell 5', `data-mkt="sell:${k}:5"`, have >= 5)}${btn('Sell all', `data-mkt="sell:${k}:all"`, have >= 1)}</div></div>`;
     }).join('');
-    return `<p class="hint">Card components for forging. Short a few Copper? Buy it here. Got too much Scrap? Sell it.</p><div class="list">${rows}</div>${gearSell(s)}`;
+    return `<p class="hint">Card components for forging. Short a few Copper? Buy it here. Got too much Scrap? Sell it.</p><div class="list">${rows}</div>`;
   }
 
-  function gearSell(s) {
-    const bag = s.inv.filter((i) => !Object.values(s.equip).includes(i.uid));
-    if (!bag.length) return '';
-    return `<h3>Sell gear</h3><p class="hint">Unequipped gear only.</p><div class="list">${bag.map((i) => { const it = AF.ITEMS[i.id], v = Math.floor(AF.itemValue(i.id) * 0.4);
-      return `<div class="row-item"><div><b style="color:${AF.RARITY[it.rarity].color}">${AF.esc(it.name)}</b><span class="muted">${AF.itemText(i.id)}</span></div><div class="row">${cr(v)}${btn('Sell', `data-sellgear="${i.uid}"`, true)}</div></div>`; }).join('')}</div>`;
+  // Boutique stock: 8 clothing pieces that rotate every 250 steps, plus charms that are always in.
+  T.STOCK_EVERY = 250;
+  T.tryOn = null;
+  function boutiqueStock(s) {
+    const n = Math.floor((s.steps || 0) / T.STOCK_EVERY);
+    const pool = Object.keys(AF.ITEMS).filter((id) => AF.ITEMS[id].price && AF.ITEMS[id].slot !== 'charm');
+    return { items: AF.shuffle(pool.slice(), AF.rng(9001 + n * 131)).slice(0, 8), next: T.STOCK_EVERY - ((s.steps || 0) % T.STOCK_EVERY) };
   }
-  function gearShop(s) {
-    const ids = Object.keys(AF.ITEMS).filter((id) => AF.ITEMS[id].price);
-    return `<h3>Pilot gear</h3><p class="hint">Gear boosts your robot and pilot. Equip it from Robot & deck → Pilot.</p><div class="list">${ids.map((id) => {
-      const it = AF.ITEMS[id], pr = price(s, it.price), full = s.inv.length >= AF.INV_MAX;
-      return `<div class="row-item"><div><b style="color:${AF.RARITY[it.rarity].color}">${AF.esc(it.name)}</b><span class="muted">${AF.RARITY[it.rarity].name} · ${AF.EQ_SLOTS[it.slot === 'acc' ? 'acc1' : it.slot]} · ${AF.itemText(id)}</span></div>
-        <div class="row">${cr(pr, s.credits < pr)}${btn('Buy', `data-buygear="${id}"`, s.credits >= pr && !full, true)}</div></div>`; }).join('')}</div>`;
+  function shopRow(s, id) {
+    const it = AF.ITEMS[id], pr = price(s, it.price), own = AF.owns(s, id), set = it.set && AF.SETS[it.set];
+    return `<div class="row-item shop-item${own ? ' owned' : ''}${T.tryOn === id ? ' trying' : ''}" style="--rc:${AF.RARITY[it.rarity].color}">${AF.itemIcon(id)}
+      <div><b>${AF.esc(it.name)}</b><span class="muted"><em class="rar">${AF.RARITY[it.rarity].name}</em> · ${AF.EQ_SLOTS[it.slot === 'charm' ? 'charm1' : it.slot]}${set ? ' · ' + set.name + ' set' : ''} · ${AF.itemText(id)}</span></div>
+      <div class="row">${it.slot !== 'charm' ? `<button class="btn sm ghost" data-tryon="${id}">${T.tryOn === id ? 'Take off' : 'Try on'}</button>` : ''}${own ? '<span class="own">In wardrobe</span>' : cr(pr, s.credits < pr) + btn('Buy', `data-buygear="${id}"`, s.credits >= pr, true)}</div></div>`;
   }
-
   function garage(s) {
     const st = AF.stats(s), missing = st.maxHp - s.hp, repairCost = price(s, missing * 4);
     const swatches = AF.LOOK.core.map(([c, n], i) => `<button class="sw${s.look.core === i ? ' on' : ''}" data-core="${i}" style="--c:${c}" aria-label="${n}" title="${n}"></button>`).join('');
     return `<div class="garage-top">
-        <div class="row-item"><div><b>Repairs</b><span class="muted">Robot HP ${s.hp} / ${st.maxHp}</span></div>
+        <div class="row-item"><div><b>Repairs</b><span class="muted">Automaton HP ${s.hp} / ${st.maxHp}</span></div>
           <div class="row">${missing ? cr(repairCost, s.credits < repairCost) + btn('Repair fully', 'data-repair="1"', s.credits >= repairCost, true) : '<span class="own">Good as new</span>'}</div></div>
+        <div class="row-item"><div><b>Automaton Studio</b><span class="muted">Restyle ${AF.esc(AF.botName(s))}: chassis, head, eyes, antenna, paint and decals · free</span></div><div class="row"><button class="btn primary" data-act="studio">Open studio</button></div></div>
         <div class="row-item"><div><b>Core paint</b><span class="muted">${AF.LOOK.core[s.look.core][1]} · free</span></div><div class="swatches">${swatches}</div></div>
       </div>
       <h3>Part upgrades</h3>${AF.UI.robotTab(s, true)}`;
@@ -140,7 +141,7 @@
         <div class="row">${btn('Deposit 5', `data-bank="dep:${k}:5"`, have >= 5)}${btn('Deposit all', `data-bank="dep:${k}:all"`, have >= 1, true)}
         ${btn('Withdraw 5', `data-bank="wd:${k}:5"`, saved >= 5)}${btn('Withdraw all', `data-bank="wd:${k}:all"`, saved >= 1)}</div></div>`;
     }).join('');
-    return `<p class="hint">If your robot goes down you lose a quarter of what you're carrying. Anything in the bank is always safe.</p>
+    return `<p class="hint">If your automaton goes down you lose a quarter of what you're carrying. Anything in the bank is always safe.</p>
       <div class="list">
         <div class="row-item"><div><b>Money</b><span class="muted">Carrying ${AF.moneyText(s.credits)} · in account ${AF.moneyText(s.bank.credits)}</span></div>
           <div class="row">${btn('Deposit 1 Gear', 'data-bank="dep:credits:100"', s.credits >= 100)}${btn('Deposit all', 'data-bank="dep:credits:all"', s.credits >= 1, true)}
@@ -167,7 +168,7 @@
     return `<div class="bq-top"><canvas id="bq-preview" class="bq-preview"></canvas><div>
         <div class="vitbar"><span>Pilot vitality</span><div class="bar vit"><i style="width:${Math.round((p.vit / max) * 100)}%"></i><span>${p.vit} / ${max}</span></div></div>
         <div class="row" style="margin-top:10px">${btn('Rest in bed', 'data-rest="1"', p.vit < max, true)}<button class="btn" data-wardrobe="1">Wardrobe</button></div>
-        <p class="hint">Resting is free and restores all of your pilot's vitality. Your robot gets repaired at the Garage.</p></div></div>`;
+        <p class="hint">Resting is free and restores all of your pilot's vitality. Your automaton gets repaired at the Garage.</p></div></div>`;
   }
 
   function academy(s) {
@@ -179,41 +180,40 @@
   }
 
   function boutique(s) {
-    const items = [];
-    AF.LOOK_SLOTS.forEach(([slot, label]) => AF.LOOK[slot].forEach(([name, pr], i) => { if (pr) items.push({ slot, label, name, pr, i }); }));
-    const cv = `<canvas id="bq-preview" class="bq-preview"></canvas>`;
-    return `<div class="bq-top">${cv}<div><p class="hint">Change your look any time in the wardrobe. New styles unlock here.</p>
-        <button class="btn primary" data-wardrobe="1">Open wardrobe</button></div></div>
-      ${gearShop(s)}
-      <h3>Outfits & styles</h3><div class="list">${items.map((it) => {
-        const own = AF.isUnlocked(s, it.slot, it.i), pr = price(s, it.pr);
-        return `<div class="row-item${own ? ' owned' : ''}"><div><b>${it.name}</b><span class="muted">${it.label}</span></div>
-          <div class="row">${own ? '<span class="own">Owned</span>' : cr(pr, s.credits < pr) + btn('Buy', `data-unlock="${it.slot}:${it.i}"`, s.credits >= pr, true)}</div></div>`;
-      }).join('')}</div>`;
+    const k = boutiqueStock(s), charms = Object.keys(AF.ITEMS).filter((id) => AF.ITEMS[id].price && AF.ITEMS[id].slot === 'charm');
+    const have = Object.keys(AF.ITEMS).filter((id) => AF.owns(s, id)).length;
+    return `<div class="bq-top"><canvas id="bq-preview" class="bq-preview"></canvas><div>
+        <p class="hint">Tap <b>Try on</b> to see a piece on your pilot before you buy. Everything you own lives in your Wardrobe. Collection: <b>${have} / ${Object.keys(AF.ITEMS).length}</b></p>
+        <div class="row"><button class="btn primary" data-wardrobe="1">Open wardrobe</button><button class="btn" data-act="salon">Salon: hair & eyes</button></div></div></div>
+      <h3>This week's collection</h3><p class="hint">New stock in ${k.next} steps. Rare and epic pieces are only found out in the wilds.</p>
+      <div class="list">${k.items.map((id) => shopRow(s, id)).join('')}</div>
+      <h3>Charms</h3><p class="hint">Hidden lucky charms. Wear up to two.</p><div class="list">${charms.map((id) => shopRow(s, id)).join('')}</div>`;
   }
 
   T.afterRender = function (id, s) {
     const c = document.querySelector('#bq-preview'); if (!c) return;
-    c.width = 108; c.height = 156; AF.drawPilot(c.getContext('2d'), 0, 0, 156, s.look, 0);
+    c.width = 140; c.height = 190;
+    const ap = AF.appearance(s);
+    if (id === 'boutique' && T.tryOn) ap.outfit = Object.assign({}, ap.outfit, { [AF.ITEMS[T.tryOn].slot]: T.tryOn });
+    const g = c.getContext('2d'); g.clearRect(0, 0, c.width, c.height);
+    AF.drawPilotAt(g, c.width / 2, c.height - 8, c.height * 0.9, ap, 'down', 0, {});
   };
 
   // ---------- Actions ----------
   T.handle = function (t, s) {
-    const el = t.closest('[data-buygear],[data-sellgear],[data-buy-card],[data-buy-bp],[data-sell-card],[data-mkt],[data-repair],[data-core],[data-bank],[data-food],[data-perk],[data-unlock],[data-wardrobe],[data-rest]');
+    const el = t.closest('[data-buygear],[data-tryon],[data-buy-card],[data-buy-bp],[data-sell-card],[data-mkt],[data-repair],[data-core],[data-bank],[data-food],[data-perk],[data-unlock],[data-wardrobe],[data-rest]');
     if (!el || el.disabled) return !!el;
     const d = el.dataset, ok = (msg) => { AF.sfx('forge'); if (msg) AF.game.toast(msg); AF.game.persist(); AF.UI.render(); return true; };
     const spend = (n) => { if (s.credits < n) { AF.game.toast('Not enough money.'); return false; } s.credits -= n; return true; };
 
+    if (d.tryon) { T.tryOn = T.tryOn === d.tryon ? null : d.tryon; AF.sfx('card'); AF.UI.render(); return true; }
     if (d.buygear) {
       const it = AF.ITEMS[d.buygear];
-      if (s.inv.length >= AF.INV_MAX) { AF.game.toast('Your bag is full.'); return true; }
-      if (!spend(price(s, it.price))) return true;
-      AF.giveItem(s, d.buygear); return ok(`Bought ${it.name}. Equip it from Robot & deck → Pilot.`);
-    }
-    if (d.sellgear) {
-      const i = s.inv.find((x) => x.uid === d.sellgear); if (!i || Object.values(s.equip).includes(i.uid)) return true;
-      const v = Math.floor(AF.itemValue(i.id) * 0.4); s.inv = s.inv.filter((x) => x !== i); s.credits += v;
-      return ok(`Sold ${AF.ITEMS[i.id].name} for ${AF.moneyText(v)}.`);
+      if (AF.owns(s, d.buygear) || !spend(price(s, it.price))) return true;
+      AF.giveItem(s, d.buygear);
+      if (it.slot !== 'charm') AF.wear(s, d.buygear); else if (!s.equip.charm1 || !s.equip.charm2) AF.wear(s, d.buygear);
+      T.tryOn = null; AF.Quests.event(s, 'outfit', {});
+      return ok(`${it.name} added to your wardrobe and put on!`);
     }
     if (d.buyCard != null) {
       const k = stock(s), i = +d.buyCard, id = k.cards[i], pr = price(s, T.cardValue(id));
@@ -245,7 +245,7 @@
     if (d.repair) {
       const st = AF.stats(s), pr = price(s, (st.maxHp - s.hp) * 4);
       if (!spend(pr)) return true; s.hp = st.maxHp; AF.sfx('heal');
-      return ok('Robot fully repaired.');
+      return ok('Automaton fully repaired.');
     }
     if (d.core != null) { s.look.core = +d.core; return ok('Fresh core paint applied.'); }
     if (d.bank) {
@@ -274,21 +274,8 @@
       if (k.id === 'endurance') s.pilot.vit += 10;
       return ok(`Learned ${k.name}.`);
     }
-    if (d.unlock) {
-      const [slot, i] = d.unlock.split(':'), item = AF.LOOK[slot][+i];
-      if (AF.isUnlocked(s, slot, +i) || !spend(price(s, item[1]))) return true;
-      s.unlocks.push(d.unlock); s.look[slot] = +i;
-      return ok(`${item[0]} bought and put on.`);
-    }
     if (d.rest) { s.pilot.vit = AF.pilotMaxVit(s); AF.sfx('heal'); return ok('You feel rested and ready.'); }
-    if (d.wardrobe) {
-      const back = AF.UI.ctx;
-      AF.UI.close();
-      AF.Creator.open({ mode: 'boutique', state: s, look: s.look,
-        onDone: (look) => { s.look = look; AF.game.persist(); AF.UI.open(null, back); AF.game.toast('Looking sharp.'); },
-        onCancel: () => AF.UI.open(null, back) });
-      return true;
-    }
+    if (d.wardrobe) { T.tryOn = null; AF.UI.open('wardrobe'); return true; }
     return false;
   };
 

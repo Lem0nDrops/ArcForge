@@ -455,8 +455,8 @@
     }
     // robot
     if (state.flags.robot) {
-      const core = AF.coreColor(state.look), size = Math.round(S * 1.0);
-      const im = R.svgImage('rob' + JSON.stringify(state.parts) + core, AF.robotSVG(state.parts, { core }), size);
+      const size = Math.round(S * 1.0);
+      const im = R.svgImage('rob' + AF.botKey(state), AF.botSVG(state), size);
       if (w.rx !== w.px) R.robotFace = w.rx < w.px ? 1 : -1;
       if (Rb.moving && Math.random() < 0.25) R.burst(Rb.x + 0.5, Rb.y + 0.95, 'dust', 1);
       sprites.push([Rb.y + 0.72, () => {
@@ -464,13 +464,13 @@
         g.fillStyle = 'rgba(0,0,0,.25)'; g.beginPath(); g.ellipse(bx, by, S * 0.3, S * 0.08, 0, 0, 7); g.fill();
         if (im) { g.save(); g.translate(bx, by - size * 0.92 - hov); g.scale(R.robotFace || 1, 1); g.drawImage(im, -size / 2, 0); g.restore(); }
       }]);
-      lights.push([Rb.x + 0.5, Rb.y + 0.45, 0.8, hexRGB(core), 0.16]);
+      lights.push([Rb.x + 0.5, Rb.y + 0.45, 0.8, hexRGB(AF.coreColor(state.look)), 0.16]);
     }
     // pilot (+ tall grass in front of the legs)
     const inGrass = AF.World.terrainAt(null, w.px, w.py) === 'forest';
     if (P.moving && Math.random() < (inGrass ? 0.5 : 0.18)) R.burst(P.x + 0.5, P.y + 0.95, inGrass ? 'leaf' : 'dust', 1);
     sprites.push([P.y + 0.76, () => {
-      AF.drawPilotAt(g, sx(P.x + 0.5), sy(P.y + 1) - S * 0.06, S * 1.25, state.look, w.dir, phase, { moving: P.moving, t: now, blink });
+      AF.drawPilotAt(g, sx(P.x + 0.5), sy(P.y + 1) - S * 0.06, S * 1.25, AF.appearance(state), w.dir, phase, { moving: P.moving, t: now, blink });
       if (inGrass && !P.moving) {
         const bx = sx(P.x + 0.5), by = sy(P.y + 1);
         for (let i = -2; i <= 2; i++) {
@@ -587,13 +587,13 @@
     const kp = AF.Interiors.keeperPos(id);
     if (kp) sprites.push([kp[1] + 0.7, () => AF.drawPilotAt(g, sx(kp[0] + 0.5), sy(kp[1] + 1) - S * 0.08, S * 1.25, room.keeper.look, 'down', 0, { t: now + 900, blink })]);
     if (state.flags.robot) {
-      const core = AF.coreColor(state.look), size = Math.round(S), im = R.svgImage('rob' + JSON.stringify(state.parts) + core, AF.robotSVG(state.parts, { core }), size);
+      const size = Math.round(S), im = R.svgImage('rob' + AF.botKey(state), AF.botSVG(state), size);
       if (w.rx !== w.px) R.robotFace = w.rx < w.px ? 1 : -1;
       sprites.push([Rb.y + 0.72, () => { const bx = sx(Rb.x + 0.5), by = sy(Rb.y + 1) - S * 0.06, hov = Math.sin(now / 300) * S * 0.03;
         g.fillStyle = 'rgba(0,0,0,.2)'; g.beginPath(); g.ellipse(bx, by, S * 0.3, S * 0.08, 0, 0, 7); g.fill();
         if (im) { g.save(); g.translate(bx, by - im.height * 0.92 - hov); g.scale(R.robotFace || 1, 1); g.drawImage(im, -im.width / 2, 0); g.restore(); } }]);
     }
-    sprites.push([P.y + 0.76, () => AF.drawPilotAt(g, sx(P.x + 0.5), sy(P.y + 1) - S * 0.06, S * 1.25, state.look, w.dir, phase, { moving: P.moving, t: now, blink })]);
+    sprites.push([P.y + 0.76, () => AF.drawPilotAt(g, sx(P.x + 0.5), sy(P.y + 1) - S * 0.06, S * 1.25, AF.appearance(state), w.dir, phase, { moving: P.moving, t: now, blink })]);
     sprites.sort((a, b) => a[0] - b[0]).forEach((s2) => s2[1]());
     // warm room light
     const lg = g.createRadialGradient(Wd / 2, oy + S * 2, S, Wd / 2, oy + S * 4, RW * S * 0.8);
@@ -637,8 +637,8 @@
         const size = Math.max(96, Math.round((cv.clientWidth || 160) * dpr));
         const put = (im) => { cv.width = size; cv.height = size; const g = cv.getContext('2d'); g.clearRect(0, 0, size, size); g.drawImage(im, 0, 0, size, size); };
         if (kind === 'enemy') R.whenImage('E' + arg, AF.enemySVG(arg), size, put);
-        if (kind === 'robot') { const core = AF.coreColor(state.look); R.whenImage('R' + JSON.stringify(state.parts) + core, AF.robotSVG(state.parts, { core }), size, put); }
-        if (kind === 'pilot') { cv.width = size; cv.height = Math.round(size / 0.7); const g = cv.getContext('2d'); AF.drawPilotAt(g, size / 2, cv.height * 0.99, cv.height * 0.95, state.look, arg || 'down', 0, {}); }
+        if (kind === 'robot') { R.whenImage('R' + AF.botKey(state), AF.botSVG(state), size, put); }
+        if (kind === 'pilot') { cv.width = size; cv.height = Math.round(size / 0.7); const g = cv.getContext('2d'); AF.drawPilotAt(g, size / 2, cv.height * 0.99, cv.height * 0.95, AF.appearance(state), arg || 'down', 0, {}); }
       });
     },
   };

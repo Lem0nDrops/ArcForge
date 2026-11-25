@@ -33,15 +33,16 @@
   const OLD_KEY = 'arcforge.save.v1';
   const slotKey = (n) => 'arcforge.slot.' + n;
 
-  AF.newGame = function (look, slot, seed) {
+  AF.EMPTY_EQUIP = () => ({ hat: null, face: null, top: null, bottom: null, shoes: null, gloves: null, cape: null, tool: null, charm1: null, charm2: null });
+  AF.newGame = function (look, slot, seed, outfit) {
     seed = seed || Math.floor(Math.random() * 1e9);
     const parts = { arc: 1, frame: 1, legs: 1, arms: 1, weapon: 1, shield: 1 };
     const known = Object.keys(AF.CARDS).filter((k) => !AF.CARDS[k].bp);
     return AF.upgradeSave({
-      version: 4, slot: slot || 1, flags: { robot: false, intro: false }, quests: AF.Quests.fresh(), seed, steps: 0, parts,
+      version: 5, slot: slot || 1, flags: { robot: false, intro: false }, quests: AF.Quests.fresh(), seed, steps: 0, parts,
       hp: AF.stats(parts).maxHp,
-      res: { scrap: 6, copper: 2, silicon: 0, arcite: 0, circuits: 0 }, credits: 300, level: 1, xp: 0, inv: [],
-      equip: { head: null, body: null, hands: null, feet: null, acc1: null, acc2: null },
+      res: { scrap: 6, copper: 2, silicon: 0, arcite: 0, circuits: 0 }, credits: 300, level: 1, xp: 0,
+      owned: [], equip: AF.EMPTY_EQUIP(), presets: [null, null, null], starter: outfit || 'tinker', bot: AF.defaultBot && AF.defaultBot(),
       cards: AF.STARTER_DECK.map((id) => AF.newCard(id)),
       known, world: null, look, created: Date.now(),
       stats: { wins: 0, forged: 0 }, won: false,
@@ -62,8 +63,31 @@
       if (s.credits != null) s.credits *= 10;
       if (s.bank && s.bank.credits) s.bank.credits *= 10;
     }
-    s.level = s.level || 1; s.xp = s.xp || 0; s.inv = s.inv || [];
-    s.equip = Object.assign({ head: null, body: null, hands: null, feet: null, acc1: null, acc2: null }, s.equip || {});
+    // v5: gear became a wearable collection; the robot became a named automaton.
+    if (s.version < 5) {
+      s.version = 5;
+      const old = s.equip || {}, inv = s.inv || [];
+      const byUid = (u) => (inv.find((i) => i.uid === u) || {}).id;
+      s.owned = [...new Set(inv.map((i) => i.id).filter((id) => AF.ITEMS[id]))];
+      s.equip = AF.EMPTY_EQUIP();
+      Object.values(old).forEach((u) => { const id = byUid(u); if (id) AF.wear(s, id); });
+      delete s.inv; s.starter = 'tinker';
+      const L = s.look || {};
+      if (L.eyes == null) Object.assign(L, { hair: Math.min(L.hair || 0, AF.LOOK.hair.length - 1), eyes: 0, eyeColor: 0 });
+    }
+    s.level = s.level || 1; s.xp = s.xp || 0;
+    s.owned = s.owned || []; s.equip = Object.assign(AF.EMPTY_EQUIP(), s.equip || {}); s.presets = s.presets || [null, null, null];
+    if (s.starter !== 'given') {
+      // Starter clothes: the base wardrobe plus the outfit picked in the creator, worn right away.
+      const kit = (AF.STARTER_OUTFITS[s.starter] || AF.STARTER_OUTFITS.tinker).items;
+      [...AF.BASE_WARDROBE, ...kit].forEach((id) => { if (!s.owned.includes(id)) s.owned.push(id); });
+      if (!AF.equippedIds(s).some((id) => AF.ITEMS[id].slot !== 'charm')) {
+        kit.forEach((id) => { s.equip[AF.ITEMS[id].slot] = id; });
+        if (!s.equip.top) s.equip.top = 'basic_tee';
+      }
+      s.starter = 'given';
+    }
+    s.bot = Object.assign(AF.defaultBot(), s.bot || {});
     s.flags = s.flags || { robot: false, intro: false };
     s.quests = s.quests || AF.Quests.fresh();
     s.look = s.look || Object.assign(AF.defaultLook('f'), { name: 'Pilot' });
@@ -84,7 +108,7 @@
       const raw = localStorage.getItem(slotKey(n));
       if (!raw) return null;
       const s = JSON.parse(raw);
-      return s && s.version >= 1 && s.version <= 4 ? AF.upgradeSave(Object.assign(s, { slot: n })) : null;
+      return s && s.version >= 1 && s.version <= 5 ? AF.upgradeSave(Object.assign(s, { slot: n })) : null;
     } catch (e) { return null; }
   };
   AF.deleteSlot = function (n) { try { localStorage.removeItem(slotKey(n)); } catch (e) {} };
@@ -104,7 +128,7 @@
   AF.importCode = function (code, slot) {
     try {
       const s = JSON.parse(decodeURIComponent(escape(atob(code.trim()))));
-      if (!s || !s.parts || !(s.version >= 1 && s.version <= 4)) return null;
+      if (!s || !s.parts || !(s.version >= 1 && s.version <= 5)) return null;
       s.slot = slot;
       return AF.upgradeSave(s);
     } catch (e) { return null; }

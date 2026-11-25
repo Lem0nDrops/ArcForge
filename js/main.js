@@ -42,7 +42,7 @@
     $('#tracker').innerHTML = AF.Quests.tracker(s);
     $('#tracker').hidden = !$('#tracker').innerHTML;
     $('#hp i').style.width = Math.round((s.hp / st.maxHp) * 100) + '%';
-    $('#hp span').textContent = `Robot ${s.hp} / ${st.maxHp}`;
+    $('#hp span').textContent = `${AF.botName(s)} ${s.hp} / ${st.maxHp}`;
     $('#vit i').style.width = Math.round((s.pilot.vit / maxV) * 100) + '%';
     $('#vit span').textContent = `${s.look.name} ${s.pilot.vit} / ${maxV}`;
     $('#vit').classList.toggle('low', s.pilot.vit <= 5);
@@ -60,7 +60,7 @@
     $('#hudbuffs').innerHTML = buffs + (s.pilot.vit <= 0 ? '<span class="bad">Exhausted</span>' : '');
   };
 
-  const canAct = () => game.state && !game.battle && !AF.UI.isOpen() && $('#menu').hidden && $('#creator').hidden && !AF.Dialog.open && !$('#game').hidden;
+  const canAct = () => game.state && !game.battle && !AF.UI.isOpen() && $('#menu').hidden && $('#creator').hidden && !AF.Studio.isOpen() && !AF.Dialog.open && !$('#game').hidden;
 
   // ---------- Movement (one tile at a time, chained smoothly while a direction is held) ----------
   const VEC = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
@@ -93,7 +93,7 @@
     else if (ev.type === 'shop') AF.UI.open(null, ev.id);
     else if (ev.type === 'panel') AF.UI.open(ev.tab);
     else if (ev.type === 'say') AF.Dialog.show([{ who: ev.who, text: ev.text }]);
-    else if (ev.type === 'wardrobe') AF.Creator.open({ mode: 'boutique', state: s, look: s.look, onDone: (look) => { s.look = look; game.persist(); game.toast('Looking sharp.'); }, onCancel: () => {} });
+    else if (ev.type === 'wardrobe') AF.UI.open('wardrobe');
     else if (ev.type === 'talk') AF.Quests.talk(s, ev.npc);
     else if (ev.type === 'sign') AF.Dialog.show([{ text: ev.text }]);
     else if (ev.type === 'msg') game.toast(ev.text);
@@ -139,12 +139,12 @@
     }).join('');
     slots.forEach((s, i) => {
       const c = document.querySelector(`[data-pic="${i + 1}"]`);
-      if (s && c) AF.drawPilot(c.getContext('2d'), 0, 4, 200, s.look, 0);
+      if (s && c) AF.drawPilot(c.getContext('2d'), 0, 4, 200, AF.appearance(s), 0);
     });
   }
   function newPilot(n) {
     $('#title').hidden = true;
-    AF.Creator.open({ mode: 'new', onDone: (look) => game.start(AF.newGame(look, n)), onCancel: () => { $('#title').hidden = false; renderSlots(); } });
+    AF.Creator.open({ mode: 'new', onDone: (look, outfit) => game.start(AF.newGame(look, n, null, outfit)), onCancel: () => { $('#title').hidden = false; renderSlots(); } });
   }
 
   // ---------- Keyboard ----------
@@ -166,12 +166,13 @@
       if (['e', 'E', ' '].includes(e.key) && !e.repeat) { e.preventDefault(); AF.BattleUI.endTurn(); }
       return;
     }
-    if (!game.state || $('#game').hidden) return;
+    if (!game.state || $('#game').hidden || AF.Studio.isOpen() || !$('#creator').hidden) return;
     const dir = KEYDIR[e.key];
     if (dir) { e.preventDefault(); if (!input.held.includes(dir)) input.held.push(dir); return; }
     if (ACT.includes(e.key) && !e.repeat && !AF.UI.isOpen() && $('#menu').hidden) { e.preventDefault(); game.interact(); return; }
     if ((e.key === 'q' || e.key === 'Q' || e.key === 'Tab') && !AF.UI.isOpen()) { e.preventDefault(); AF.UI.open('deck'); }
     if ((e.key === 'i' || e.key === 'I') && !AF.UI.isOpen()) AF.UI.open('pilot');
+    if ((e.key === 'o' || e.key === 'O') && !AF.UI.isOpen()) AF.UI.open('wardrobe');
     if (e.key === 'm' || e.key === 'M') AF.UI.isOpen() ? AF.UI.close() : AF.UI.open('map');
     if (e.key === 'r' || e.key === 'R') { game.toast(AF.Town.eatRation(game.state)); game.persist(); game.refresh(); }
   });
@@ -231,6 +232,7 @@
       return;
     }
     if (!$('#creator').hidden && AF.Creator.handle(t)) return;
+    if (AF.Studio.isOpen()) { AF.Studio.handle(t); return; }
     if (!$('#menu').hidden && AF.UI.menuHandle(t)) return;
     if (AF.UI.isOpen() && AF.UI.handle(t)) return;
     const play = t.closest('[data-play]');
@@ -253,6 +255,8 @@
       case 'close-result': closeResult(); break;
       case 'title-help': AF.UI.help(); break;
       case 'workshop': AF.UI.open('deck'); break;
+      case 'studio': AF.Studio.open(game.state); break;
+      case 'salon': AF.Creator.open({ mode: 'salon', state: game.state, look: game.state.look, onDone: (look) => { game.state.look = look; game.persist(); game.refresh(); AF.UI.isOpen() && AF.UI.render(); game.toast('Fresh new look!'); }, onCancel: () => {} }); break;
       case 'map': AF.UI.open('map'); break;
       case 'menu': AF.UI.menu(); break;
       case 'ration': game.toast(AF.Town.eatRation(game.state)); game.persist(); game.refresh(); break;
@@ -273,12 +277,11 @@
   requestAnimationFrame(frame);
 
   // ---------- Boot ----------
-  const ready = AF.Render && AF.Quests && AF.Town && AF.Creator && AF.World && AF.World.init && AF.WORLD_SEED && AF.drawPilotAt && AF.BattleUI;
+  const ready = AF.Render && AF.Quests && AF.Town && AF.Creator && AF.World && AF.World.init && AF.WORLD_SEED && AF.drawPilotAt && AF.BattleUI && AF.Studio && AF.appearance;
   if (!ready) { $('#boot-error').hidden = false; return; }
   AF.migrateOldSave();
   try { renderSlots(); } catch (e) { $('#boot-error').hidden = false; console.error(e); }
   try {
-    $('#title-bot').innerHTML = '<canvas class="spr" data-spr="robot"></canvas>';
-    AF.Pixel.paint($('#title-bot'), { parts: { arc: 3, frame: 3, legs: 2, arms: 2, weapon: 3, shield: 2 }, look: { core: 1 } });
+    $('#title-bot').innerHTML = AF.robotSVG({ arc: 3, frame: 3, legs: 2, arms: 2, weapon: 3, shield: 2 }, { core: '#3ad0ff', bot: { paint: 11, trim: 10, chassis: 'round', head: 'dome', eyes: 'happy', antenna: 'bolt', decal: 'bolt' } });
   } catch (e) { console.error(e); }
 })();

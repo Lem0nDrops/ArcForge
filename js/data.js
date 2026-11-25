@@ -1,4 +1,4 @@
-/* ArcForge — game data: resources, robot parts, cards, enemies.
+/* ArcForge — game data: resources, automaton parts, cards, enemies.
    Everything that defines "content" lives here so you can tweak balance
    or add new cards/enemies without touching game logic. */
 (function () {
@@ -14,7 +14,7 @@
   };
   AF.RES_KEYS = Object.keys(AF.RES);
 
-  // ---------- Robot parts ----------
+  // ---------- Automaton parts ----------
   AF.MAX_LVL = 5;
   AF.PARTS = {
     arc:    { name: 'Arc Core',   role: 'Power supply',
@@ -32,7 +32,7 @@
   };
   AF.PART_KEYS = Object.keys(AF.PARTS);
 
-  // Derived robot stats from part levels.
+  // Derived automaton stats from part levels.
   AF.baseStats = function (p) {
     return {
       energy: 3 + Math.floor((p.arc - 1) / 2),          // 3,3,4,4,5
@@ -46,7 +46,7 @@
     };
   };
 
-  // Pass a whole save to include pilot level and gear; pass parts for the robot alone.
+  // Pass a whole save to include pilot level and gear; pass parts for the automaton alone.
   AF.stats = (a) => (a && a.parts ? AF.fullStats(a) : AF.baseStats(a));
 
   // What each upgrade does, in words (for the workshop).
@@ -154,7 +154,7 @@
   AF.RANGE_NAMES = ['Close', 'Mid', 'Far'];
   AF.rangeLabel = (r) => (r === 0 ? 'Close only' : r === 1 ? 'Close–Mid' : 'Any range');
 
-  // Rules text. st = robot stats (for bonuses), ctx = battle context (charge/tune/block)
+  // Rules text. st = automaton stats (for bonuses), ctx = battle context (charge/tune/block)
   AF.cardText = function (d, st, ctx) {
     st = st || { dmg: 0, block: 0, evade: 0 };
     ctx = ctx || {};
@@ -234,7 +234,7 @@
     cards:    { name: 'The Deckhouse',       sign: 'CARDS',    x: 28, y: 3,  w: 5, h: 4, roof: '#a050b8', blurb: 'Buy and sell cards and blueprints.' },
     bank:     { name: 'Ironclad Bank',       sign: 'BANK',     x: 2,  y: 9,  w: 5, h: 4, roof: '#4a9a58', blurb: 'Store money and materials safely.' },
     salvage:  { name: 'Salvage Exchange',    sign: 'SALVAGE',  x: 8,  y: 9,  w: 5, h: 4, roof: '#c88a30', blurb: 'Buy and sell card components.' },
-    garage:   { name: 'Bolt & Gear Garage',  sign: 'GARAGE',   x: 19, y: 9,  w: 5, h: 4, roof: '#3868b8', blurb: 'Robot part upgrades, repairs and core paint.' },
+    garage:   { name: 'Bolt & Gear Garage',  sign: 'GARAGE',   x: 19, y: 9,  w: 5, h: 4, roof: '#3868b8', blurb: 'Automaton part upgrades, repairs and core paint.' },
     diner:    { name: 'Sparkplug Diner',     sign: 'DINER',    x: 26, y: 9,  w: 5, h: 4, roof: '#e05848', blurb: 'Food, healing and battle buffs for your pilot.' },
     forge:    { name: 'Rivet Forge',         sign: 'FORGE',    x: 3,  y: 19, w: 6, h: 5, roof: '#5a6878', blurb: 'Forge cards, upgrade cards, build your deck.' },
     academy:  { name: 'Pilot Academy',       sign: 'ACADEMY',  x: 10, y: 20, w: 5, h: 4, roof: '#38a898', blurb: 'Permanent pilot skills.' },

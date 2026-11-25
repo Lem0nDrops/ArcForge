@@ -175,7 +175,7 @@
       }
       if (boss || Math.random() < AF.DROP.gear[this.def.tier] + luck / 2) {
         const id = AF.rollGear(this.def.tier, boss);
-        if (AF.giveItem(s, id)) out.gear = id; else out.bagFull = id;
+        const r = AF.giveItem(s, id); out.gear = id; if (r && r.dup) out.dup = r.value;
       }
       out.xp = AF.gainXP(s, AF.XP_BY_TIER[this.def.tier]);
       const locked = Object.keys(AF.CARDS).filter((id) => !s.known.includes(id)), hunter = AF.hasPerk(s, 'hunter');
@@ -250,7 +250,7 @@
       <div class="ib-sub"><span>${e.hp} / ${e.max}</span>${e.block ? `<span class="blk">Block ${e.block}</span>` : ''}</div>
       <div class="intent t-${it.tone}"><small>Next</small><b>${it.text}</b>${it.sub ? `<span>${it.sub}</span>` : ''}</div>`;
     $('.me-box').innerHTML = `
-      <div class="ib-top"><b>${AF.esc(st.look.name)}'s robot</b>${p.block ? `<span class="blk">Block ${p.block}</span>` : '<span></span>'}</div>
+      <div class="ib-top"><b>${AF.esc(AF.botName(st))}</b>${p.block ? `<span class="blk">Block ${p.block}</span>` : '<span></span>'}</div>
       <div class="hp"><em>HP</em><div class="hpbar${hpCls(p.hp, p.max)}"><i style="width:${pct(p.hp, p.max)}%"></i></div></div>
       <div class="ib-sub"><span>${p.hp} / ${p.max}</span><span class="pips" aria-label="Energy ${p.energy}">${Array.from({ length: Math.max(p.energy, b.st.energy) }, (_, i) => `<i class="${i < p.energy ? 'full' : ''}"></i>`).join('')}</span></div>
       <div class="buffs">${p.charge ? `<span>Charge +${p.charge}</span>` : ''}${p.tune ? `<span>Tuned +${p.tune}</span>` : ''}${p.fortify ? `<span>Fortify ${p.fortify}</span>` : ''}${b.mods.tired ? '<span class="bad">Pilot exhausted</span>' : ''}${b.mods.drawEach ? '<span>Focus Tea</span>' : ''}</div>`;
@@ -395,13 +395,13 @@
       <p>${out.boss ? 'The lair goes quiet. Head back to Rivet Hollow and tell Mayor Bram.' : `${AF.esc(b.def.name)} scrapped.`}</p>
       <div class="loot"><span class="cost xpgain">+${out.xp} XP</span>${out.credits ? `<span class="cost">${AF.moneyHtml(out.credits)}</span>` : ''}${lootRows}</div>
       ${!out.credits && !lootRows && !out.gear ? '<p class="muted">No drops this time.</p>' : ''}
-      ${out.gear ? `<p class="gear-drop" style="--rc:${AF.RARITY[AF.ITEMS[out.gear].rarity].color}">${AF.itemIcon(out.gear)}<span>Gear found: <b>${AF.esc(AF.ITEMS[out.gear].name)}</b><small>${AF.itemText(out.gear)}</small></span></p>` : ''}
+      ${out.gear ? `<p class="gear-drop" style="--rc:${AF.RARITY[AF.ITEMS[out.gear].rarity].color}">${AF.itemIcon(out.gear)}<span>${out.dup ? 'Duplicate' : 'New outfit piece!'} <b>${AF.esc(AF.ITEMS[out.gear].name)}</b><small>${out.dup ? `Already in your wardrobe, turned into ${AF.moneyText(out.dup)}` : AF.itemText(out.gear) + ' · added to your Wardrobe'}</small></span></p>` : ''}
       ${out.bagFull ? '<p class="muted">Gear dropped, but your bag is full.</p>' : ''}
       ${out.blueprint ? `<p class="bp">Blueprint recovered: <b>${AF.esc(AF.CARDS[out.blueprint].name)}</b></p>` : ''}
       <button class="btn primary" data-act="close-result">Continue</button>`;
     return `
-      <h2>Robot down</h2>
-      <p>Your recovery beacon hauled you and your robot back to ${AF.TOWN_NAME}. Some money and materials were lost on the way, and your pilot is worn out. Banked items are always safe.</p>
+      <h2>Automaton down</h2>
+      <p>Your recovery beacon hauled you and your automaton back to ${AF.TOWN_NAME}. Some money and materials were lost on the way, and your pilot is worn out. Banked items are always safe.</p>
       <div class="loot">${out.credits ? `<span class="cost">${AF.moneyHtml(out.credits)}</span>` : ''}${lootRows || (out.credits ? '' : '<span class="muted">Nothing lost.</span>')}</div>
       <button class="btn primary" data-act="close-result">Back to town</button>`;
   };

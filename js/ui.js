@@ -1,4 +1,4 @@
-/* ArcForge — panels: Workshop (forge / deck / robot / map), town shops, Menu, Help. */
+/* ArcForge — panels: Workshop (forge / deck / automaton / map), town shops, Menu, Help. */
 (function () {
   const AF = (window.AF = window.AF || {});
   // ctx = which building the panel was opened from (null = field view from the HUD)
@@ -28,13 +28,14 @@
       head = `<h2>${b.name}</h2>`;
       body = `<p class="blurb">${b.blurb}</p>` + AF.Town.render(ctx, s);
     } else {
-      const tabs = [['quests', 'Quests'], ['pilot', 'Pilot'], ['deck', 'Deck'], ['forge', 'Forge'], ['robot', 'Robot'], ['map', 'Map']];
-      head = `<h2>${ctx === 'forge' ? 'Rivet Forge' : 'Robot & deck'}</h2>
+      const tabs = [['quests', 'Quests'], ['pilot', 'Pilot'], ['wardrobe', 'Wardrobe'], ['automaton', AF.esc(AF.botName(s))], ['deck', 'Deck'], ['forge', 'Forge'], ['map', 'Map']];
+      head = `<h2>${ctx === 'forge' ? 'Rivet Forge' : 'Party'}</h2>
         <nav class="tabs">${tabs.map(([k, n]) => `<button class="tab${UI.tab === k ? ' on' : ''}" data-tab="${k}">${n}</button>`).join('')}</nav>`;
       if (UI.tab === 'quests') body = AF.Quests.logHtml(s);
       if (UI.tab === 'pilot') body = AF.pilotTab(s);
+      if (UI.tab === 'wardrobe') body = AF.wardrobeTab(s);
       if (UI.tab === 'deck') AF.Quests.event(s, 'deck', {});
-      if (UI.tab === 'robot') body = UI.robotTab(s, false);
+      if (UI.tab === 'automaton') body = UI.robotTab(s, false);
       if (UI.tab === 'forge') body = forgeTab(s, ctx === 'forge');
       if (UI.tab === 'deck') body = deckTab(s, ctx === 'forge');
       if (UI.tab === 'map') body = `<div class="maptab"><canvas id="bigmap"></canvas><div class="legend">
@@ -50,10 +51,11 @@
     if (!shop && UI.tab === 'map') $('#explored').textContent = `${AF.World.drawMap($('#bigmap'), s)}% of the wasteland explored`;
     if (shop) AF.Town.afterRender(ctx, s);
     if (!shop && UI.tab === 'pilot') AF.pilotTabAfter(s);
+    if (!shop && UI.tab === 'wardrobe') AF.wardrobeAfter(s);
     AF.Pixel.paint($('#panel'), s);
   };
 
-  // Robot parts. canUp = true only inside the Garage.
+  // Automaton parts. canUp = true only inside the Garage.
   UI.robotTab = function (s, canUp) {
     const st = AF.stats(s);
     const rows = AF.PART_KEYS.map((k) => {
@@ -69,7 +71,7 @@
       </div>`;
     }).join('');
     return `${canUp ? '' : '<p class="note">Upgrade parts at the Bolt & Gear Garage in town.</p>'}<div class="robot-tab">
-      <div class="robot-card"><canvas class="spr robot-big" data-spr="robot"></canvas>
+      <div class="robot-card"><h3 class="bot-name">${AF.esc(AF.botName(s))}</h3><canvas class="spr robot-big" data-spr="robot"></canvas><button class="btn primary" data-act="studio">Customize look</button>
         <dl class="statlist"><dt>HP</dt><dd>${s.hp} / ${st.maxHp}</dd><dt>Energy</dt><dd>${st.energy} per turn</dd>
           <dt>Hand</dt><dd>${st.hand} cards</dd><dt>Attack</dt><dd>+${st.dmg}</dd><dt>Defense</dt><dd>+${st.block}</dd>
           <dt>Terrain</dt><dd>${AF.TERRAIN_BY_LEGS[st.legs]}</dd></dl></div>
@@ -106,9 +108,9 @@
   UI.handle = function (t) {
     const s = AF.game.state;
     if (UI.ctx && UI.ctx !== 'forge' && AF.Town.handle(t, s)) return true;
-    const el = t.closest('[data-tab],[data-up],[data-forge],[data-toggle],[data-cup],[data-act],[data-equip],[data-unequip]');
+    const el = t.closest('[data-tab],[data-up],[data-forge],[data-toggle],[data-cup],[data-act],[data-wear],[data-wfilter],[data-preset-save],[data-preset-wear]');
     if (!el) return false;
-    if (el.dataset.equip || el.dataset.unequip) { AF.equipToggle(s, el); AF.game.persist(); UI.render(); return true; }
+    if (el.dataset.wear || el.dataset.wfilter || el.dataset.presetSave || el.dataset.presetWear) { const y = $('#panel .pbody') && $('#panel .pbody').scrollTop; AF.wardrobeHandle(s, el); AF.game.persist(); AF.game.refresh(); UI.render(); if ($('#panel .pbody')) $('#panel .pbody').scrollTop = y; return true; }
     if (el.dataset.tab) { UI.tab = el.dataset.tab; UI.render(); return true; }
     if (el.dataset.up) {
       const k = el.dataset.up, cost = AF.UPGRADE_COST[s.parts[k]];
@@ -175,14 +177,14 @@
     m.querySelector('.sheet').innerHTML = `
       <header class="ph"><h2>How to play</h2><button class="btn ghost x" data-act="close-menu">Close</button></header>
       <div class="pbody help">
-        <p><b>Move.</b> Arrow keys or WASD, hold Shift to run. On touch screens use the pad (hold B to run), or drag on the map like a joystick. Your robot follows you.</p>
+        <p><b>Move.</b> Arrow keys or WASD, hold Shift to run. On touch screens use the pad (hold B to run), or drag on the map like a joystick. Your automaton follows you.</p>
         <p><b>Interact.</b> Face something and press E, Space, Enter or the A button: talk to people, enter doors, read signs, pick up and gather resources, search ruins. A prompt shows what you can do. Tapping right next to your pilot works too.</p>
         <p><b>Shortcuts.</b> Q opens your deck and quests, M the map, R eats a ration.</p>
         <p><b>Town.</b> ${AF.TOWN_NAME} is safe from enemies. Your House (rest, wardrobe), the Rivet Forge (cards and deck), the Deckhouse (buy/sell cards), the Salvage Exchange (materials), the Garage (part upgrades, repairs, core paint), the Bank (safe storage), the Diner (food and buffs), the Pilot Academy (skills) and the Boutique (outfits).</p>
         <p><b>Quests.</b> Follow the story from the quest tracker at the top-left. Pip by the Academy offers optional tutorial tasks.</p>
         <p><b>Your pilot</b> gets hungry in the wild. At zero vitality you're exhausted: −1 energy in battle and smaller harvests. Rest at home, eat at the Diner or carry Field Rations.</p>
-        <p><b>Robot parts.</b> Arc Core = energy per turn. Frame = HP. Locomotion = terrain (Treads for rubble, Hover Jets for water, Spider Legs for mountains). Arms = hand size and gathering. Weapon and Shield boost your attack and defend cards.</p>
-        <p><b>Fight.</b> Touch an enemy to battle. Spend energy to play cards. Distance matters: Close, Mid, Far. Watch the enemy's next move and step out of reach to dodge it. If your robot goes down, you lose a quarter of what you're carrying, so bank your valuables.</p>
+        <p><b>Automaton parts.</b> Arc Core = energy per turn. Frame = HP. Locomotion = terrain (Treads for rubble, Hover Jets for water, Spider Legs for mountains). Arms = hand size and gathering. Weapon and Shield boost your attack and defend cards.</p>
+        <p><b>Fight.</b> Touch an enemy to battle. Spend energy to play cards. Distance matters: Close, Mid, Far. Watch the enemy's next move and step out of reach to dodge it. If your automaton goes down, you lose a quarter of what you're carrying, so bank your valuables.</p>
         <p><b>Goal.</b> Find the Titan Core's lair in the far mountains and shut it down.</p>
       </div>`;
   };

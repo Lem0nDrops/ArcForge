@@ -3,13 +3,12 @@
 (function () {
   const AF = (window.AF = window.AF || {});
   const RW = 11, RH = 8, DOOR = [5, 7];
-  const look = (o) => Object.assign({ name: '', body: 'm', skin: 1, hair: 1, hairColor: 1, top: 0, topColor: 0, bottom: 0, bottomColor: 5, hat: 0, acc: 0, core: 1 }, o);
   const LORE = [
     'An old log: "Titan Core output steady at 98%. Every bot in the city hums in sync. A beautiful sound."',
     'A field guide: "Spark Spitters keep their distance. A Rail Shot or a quick Thruster Dash evens the odds."',
-    'A diary page: "The night the Titan went quiet, every robot in town froze. By morning, the ones outside had turned wild."',
+    'A diary page: "The night the Titan went quiet, every automaton in town froze. By morning, the ones outside had turned wild."',
     'A blueprint sketch of an Arc Core. Someone has scribbled "smaller, safer, ours" in the margin.',
-    'A children\'s book: "Rusty the Robot Learns to Share." Somebody has read it many, many times.',
+    'A children\'s book: "Rusty the Automaton Learns to Share." Somebody has read it many, many times.',
     'A map of the old city. A red circle marks the far mountains: "Titan vault?"',
   ];
 
@@ -18,28 +17,28 @@
     home: { floor: 'wood', wall: '#f6e3c4', trim: '#c88a5a', counter: false,
       items: [{ k: 'bed', x: 8, y: 2, w: 2, h: 2, act: 'rest', label: 'Rest' }, { k: 'wardrobe', x: 1, y: 2, act: 'wardrobe', label: 'Change' },
         { k: 'chest', x: 1, y: 5, act: 'pilot', label: 'Gear' }, { k: 'table', x: 4, y: 4, w: 2 }, { k: 'plant', x: 9, y: 6 }, { k: 'rug', x: 4, y: 5, w: 3, flat: true }] },
-    forge: { floor: 'stone', wall: '#d8987a', trim: '#7a4a32', keeper: { name: 'Smith Ollie', look: look({ skin: 3, hair: 2, hairColor: 0, top: 3, topColor: 9, bottomColor: 9, hat: 3 }), line: 'Mara built the place, I keep it hot. What are we forging?' },
+    forge: { floor: 'stone', wall: '#d8987a', trim: '#7a4a32', keeper: { name: 'Smith Ollie', look: AF.npcLook({ skin: 3, hair: 2, hairColor: 0, eyes: 3 }, ['hardhat', 'forge_apron', 'work_pants', 'steel_boots', 'power_gauntlets', 'forge_hammer']), line: 'Mara built the place, I keep it hot. What are we forging?' },
       items: [{ k: 'anvil', x: 2, y: 5, act: 'shop', label: 'Forge' }, { k: 'furnace', x: 9, y: 2 }, { k: 'barrel', x: 1, y: 2 }, { k: 'barrel', x: 9, y: 6 }] },
-    cards: { floor: 'carpet', carpet: '#9a6ac8', wall: '#efe2ff', trim: '#7a4aa8', keeper: { name: 'Dealer Vivi', look: look({ body: 'f', skin: 0, hair: 4, hairColor: 6, top: 1, topColor: 4, bottom: 2, bottomColor: 5, acc: 2 }), line: 'Fresh packs, rare blueprints... take a look!' },
+    cards: { floor: 'carpet', carpet: '#9a6ac8', wall: '#efe2ff', trim: '#7a4aa8', keeper: { name: 'Dealer Vivi', look: AF.npcLook({ body: 'f', skin: 0, hair: 4, hairColor: 6, eyes: 1, eyeColor: 3 }, ['headphones', 'heart_shades', 'hoodie_orange', 'pleated_skirt', 'sneakers']), line: 'Fresh packs, rare blueprints... take a look!' },
       items: [{ k: 'shelf', x: 1, y: 2 }, { k: 'shelf', x: 2, y: 2 }, { k: 'shelf', x: 8, y: 2 }, { k: 'shelf', x: 9, y: 2 }, { k: 'display', x: 2, y: 5 }, { k: 'display', x: 8, y: 5 }] },
-    salvage: { floor: 'planks', wall: '#e8d8b8', trim: '#8a6a40', keeper: { name: 'Trader Bolt', look: look({ skin: 2, hair: 0, hairColor: 2, top: 2, topColor: 3, bottomColor: 9, hat: 5 }), line: 'Buy low, sell high, never sell your last bolt.' },
+    salvage: { floor: 'planks', wall: '#e8d8b8', trim: '#8a6a40', keeper: { name: 'Trader Bolt', look: AF.npcLook({ skin: 2, hair: 0, hairColor: 2, eyes: 4 }, ['red_bandana', 'bandit_mask', 'scrap_vest', 'cargo_pants', 'dust_boots', 'backpack']), line: 'Buy low, sell high, never sell your last bolt.' },
       items: [{ k: 'crate', x: 1, y: 4 }, { k: 'crate', x: 1, y: 5 }, { k: 'crate', x: 9, y: 5 }, { k: 'heap', x: 9, y: 3 }, { k: 'barrel', x: 1, y: 2 }] },
-    garage: { floor: 'concrete', wall: '#c8d8e8', trim: '#3a5a88', keeper: { name: 'Mechanic Gil', look: look({ skin: 4, hair: 1, hairColor: 0, top: 3, topColor: 0, bottomColor: 0, hat: 1 }), line: 'Bring her in! Upgrades, repairs, a fresh coat of core paint.' },
+    garage: { floor: 'concrete', wall: '#c8d8e8', trim: '#3a5a88', keeper: { name: 'Mechanic Gil', look: AF.npcLook({ skin: 4, hair: 1, hairColor: 0, eyes: 0 }, ['leather_cap', 'overalls_denim', 'work_pants', 'basic_shoes', 'work_gloves', 'wrench']), line: 'Bring her in! Upgrades, repairs, a fresh coat of core paint.' },
       items: [{ k: 'lift', x: 1, y: 5, w: 2 }, { k: 'toolboard', x: 9, y: 2 }, { k: 'tires', x: 9, y: 5 }, { k: 'barrel', x: 1, y: 2 }] },
-    bank: { floor: 'marble', wall: '#e8efe4', trim: '#3a7a4a', keeper: { name: 'Banker Ingot', look: look({ skin: 1, hair: 0, hairColor: 9, top: 1, topColor: 5, bottomColor: 5, hat: 8, acc: 2 }), line: 'Your valuables are safe with Ironclad. Nothing gets past the vault.' },
+    bank: { floor: 'marble', wall: '#e8efe4', trim: '#3a7a4a', keeper: { name: 'Banker Ingot', look: AF.npcLook({ skin: 1, hair: 0, hairColor: 9, eyes: 2 }, ['top_hat', 'monocle', 'padded_vest', 'slacks', 'loafers']), line: 'Your valuables are safe with Ironclad. Nothing gets past the vault.' },
       items: [{ k: 'vault', x: 9, y: 2, act: 'shop', label: 'Vault' }, { k: 'plant', x: 1, y: 2 }, { k: 'plant', x: 1, y: 6 }, { k: 'bench', x: 8, y: 5, w: 2 }] },
-    diner: { floor: 'checker', wall: '#fde8d8', trim: '#c84a3a', keeper: { name: 'Cook Mabel', look: look({ body: 'f', skin: 2, hair: 7, hairColor: 5, top: 0, topColor: 6, bottomColor: 1, acc: 1 }), line: 'Sit, eat! You look like you walked here from the Rustfields.' },
+    diner: { floor: 'checker', wall: '#fde8d8', trim: '#c84a3a', keeper: { name: 'Cook Mabel', look: AF.npcLook({ body: 'f', skin: 2, hair: 7, hairColor: 5, eyes: 0, eyeColor: 1 }, ['chef_hat', 'chef_apron', 'checker_pants', 'clogs', 'spatula']), line: 'Sit, eat! You look like you walked here from the Rustfields.' },
       items: [{ k: 'dtable', x: 2, y: 5 }, { k: 'dtable', x: 8, y: 5 }, { k: 'jukebox', x: 1, y: 2 }, { k: 'fridge', x: 9, y: 2 }] },
-    academy: { floor: 'wood', wall: '#e0f2ee', trim: '#2a8a7a', keeper: { name: 'Instructor Sol', look: look({ skin: 5, hair: 3, hairColor: 0, top: 4, topColor: 7, bottomColor: 5, acc: 2 }), line: 'A good pilot keeps learning. Which skill shall we train today?' },
+    academy: { floor: 'wood', wall: '#e0f2ee', trim: '#2a8a7a', keeper: { name: 'Instructor Sol', look: AF.npcLook({ skin: 5, hair: 3, hairColor: 0, eyes: 3 }, ['glasses', 'lab_coat', 'slacks', 'loafers', 'spark_staff']), line: 'A good pilot keeps learning. Which skill shall we train today?' },
       items: [{ k: 'bookshelf', x: 1, y: 2, act: 'book', label: 'Read' }, { k: 'bookshelf', x: 9, y: 2, act: 'book', label: 'Read' }, { k: 'desk', x: 2, y: 5 }, { k: 'desk', x: 8, y: 5 }] },
-    boutique: { floor: 'carpet', carpet: '#f0a8c4', wall: '#fff0f6', trim: '#c84a88', keeper: { name: 'Stylist Faye', look: look({ body: 'f', skin: 1, hair: 9, hairColor: 8, top: 1, topColor: 8, bottom: 2, bottomColor: 4, hat: 9 }), line: 'Darling! Gear that works AND looks fabulous.' },
+    boutique: { floor: 'carpet', carpet: '#f0a8c4', wall: '#fff0f6', trim: '#c84a88', keeper: { name: 'Stylist Faye', look: AF.npcLook({ body: 'f', skin: 1, hair: 9, hairColor: 8, eyes: 1, eyeColor: 3 }, ['wizard_hat', 'heart_shades', 'pastel_dress', 'ribbon_shoes', 'glider_wings']), line: 'Darling! Gear that works AND looks fabulous.' },
       items: [{ k: 'rack', x: 1, y: 4 }, { k: 'rack', x: 1, y: 5 }, { k: 'rack', x: 9, y: 5 }, { k: 'mirror', x: 9, y: 2, act: 'wardrobe', label: 'Mirror' }, { k: 'plant', x: 1, y: 2 }] },
-    archive: { floor: 'wood', wall: '#ece4f6', trim: '#5a4a8a', counter: false, keeper: { name: 'Page Quill', x: 5, y: 4, look: look({ skin: 0, hair: 4, hairColor: 2, top: 2, topColor: 4, bottom: 1, bottomColor: 9, acc: 2 }), line: 'Shh! Lune is outside, but you may read anything on the shelves.' },
+    archive: { floor: 'wood', wall: '#ece4f6', trim: '#5a4a8a', counter: false, keeper: { name: 'Page Quill', x: 5, y: 4, look: AF.npcLook({ skin: 0, hair: 4, hairColor: 2, eyes: 4 }, ['glasses', 'striped_sweater', 'slacks', 'loafers', 'lantern']), line: 'Shh! Lune is outside, but you may read anything on the shelves.' },
       items: [1, 2, 3, 7, 8, 9].map((x) => ({ k: 'bookshelf', x, y: 2, act: 'book', label: 'Read' })).concat([{ k: 'desk', x: 2, y: 5 }, { k: 'desk', x: 8, y: 5 }]) },
-    hall: { floor: 'marble', wall: '#e4ecfa', trim: '#3a5aa8', keeper: { name: 'Clerk Tibbs', look: look({ skin: 2, hair: 1, hairColor: 2, top: 1, topColor: 0, bottomColor: 5, acc: 2 }), line: 'Mayor Bram is out front. He likes to greet folks in person.', talk: true },
+    hall: { floor: 'marble', wall: '#e4ecfa', trim: '#3a5aa8', keeper: { name: 'Clerk Tibbs', look: AF.npcLook({ skin: 2, hair: 1, hairColor: 2, eyes: 0 }, ['glasses', 'padded_vest', 'slacks', 'loafers']), line: 'Mayor Bram is out front. He likes to greet folks in person.', talk: true },
       items: [{ k: 'banner', x: 1, y: 2 }, { k: 'banner', x: 9, y: 2 }, { k: 'plant', x: 1, y: 6 }, { k: 'plant', x: 9, y: 6 }, { k: 'bench', x: 2, y: 5, w: 2 }] },
     cottage: { floor: 'wood', wall: '#fff2d8', trim: '#c87838', counter: false,
-      items: [{ k: 'bed', x: 8, y: 2, w: 2, h: 2, act: 'flavor', label: 'Look', text: "Pip's bed. There's a robot plush on the pillow." }, { k: 'chest', x: 1, y: 2, act: 'flavor', label: 'Look', text: 'A toy chest full of bolts, springs and one very small wrench.' },
+      items: [{ k: 'bed', x: 8, y: 2, w: 2, h: 2, act: 'flavor', label: 'Look', text: "Pip's bed. There's an automaton plush on the pillow." }, { k: 'chest', x: 1, y: 2, act: 'flavor', label: 'Look', text: 'A toy chest full of bolts, springs and one very small wrench.' },
         { k: 'table', x: 4, y: 4, w: 2 }, { k: 'rug', x: 4, y: 5, w: 3, flat: true }, { k: 'plant', x: 1, y: 6 }] },
   };
 
