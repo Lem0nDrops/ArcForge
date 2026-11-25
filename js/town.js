@@ -50,9 +50,9 @@
     const rot = Math.floor(s.steps / T.RESTOCK);
     s.shop = s.shop && s.shop.rot === rot ? s.shop : { rot, bought: [] };
     const r = AF.rng(s.seed + rot * 977);
-    const ids = AF.shuffle(Object.keys(AF.CARDS).slice(), r);
+    const ids = AF.shuffle(Object.keys(AF.CARDS).filter((id) => AF.canUse(s, id)), r);
     const cards = ids.slice(0, 6);
-    const locked = AF.shuffle(Object.keys(AF.CARDS).filter((id) => !s.known.includes(id)), r).slice(0, 2);
+    const locked = AF.shuffle(AF.lockedCards(s), r).slice(0, 2);
     return { rot, cards, locked, next: (rot + 1) * T.RESTOCK - s.steps };
   }
 
@@ -92,10 +92,10 @@
       return `<div class="row-item"><div><b>${AF.esc(d.name)}</b><span class="muted">Own ${list.length} · ${list.filter((c) => c.inDeck).length} in deck</span></div>
         <div class="row">${cr(val)}${btn('Sell 1', `data-sell-card="${g}"`, canSell)}</div></div>`;
     }).join('');
-    return `<h3>Cards for sale</h3><p class="hint">New stock in ${k.next} steps. Bought cards go into your deck.</p>
+    return `<h3>Cards for sale</h3><p class="hint">New stock in ${k.next} steps. Bought cards go to storage. Swap them into your deck from Party → Deck.</p>
       <div class="grid">${offers}</div>
       <h3>Blueprints</h3><div class="list">${bps}</div>
-      <h3>Sell your cards</h3><p class="hint">Cards in storage sell first. Your deck can't drop below ${AF.DECK_MIN}.</p><div class="list">${sell}</div>`;
+      <h3>Sell your cards</h3><p class="hint">Only cards in storage can be sold, so your 30-card deck stays intact.</p><div class="list">${sell}</div>`;
   }
 
   function salvageShop(s) {

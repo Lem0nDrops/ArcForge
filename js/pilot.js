@@ -268,10 +268,11 @@
   };
 
   // ---------- Character creator (new pilot) and Salon (change hair/face later) ----------
-  const C = (AF.Creator = { look: null, mode: 'new', outfit: 'tinker', raf: 0 });
+  const C = (AF.Creator = { look: null, mode: 'new', outfit: 'tinker', con: null, raf: 0 });
   C.open = function (opts) {
     C.mode = opts.mode === 'boutique' ? 'salon' : opts.mode; C.state = opts.state || null; C.onDone = opts.onDone; C.onCancel = opts.onCancel;
     C.look = Object.assign(AF.defaultLook(Math.random() < 0.5 ? 'm' : 'f'), opts.look || {});
+    if (C.mode === 'new') { C.con = null; C.warn = false; }
     document.querySelector('#creator').hidden = false;
     C.render();
     cancelAnimationFrame(C.raf);
@@ -310,19 +311,23 @@
         <section><h3>Skin</h3><div class="swatches">${sw('skin', L.skin)}</div></section>
         <section><h3>Hair</h3><div class="opts">${opts('hair', L.hair)}</div><div class="swatches">${sw('hairColor', L.hairColor)}</div></section>
         <section><h3>Eyes</h3><div class="opts">${opts('eyes', L.eyes)}</div><div class="swatches">${sw('eyeColor', L.eyeColor)}</div></section>
-        ${isNew ? `<section><h3>Starting outfit</h3><p class="hint">You'll collect many more outfits as you play. Everything you wear shows on your pilot.</p><div class="opts">${Object.entries(AF.STARTER_OUTFITS).map(([k, o]) => `<button class="opt${C.outfit === k ? ' on' : ''}" data-outfit="${k}">${o.name}</button>`).join('')}</div></section>` : ''}
+        ${isNew ? `<section><h3>Starting outfit</h3><p class="hint">You'll collect many more outfits as you play. Everything you wear shows on your pilot.</p><div class="opts">${Object.entries(AF.STARTER_OUTFITS).map(([k, o]) => `<button class="opt${C.outfit === k ? ' on' : ''}" data-outfit="${k}">${o.name}</button>`).join('')}</div></section>
+        <section id="cr-con" class="${C.warn && !C.con ? 'need' : ''}"><h3>Your automaton's Construct</h3>${C.warn && !C.con ? '<p class="warn">Pick one to start your adventure.</p>' : ''}<p class="hint">Engineer Mara will build this for you. It decides your automaton's strengths and your 30-card starting deck. This choice is permanent for this pilot.</p>${AF.constructPicker(C.con, AF.coreColor(lk))}</section>
+        <section><h3>Core glow</h3><div class="swatches">${sw('core', L.core)}</div></section>` : ''}
         <div class="row cr-end"><button class="btn ghost" data-cr="cancel">${isNew ? 'Back' : 'Cancel'}</button><button class="btn primary" data-cr="done">${isNew ? 'Start adventure' : 'Save look'}</button></div>
       </div>`;
   };
   C.handle = function (t) {
-    const el = t.closest('[data-look],[data-cr],[data-outfit]');
+    const el = t.closest('[data-look],[data-cr],[data-outfit],[data-construct]');
     if (!el) return false;
     const nameEl = document.querySelector('#cr-name'); if (nameEl) C.look.name = nameEl.value;
     if (el.dataset.outfit) { C.outfit = el.dataset.outfit; C.render(); return true; }
+    if (el.dataset.construct) { C.con = el.dataset.construct; AF.sfx('card'); C.render(); return true; }
     if (el.dataset.look) { C.look[el.dataset.look] = el.dataset.v || +el.dataset.i; C.render(); return true; }
-    if (el.dataset.cr === 'random') { const n = C.look.name; C.look = AF.randomLook(); C.look.name = n; C.outfit = Object.keys(AF.STARTER_OUTFITS)[Math.floor(Math.random() * 3)]; C.render(); return true; }
+    if (el.dataset.cr === 'random') { const n = C.look.name; C.look = AF.randomLook(); C.look.name = n; C.outfit = Object.keys(AF.STARTER_OUTFITS)[Math.floor(Math.random() * 3)]; C.con = C.con || Object.keys(AF.CONSTRUCTS)[Math.floor(Math.random() * 3)]; C.render(); return true; }
     if (el.dataset.cr === 'cancel') { C.close(); C.onCancel && C.onCancel(); return true; }
-    if (el.dataset.cr === 'done') { C.look.name = (C.look.name || '').trim().slice(0, 16) || 'Pilot'; C.close(); C.onDone(C.look, C.outfit); return true; }
+    if (el.dataset.cr === 'done' && C.mode === 'new' && !C.con) { C.warn = true; C.render(); const sec = document.querySelector('#cr-con'); if (sec) sec.scrollIntoView({ behavior: 'smooth', block: 'center' }); return true; }
+    if (el.dataset.cr === 'done') { C.look.name = (C.look.name || '').trim().slice(0, 16) || 'Pilot'; C.close(); C.onDone(C.look, C.outfit, C.con); return true; }
     return false;
   };
 })();

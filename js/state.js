@@ -34,16 +34,17 @@
   const slotKey = (n) => 'arcforge.slot.' + n;
 
   AF.EMPTY_EQUIP = () => ({ hat: null, face: null, top: null, bottom: null, shoes: null, gloves: null, cape: null, tool: null, charm1: null, charm2: null });
-  AF.newGame = function (look, slot, seed, outfit) {
+  AF.newGame = function (look, slot, seed, outfit, construct) {
+    construct = AF.CONSTRUCTS[construct] ? construct : 'sprocket';
     seed = seed || Math.floor(Math.random() * 1e9);
     const parts = { arc: 1, frame: 1, legs: 1, arms: 1, weapon: 1, shield: 1 };
-    const known = Object.keys(AF.CARDS).filter((k) => !AF.CARDS[k].bp);
+    const known = AF.knownFor(construct);
     return AF.upgradeSave({
-      version: 5, slot: slot || 1, flags: { robot: false, intro: false }, quests: AF.Quests.fresh(), seed, steps: 0, parts,
-      hp: AF.stats(parts).maxHp,
+      version: 6, construct, slot: slot || 1, flags: { robot: false, intro: false }, quests: AF.Quests.fresh(), seed, steps: 0, parts,
+      hp: Math.round(AF.stats(parts).maxHp * AF.CONSTRUCTS[construct].hpMul),
       res: { scrap: 6, copper: 2, silicon: 0, arcite: 0, circuits: 0 }, credits: 300, level: 1, xp: 0,
-      owned: [], equip: AF.EMPTY_EQUIP(), presets: [null, null, null], starter: outfit || 'tinker', bot: AF.defaultBot && AF.defaultBot(),
-      cards: AF.STARTER_DECK.map((id) => AF.newCard(id)),
+      owned: [], equip: AF.EMPTY_EQUIP(), presets: [null, null, null], starter: outfit || 'tinker', bot: AF.defaultBot(construct),
+      cards: AF.starterDeck(construct).map((id) => AF.newCard(id)),
       known, world: null, look, created: Date.now(),
       stats: { wins: 0, forged: 0 }, won: false,
     });
@@ -87,7 +88,10 @@
       }
       s.starter = 'given';
     }
-    s.bot = Object.assign(AF.defaultBot(), s.bot || {});
+    // v6: Constructs. Older saves pick one the next time they play (see AF.setConstruct).
+    if (s.version < 6) { s.version = 6; s.construct = s.construct || null; (s.cards || []).forEach((c) => { if (c.id === 'bulwark') c.id = 'ironwall'; }); }
+    s.cards = (s.cards || []).filter((c) => AF.CARDS[c.id]);
+    s.bot = Object.assign(AF.defaultBot(s.construct), s.bot || {});
     s.flags = s.flags || { robot: false, intro: false };
     s.quests = s.quests || AF.Quests.fresh();
     s.look = s.look || Object.assign(AF.defaultLook('f'), { name: 'Pilot' });
@@ -108,7 +112,7 @@
       const raw = localStorage.getItem(slotKey(n));
       if (!raw) return null;
       const s = JSON.parse(raw);
-      return s && s.version >= 1 && s.version <= 5 ? AF.upgradeSave(Object.assign(s, { slot: n })) : null;
+      return s && s.version >= 1 && s.version <= 6 ? AF.upgradeSave(Object.assign(s, { slot: n })) : null;
     } catch (e) { return null; }
   };
   AF.deleteSlot = function (n) { try { localStorage.removeItem(slotKey(n)); } catch (e) {} };
@@ -128,7 +132,7 @@
   AF.importCode = function (code, slot) {
     try {
       const s = JSON.parse(decodeURIComponent(escape(atob(code.trim()))));
-      if (!s || !s.parts || !(s.version >= 1 && s.version <= 5)) return null;
+      if (!s || !s.parts || !(s.version >= 1 && s.version <= 6)) return null;
       s.slot = slot;
       return AF.upgradeSave(s);
     } catch (e) { return null; }
@@ -188,3 +192,17 @@
     } catch (e) {}
   };
 })();
+
+// Give an older save its Construct: new 30-card starter deck in the deck, old cards it can still use go to storage,
+// cards for other constructs are traded in for Bolts.
+window.AF.setConstruct = function (s, con) {
+  const AF = window.AF;
+  s.construct = con;
+  let refund = 0;
+  s.cards = s.cards.filter((c) => { if (AF.canUse(s, c.id)) { c.inDeck = false; return true; } refund += Math.round(AF.Town.cardValue(c.id) * 0.5); return false; });
+  s.cards.push(...AF.starterDeck(con).map((id) => AF.newCard(id)));
+  s.known = [...new Set([...s.known.filter((id) => AF.CARDS[id] && AF.canUse(s, id)), ...AF.knownFor(con)])];
+  s.credits += refund;
+  s.hp = AF.stats(s).maxHp;
+  return refund;
+};

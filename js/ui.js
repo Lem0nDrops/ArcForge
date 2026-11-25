@@ -81,9 +81,9 @@
   function forgeTab(s, atForge) {
     const st = AF.stats(s);
     const owned = (id) => s.cards.filter((c) => c.id === id).length;
-    const ids = Object.keys(AF.CARDS);
+    const ids = Object.keys(AF.CARDS).filter((id) => AF.canUse(s, id));
     const known = ids.filter((id) => s.known.includes(id)), locked = ids.filter((id) => !s.known.includes(id));
-    return `<p class="hint">Forge new cards from materials. New cards go straight into your deck. Blueprints for advanced cards come from ruins, tougher bots, or the Deckhouse.</p>
+    return `<p class="hint">Forge new cards from materials. New cards go to storage; swap them into your deck in the Deck tab. Blueprints for advanced cards come from ruins, tougher bots, or the Deckhouse.</p>
       <div class="grid">${known.map((id) => {
         const c = AF.CARDS[id], ok = atForge && AF.canPay(s, c.recipe);
         return AF.cardHtml(AF.cardDef({ id }), { st, footer: `<div class="cf"><div class="costs">${AF.costHtml(c.recipe, s)}</div>
@@ -93,22 +93,42 @@
       ${locked.map(() => `<div class="card locked"><b class="nm">Unknown blueprint</b><span class="tx">Search ruins, beat tougher bots, or buy it at the Deckhouse.</span></div>`).join('')}</div>`;
   }
 
+  // Deck builder: the deck is always exactly 30 cards. Pick a deck card, then a storage card, to swap them.
+  UI.swapOut = null;
+  const gkey = (c) => `${c.id}|${c.plus ? 1 : 0}`;
+  function groups(list) {
+    const m = new Map();
+    list.forEach((c) => { const k = gkey(c); if (!m.has(k)) m.set(k, []); m.get(k).push(c); });
+    const order = { attack: 0, defend: 1, move: 2, repair: 3, tech: 4 };
+    return [...m.entries()].sort((a, b) => order[AF.CARDS[a[1][0].id].kind] - order[AF.CARDS[b[1][0].id].kind] || AF.CARDS[a[1][0].id].cost - AF.CARDS[b[1][0].id].cost || a[0].localeCompare(b[0]));
+  }
   function deckTab(s, atForge) {
-    const st = AF.stats(s), n = AF.deckCards(s).length;
-    const sorted = s.cards.slice().sort((a, b) => (b.inDeck - a.inDeck) || a.id.localeCompare(b.id) || (b.plus - a.plus));
-    const upOk = atForge && AF.canPay(s, AF.CARD_UPGRADE_COST);
-    return `<p class="hint"><b>${n}</b> cards in deck (min ${AF.DECK_MIN}, max ${AF.DECK_MAX}). Tap a card to move it in or out of your deck.
-      ${atForge ? `Upgrade a card for ${AF.costHtml(AF.CARD_UPGRADE_COST, s)}` : 'Card upgrades are done at the Home Forge.'}</p>
-      <div class="grid">${sorted.map((c) => AF.cardHtml(AF.cardDef(c), { st, disabled: !c.inDeck, attrs: `data-toggle="${c.uid}" role="button" tabindex="0"`,
-        footer: `<div class="cf"><span class="own">${c.inDeck ? 'In deck' : 'In storage'}</span>
-          ${c.plus || !atForge ? '' : `<button class="btn sm" data-cup="${c.uid}" ${upOk ? '' : 'disabled'}>Upgrade</button>`}</div>` })).join('')}</div>`;
+    const st = AF.stats(s), deck = AF.deckCards(s), store = s.cards.filter((c) => !c.inDeck), n = deck.length;
+    const upOk = atForge && AF.canPay(s, AF.CARD_UPGRADE_COST), C = AF.CONSTRUCTS[s.construct];
+    if (UI.swapOut && !deck.some((c) => gkey(c) === UI.swapOut)) UI.swapOut = null;
+    const tile = (k, cs, inDeck) => {
+      const c = cs[0], sel = inDeck && UI.swapOut === k, usable = AF.canUse(s, c.id);
+      const up = !c.plus && atForge && usable ? `<button class="btn sm" data-cup="${c.uid}" ${upOk ? '' : 'disabled'}>Upgrade</button>` : '';
+      return AF.cardHtml(AF.cardDef(c), { st, selected: sel, disabled: !usable, cls: inDeck ? 'in-deck' : 'in-store', reason: usable ? '' : 'Other Construct',
+        attrs: `${inDeck ? `data-dsel="${k}"` : `data-sin="${k}"`} role="button" tabindex="0"`,
+        footer: `<div class="cf"><span class="cnt">×${cs.length}</span>${up}</div>` });
+    };
+    const deckG = groups(deck), storeG = groups(store);
+    const kinds = {}; deck.forEach((c) => { const k = AF.CARDS[c.id].kind; kinds[k] = (kinds[k] || 0) + 1; });
+    const status = n === AF.DECK_SIZE ? `<b class="ok">${n} / ${AF.DECK_SIZE}</b>` : `<b class="bad">${n} / ${AF.DECK_SIZE}</b>`;
+    return `<div class="deck-head">${C ? `<span class="con-chip con-${s.construct}">${C.short}</span>` : ''}<span>Deck ${status}</span>
+        <span class="mix">${Object.entries(kinds).map(([k, v]) => `<i class="k-${k}">${v} ${k}</i>`).join('')}</span></div>
+      <p class="hint">${UI.swapOut ? '<b>Now tap a card in storage to swap it in</b> (or tap the selected card again to cancel).' : n < AF.DECK_SIZE ? 'Your deck is short. Tap storage cards to add them.' : n > AF.DECK_SIZE ? 'Your deck is too big. Tap deck cards to move them to storage.' : 'Decks hold exactly 30 cards. Tap a deck card, then a storage card, to swap them.'}
+      ${atForge ? `Upgrade a card for ${AF.costHtml(AF.CARD_UPGRADE_COST, s)}.` : 'Upgrade cards at the Rivet Forge.'}</p>
+      <h3>In your deck</h3><div class="grid">${deckG.map(([k, cs]) => tile(k, cs, true)).join('')}</div>
+      <h3>Storage <span class="muted">${store.length}</span></h3>${storeG.length ? `<div class="grid${UI.swapOut ? ' swapping' : ''}">${storeG.map(([k, cs]) => tile(k, cs, false)).join('')}</div>` : '<p class="muted">Nothing in storage yet. Forge or buy cards to build your options.</p>'}`;
   }
 
   // ---------- Actions ----------
   UI.handle = function (t) {
     const s = AF.game.state;
     if (UI.ctx && UI.ctx !== 'forge' && AF.Town.handle(t, s)) return true;
-    const el = t.closest('[data-tab],[data-up],[data-forge],[data-toggle],[data-cup],[data-act],[data-wear],[data-wfilter],[data-preset-save],[data-preset-wear]');
+    const el = t.closest('[data-tab],[data-up],[data-forge],[data-dsel],[data-sin],[data-cup],[data-act],[data-wear],[data-wfilter],[data-preset-save],[data-preset-wear]');
     if (!el) return false;
     if (el.dataset.wear || el.dataset.wfilter || el.dataset.presetSave || el.dataset.presetWear) { const y = $('#panel .pbody') && $('#panel .pbody').scrollTop; AF.wardrobeHandle(s, el); AF.game.persist(); AF.game.refresh(); UI.render(); if ($('#panel .pbody')) $('#panel .pbody').scrollTop = y; return true; }
     if (el.dataset.tab) { UI.tab = el.dataset.tab; UI.render(); return true; }
@@ -126,7 +146,7 @@
       if (UI.ctx !== 'forge' || !AF.canPay(s, c.recipe)) return true;
       AF.payCost(s, c.recipe);
       const card = AF.newCard(id);
-      card.inDeck = AF.deckCards(s).length < AF.DECK_MAX;
+      card.inDeck = AF.deckCards(s).length < AF.DECK_SIZE;
       s.cards.push(card); s.stats.forged++;
       AF.Quests.event(s, 'forge', {});
       AF.sfx('forge'); AF.game.toast(`Forged ${c.name}.`);
@@ -139,12 +159,20 @@
       AF.sfx('forge'); AF.game.toast(`${AF.CARDS[c.id].name} upgraded.`);
       AF.game.persist(); UI.render(); return true;
     }
-    if (el.dataset.toggle) {
-      const c = s.cards.find((x) => x.uid === el.dataset.toggle), n = AF.deckCards(s).length;
-      if (!c) return true;
-      if (c.inDeck && n <= AF.DECK_MIN) { AF.game.toast(`A deck needs at least ${AF.DECK_MIN} cards.`); return true; }
-      if (!c.inDeck && n >= AF.DECK_MAX) { AF.game.toast(`A deck holds at most ${AF.DECK_MAX} cards.`); return true; }
-      c.inDeck = !c.inDeck; AF.sfx('card'); AF.game.persist(); UI.render(); return true;
+    if (el.dataset.dsel || el.dataset.sin) {
+      const deck = AF.deckCards(s), n = deck.length;
+      if (el.dataset.dsel) {
+        if (n > AF.DECK_SIZE) { const c = deck.find((x) => gkey(x) === el.dataset.dsel); if (c) c.inDeck = false; }
+        else UI.swapOut = UI.swapOut === el.dataset.dsel ? null : el.dataset.dsel;
+      } else {
+        const inc = s.cards.find((x) => !x.inDeck && gkey(x) === el.dataset.sin);
+        if (!inc) return true;
+        if (!AF.canUse(s, inc.id)) { AF.game.toast('That card is built for a different Construct.'); return true; }
+        if (n < AF.DECK_SIZE) inc.inDeck = true;
+        else if (UI.swapOut) { const out = deck.find((x) => gkey(x) === UI.swapOut); if (out) { out.inDeck = false; inc.inDeck = true; AF.game.toast(`Swapped ${AF.cardDef(out).name} for ${AF.cardDef(inc).name}.`); } UI.swapOut = null; }
+        else { AF.game.toast('Tap a card in your deck to swap out first.'); return true; }
+      }
+      AF.sfx('card'); AF.game.persist(); const y = $('#panel .pbody').scrollTop; UI.render(); $('#panel .pbody').scrollTop = y; return true;
     }
     if (el.dataset.act === 'close-panel') { UI.close(); return true; }
     return false;
@@ -184,6 +212,7 @@
         <p><b>Quests.</b> Follow the story from the quest tracker at the top-left. Pip by the Academy offers optional tutorial tasks.</p>
         <p><b>Your pilot</b> gets hungry in the wild. At zero vitality you're exhausted: −1 energy in battle and smaller harvests. Rest at home, eat at the Diner or carry Field Rations.</p>
         <p><b>Automaton parts.</b> Arc Core = energy per turn. Frame = HP. Locomotion = terrain (Treads for rubble, Hover Jets for water, Spider Legs for mountains). Arms = hand size and gathering. Weapon and Shield boost your attack and defend cards.</p>
+        <p><b>Constructs.</b> Your automaton is a Bulwark (tanky, keeps Block, strikes back), a Sprocket (fast, fragile, combo chains) or an Arcwright (hits harder at Mid and Far, weak up close). Each has its own cards. Decks hold exactly 30 cards: in Party → Deck, tap a deck card and then a storage card to swap them.</p>
         <p><b>Fight.</b> Touch an enemy to battle. Spend energy to play cards. Distance matters: Close, Mid, Far. Watch the enemy's next move and step out of reach to dodge it. If your automaton goes down, you lose a quarter of what you're carrying, so bank your valuables.</p>
         <p><b>Goal.</b> Find the Titan Core's lair in the far mountains and shut it down.</p>
       </div>`;

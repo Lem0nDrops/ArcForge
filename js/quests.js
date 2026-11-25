@@ -57,7 +57,7 @@
     if (rw.rations) { state.pilot.rations += rw.rations; out.push(`${rw.rations} Field Ration${rw.rations > 1 ? 's' : ''}`); }
     if (rw.card) { const c = AF.newCard(rw.card); c.inDeck = AF.deckCards(state).length < AF.DECK_MAX; state.cards.push(c); out.push(`a ${AF.CARDS[rw.card].name} card`); }
     if (rw.blueprint) {
-      const locked = Object.keys(AF.CARDS).filter((id) => !state.known.includes(id));
+      const locked = AF.lockedCards(state);
       if (locked.length) { const id = locked[Math.floor(Math.random() * locked.length)]; state.known.push(id); out.push(`the ${AF.CARDS[id].name} blueprint`); }
     }
     return out.join(', ');
@@ -193,7 +193,8 @@
       case 'mara':
         if (s === 's1') return say([
           N('mara', "There you are, {name}! I was up all night finishing it."),
-          N('mara', "Every pilot in Rivet Hollow needs an automaton, and this one's yours: scrap frame, a Spark Cell core and a set of trusty wheels."),
+          N('mara', `Every pilot in Rivet Hollow needs an automaton, and this one's yours: ${state.construct ? `a ${AF.CONSTRUCTS[state.construct].short} construct, just like you asked for` : 'a fresh frame'}, a Spark Cell core and a set of trusty wheels.`),
+          N('mara', state.construct === 'bulwark' ? "Bulwarks are slow, but they can take a beating and they hit back hard. Let the bots break themselves on your shield." : state.construct === 'sprocket' ? "Sprockets are quick and fragile. Chain your cards together and they'll hit harder and harder each turn." : state.construct === 'arcwright' ? "Arcwrights hate being up close. Keep your distance and blast away. The farther you are, the harder you hit." : 'Every construct fights differently. Learn yours.'),
           T('Mara flips a switch. The automaton\'s core flickers to life and glows in your favourite colour.'),
           N('mara', 'Every automaton needs a name, and a look all its own. Go on, make it yours!'),
           N('mara', "It's bonded to you now. It'll follow you anywhere."),
@@ -259,7 +260,7 @@
         if (qs.tdone.length >= total && !qs.grad) return say([
           N('pip', 'You finished EVERY task! You\'re a real pilot now.'),
           N('pip', 'Here, a graduation gift. Capacitors make your next attack hit way harder.'),
-        ], { onDone: () => { qs.grad = true; const got = giveReward(state, { credits: 300, card: 'capacitor', xp: 50, item: 'lucky_bolt' }); AF.game.toast(`Graduation gift: ${got}.`, 5000); } });
+        ], { onDone: () => { qs.grad = true; const got = giveReward(state, { credits: 300, card: 'deflector', xp: 50, item: 'lucky_bolt' }); AF.game.toast(`Graduation gift: ${got}.`, 5000); } });
         if (qs.grad) return say([N('pip', 'Look at you go, {name}! Come back and tell me about your adventures.')]);
         const left = Object.entries(AF.TUTORIAL).filter(([k]) => !qs.tdone.includes(k));
         return say([N('pip', `${qs.tdone.length} of ${total} tasks done! Next up: ${left[0][1].title}. ${left[0][1].text}`)]);

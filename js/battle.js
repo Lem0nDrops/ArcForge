@@ -10,9 +10,11 @@
     const def = AF.ENEMIES[enemyRef.type];
     this.state = state; this.ref = enemyRef; this.def = def;
     this.st = AF.stats(state);
-    this.p = { hp: Math.min(state.hp, this.st.maxHp), max: this.st.maxHp, block: 0, energy: 0, charge: 0, tune: 0, fortify: 0 };
+    this.p = { hp: Math.min(state.hp, this.st.maxHp), max: this.st.maxHp, block: 0, energy: 0, charge: 0, tune: 0, fortify: 0, combo: 0, thorns: 0, retain: false, field: 0 };
+    this.con = state.construct;
     this.e = { hp: def.hp, max: def.hp, block: 0, aim: 0, power: 0, stun: 0, i: 0 };
     this.dist = opts.ambush ? Math.max(0, def.start - 1) : def.start;
+    if (this.con === 'bulwark') this.dist = Math.max(0, this.dist - 1);
     this.pile = AF.shuffle(AF.deckCards(state).map((c) => c));
     this.hand = []; this.discard = []; this.gone = [];
     this.salvage = 0; this.turn = 0; this.over = null; this.log = [];
@@ -38,7 +40,9 @@
   B.startTurn = function () {
     this.turn++;
     const m = this.mods, first = this.turn === 1;
-    this.p.block = this.p.fortify;
+    const kept = this.p.retain ? this.p.block : this.con === 'bulwark' ? Math.floor(this.p.block / 2) : 0;
+    this.p.block = this.p.fortify + kept;
+    this.p.retain = false; this.p.thorns = 0; this.p.combo = 0;
     this.p.energy = Math.max(1, this.st.energy - (m.tired ? 1 : 0) + (first ? m.firstEnergy : 0));
     this.drawCards(this.st.hand + m.drawEach + (first ? m.firstDraw : 0));
   };
@@ -67,7 +71,10 @@
     if (d.move === 'in' || (d.move === 'close' && d.kind !== 'attack')) { this.dist = d.move === 'in' ? Math.max(0, this.dist - 1) : 0; ev.movedBefore = true; }
     if (d.move === 'out') { this.dist = Math.min(2, this.dist + 1); ev.movedBefore = true; }
     if (d.dmg || d.bash) {
-      const base = (d.bash ? p.block : d.dmg) + st.dmg + p.tune + p.charge;
+      const rangeB = this.con === 'arcwright' && !d.bash ? [0, 1, 3][this.dist] : 0;
+      const base = (d.bash ? p.block : d.dmg) + st.dmg + p.tune + p.charge + (d.bonus || 0) + rangeB + (d.combo ? d.combo * p.combo : 0)
+        + (d.ifBlock && p.block > 0 ? d.ifBlock : 0) + (d.farBonus && this.dist === 2 ? d.farBonus : 0);
+      if (d.combo && p.combo) ev.combo = p.combo;
       p.charge = 0;
       let total = 0;
       for (let h = 0; h < (d.hits || 1); h++) { const r = this.hitEnemy(base); ev.hits.push(r); total += r.dealt; }
@@ -75,6 +82,8 @@
       AF.sfx('hit');
     }
     if (d.move === 'close' && d.kind === 'attack') { this.dist = 0; ev.movedAfter = true; }
+    if (d.push) { this.dist = Math.min(2, this.dist + 1); ev.movedAfter = true; }
+    if (d.move === 'far') { this.dist = 2; ev.movedBefore = true; }
     let blk = (d.block || 0) + (d.kind === 'defend' ? st.block : 0) + (d.kind === 'move' ? st.evade : 0);
     if (d.fortify) { p.fortify += d.fortify; blk += d.fortify; ev.fortify = d.fortify; }
     if (blk) { p.block += blk; ev.block = blk; parts.push(`+${blk} Block`); AF.sfx('block'); }
@@ -84,11 +93,17 @@
     if (d.charge) { p.charge += d.charge; ev.charge = d.charge; }
     if (d.stun) { this.e.stun = d.stun; ev.stun = true; parts.push('enemy stunned'); }
     if (d.tune) { p.tune += d.tune; ev.tune = d.tune; }
+    if (d.thorns) { p.thorns += d.thorns; ev.thorns = d.thorns; }
+    if (d.retain) { p.retain = true; ev.retain = true; }
+    if (d.field) { p.field += d.field; ev.field = d.field; }
     if (d.salvage) this.salvage += d.salvage;
     if (d.move) parts.push(`now ${AF.RANGE_NAMES[this.dist]}`);
     this.hand.splice(handIdx, 1);
     (d.exhaust ? this.gone : this.discard).push(inst);
-    if (d.draw) { this.drawCards(d.draw); ev.draw = d.draw; }
+    p.combo++;
+    let draw = d.draw || 0;
+    if (this.con === 'sprocket' && p.combo % 3 === 0) { draw++; ev.momentum = true; parts.push('momentum draw'); }
+    if (draw) { this.drawCards(draw); ev.draw = draw; }
     this.say(`${d.name}${parts.length ? ': ' + parts.join(', ') : ''}.`);
     if (!d.dmg && !d.bash && !d.heal && !blk) AF.sfx('card');
     if (this.e.hp <= 0) { this.e.hp = 0; this.over = 'win'; }
@@ -115,17 +130,26 @@
     if ((it.a === 'hit' || it.a === 'shoot' || it.a === 'drain') && this.dist > reach) {
       this.dist = Math.max(0, this.dist - 1);
       this.say(`${name} is out of reach and closes in (now ${AF.RANGE_NAMES[this.dist]}).`);
-      return { kind: 'close' };
+      const cev = { kind: 'close' };
+      if (this.p.field) { const r = this.hitEnemy(this.p.field); cev.zap = r; this.say(`${name} closes in and gets zapped by your field: ${r.dealt} damage.`); if (e.hp <= 0) { e.hp = 0; this.over = 'win'; } }
+      return cev;
     }
     let ev = { kind: it.a };
     switch (it.a) {
       case 'hit': case 'shoot': case 'drain': {
         ev = { kind: 'attack', style: it.a, hits: [] };
         let total = 0;
-        for (let h = 0; h < (it.hits || 1); h++) { const r = this.hitPlayer(it.dmg + e.aim + e.power); ev.hits.push(r); total += r.dealt; }
+        const frail = this.con === 'arcwright' && this.dist === 0 ? 2 : 0;
+        let back = 0;
+        for (let h = 0; h < (it.hits || 1) && !this.over; h++) {
+          const r = this.hitPlayer(it.dmg + e.aim + e.power + frail); ev.hits.push(r); total += r.dealt;
+          if (this.over) break;
+          back += this.p.thorns + (this.con === 'bulwark' && r.dealt === 0 && r.soaked > 0 ? 3 : 0);
+        }
+        if (back && !this.over) { ev.counter = this.hitEnemy(back); if (e.hp <= 0) { e.hp = 0; this.over = 'win'; } }
         e.aim = 0;
         if (it.a === 'drain') { const before = e.hp; e.hp = Math.min(e.max, e.hp + it.dmg); ev.heal = e.hp - before; }
-        this.say(`${name} ${it.a === 'hit' ? 'strikes' : it.a === 'drain' ? 'drains you' : 'fires'}: ${total} damage${it.a === 'drain' ? `, heals ${ev.heal}` : ''}.`);
+        this.say(`${name} ${it.a === 'hit' ? 'strikes' : it.a === 'drain' ? 'drains you' : 'fires'}: ${total} damage${it.a === 'drain' ? `, heals ${ev.heal}` : ''}${ev.counter ? `. You strike back for ${ev.counter.dealt}` : ''}.`);
         AF.sfx('hit');
         break;
       }
@@ -178,7 +202,7 @@
         const r = AF.giveItem(s, id); out.gear = id; if (r && r.dup) out.dup = r.value;
       }
       out.xp = AF.gainXP(s, AF.XP_BY_TIER[this.def.tier]);
-      const locked = Object.keys(AF.CARDS).filter((id) => !s.known.includes(id)), hunter = AF.hasPerk(s, 'hunter');
+      const locked = AF.lockedCards(s), hunter = AF.hasPerk(s, 'hunter');
       if ((this.def.tier >= 2 || hunter) && locked.length && Math.random() < (hunter ? 0.5 : 0.3)) { out.blueprint = locked[Math.floor(Math.random() * locked.length)]; s.known.push(out.blueprint); }
       s.stats.wins++;
       AF.World.removeEnemy(s, this.ref.id);
@@ -253,7 +277,7 @@
       <div class="ib-top"><b>${AF.esc(AF.botName(st))}</b>${p.block ? `<span class="blk">Block ${p.block}</span>` : '<span></span>'}</div>
       <div class="hp"><em>HP</em><div class="hpbar${hpCls(p.hp, p.max)}"><i style="width:${pct(p.hp, p.max)}%"></i></div></div>
       <div class="ib-sub"><span>${p.hp} / ${p.max}</span><span class="pips" aria-label="Energy ${p.energy}">${Array.from({ length: Math.max(p.energy, b.st.energy) }, (_, i) => `<i class="${i < p.energy ? 'full' : ''}"></i>`).join('')}</span></div>
-      <div class="buffs">${p.charge ? `<span>Charge +${p.charge}</span>` : ''}${p.tune ? `<span>Tuned +${p.tune}</span>` : ''}${p.fortify ? `<span>Fortify ${p.fortify}</span>` : ''}${b.mods.tired ? '<span class="bad">Pilot exhausted</span>' : ''}${b.mods.drawEach ? '<span>Focus Tea</span>' : ''}</div>`;
+      <div class="buffs">${p.charge ? `<span>Charge +${p.charge}</span>` : ''}${p.tune ? `<span>Tuned +${p.tune}</span>` : ''}${p.fortify ? `<span>Fortify ${p.fortify}</span>` : ''}${p.combo && b.con === 'sprocket' ? `<span class="combo">Combo ×${p.combo}</span>` : ''}${p.thorns ? `<span>Thorns ${p.thorns}</span>` : ''}${p.retain ? '<span>Holding Block</span>' : ''}${p.field ? `<span>Field ${p.field}</span>` : ''}${b.mods.tired ? '<span class="bad">Pilot exhausted</span>' : ''}${b.mods.drawEach ? '<span>Focus Tea</span>' : ''}</div>`;
     const fw = $('.foe-wrap'); fw.className = `foe-wrap d${b.dist}`;
     $('.foe-spr').classList.toggle('stun', !!e.stun);
     $('.msgbar p').textContent = b.log[0] || '';
@@ -262,7 +286,7 @@
     $('.hand').innerHTML = b.hand.map((inst, i) => {
       const why = b.whyNot(inst), fresh = !UI.shown.has(inst.uid);
       if (fresh) UI.shown.add(inst.uid);
-      return AF.cardHtml(AF.cardDef(inst), { st: b.st, ctx: { charge: p.charge, tune: p.tune, block: p.block }, disabled: !!why, reason: why,
+      return AF.cardHtml(AF.cardDef(inst), { st: b.st, ctx: { charge: p.charge, tune: p.tune, block: p.block, combo: p.combo, dist: b.dist }, disabled: !!why, reason: why,
         cls: fresh ? 'deal' : '', attrs: `data-play="${i}" role="button" tabindex="0" style="--d:${fresh ? n++ * 70 : 0}ms"` });
     }).join('');
     $('.piles').innerHTML = `Energy <b>${p.energy}</b> · Draw ${b.pile.length} · Discard ${b.discard.length}${b.gone.length ? ` · Used ${b.gone.length}` : ''}`;
@@ -328,6 +352,8 @@
 
   async function animPlayer(ev) {
     const b = UI.b, core = AF.coreColor(b.state.look), d = ev.card;
+    if (ev.combo || ev.momentum) { const m = center('.bot-spr'); FX.text(m.x, m.y - m.h * 0.75, ev.momentum ? `Combo ×${ev.combo || b.p.combo} · Momentum!` : `Combo ×${ev.combo}`, '#ff8a20', 0.9); }
+    if (ev.thorns || ev.retain || ev.field) { const m = center('.bot-spr'); FX.ring(m.x, m.y, ev.field ? '#5adcff' : '#ffb020'); }
     if (ev.movedBefore) { const c = center('.foe-spr'); FX.burst(c.x, c.y + c.h * 0.4, ['#e8dcc0', '#cbbd9e'], 10, 0.6); UI.update(); await wait(320); }
     if (ev.hits.length) {
       const melee = d.range === 0 || d.bash;
@@ -354,13 +380,14 @@
     const b = UI.b, foe = center('.foe-spr');
     switch (ev.kind) {
       case 'stun': FX.text(foe.x, foe.y - foe.h * 0.5, 'Stunned', '#c27bff'); await anim($('.foe-spr'), 'wobble', 500); break;
-      case 'close': case 'retreat': FX.burst(foe.x, foe.y + foe.h * 0.4, ['#e8dcc0', '#cbbd9e'], 12, 0.6); UI.update(); FX.text(foe.x, foe.y - foe.h * 0.5, ev.kind === 'close' ? 'Closes in' : 'Backs off', '#506080', 0.8); await wait(420); break;
+      case 'close': case 'retreat': FX.burst(foe.x, foe.y + foe.h * 0.4, ['#e8dcc0', '#cbbd9e'], 12, 0.6); UI.update(); FX.text(foe.x, foe.y - foe.h * 0.5, ev.kind === 'close' ? 'Closes in' : 'Backs off', '#506080', 0.8); await wait(420); if (ev.zap) { await wait(150); const f = center('.foe-spr'); FX.burst(f.x, f.y, ['#ffffff', '#5adcff'], 16, 1); await impact('.foe-spr', ev.zap, '#5adcff'); } break;
       case 'attack':
         for (const r of ev.hits) {
           if (ev.style === 'shoot') { const t = center('.bot-spr'), a = center('.foe-spr'); await FX.bolt(a.x - a.w * 0.3, a.y, t.x, t.y, '#ff5a4a', 280); }
           else { anim($('.foe-spr'), 'lunge-left', 420); await wait(190); }
           await impact('.bot-spr', r, '#ff6a4a', r.dealt >= 14);
         }
+        if (ev.counter) { const f = center('.foe-spr'); FX.text(f.x, f.y - f.h * 0.7, 'Counter!', '#ffb020', 0.9); await impact('.foe-spr', ev.counter, '#ffb020'); }
         if (ev.heal) { const f = center('.foe-spr'); FX.rise(f.x, f.y, '#c27bff'); FX.text(f.x, f.y - f.h * 0.5, '+' + ev.heal, '#9a48e0'); await wait(300); }
         break;
       case 'block': anim($('.foe-spr'), 'shielded', 700); FX.ring(foe.x, foe.y, '#5aa0ff'); FX.text(foe.x, foe.y - foe.h * 0.5, `+${ev.n} Block`, '#4a90ff'); await wait(500); break;

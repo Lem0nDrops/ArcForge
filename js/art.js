@@ -89,10 +89,25 @@
     };
     const ear = B.head === 'crt' ? '' : `<circle cx="${p.frame >= 3 ? 96 : 24}" cy="34" r="5" fill="${tc}" ${OL}/>`;
     const head = `${AN[B.antenna] || ''}${H.box}<rect x="32" y="13" width="22" height="6" rx="3" fill="#ffffff" opacity=".45"/>${H.scr}${eyes}${mouth}${cheeks}${ear}`;
-    return `<svg viewBox="-4 -14 128 136" class="${opts.cls || ''}" aria-label="${AF.esc(B.name || 'Automaton')}">${grad}${shield}${backArm}${legs}${body}${weapon}${head}</svg>`;
+    // Construct signature parts
+    let conBack = '', conFront = '', conHead = '';
+    if (B.construct === 'bulwark') {
+      conFront = [[24, 1], [96, -1]].map(([x, d]) => `<path d="M${x} 66 Q${x} 48 ${x + d * 18} 47 L${x + d * 22} 47 L${x + d * 22} 62 Q${x + d * 12} 70 ${x} 66 Z" fill="${tc}" ${OL}/><circle cx="${x + d * 13}" cy="55" r="2.2" fill="${sh(tc, -40)}"/>`).join('')
+        + `<rect x="44" y="84" width="32" height="7" rx="3" fill="${tc}" ${OL}/>`;
+      conHead = `<path d="M30 14 Q60 2 90 14" fill="none" stroke="${tc}" stroke-width="5" stroke-linecap="round"/>`;
+    } else if (B.construct === 'sprocket') {
+      conBack = [[22, 50], [28, 60]].map(([x, y]) => `<g transform="rotate(-35 ${x} ${y})"><rect x="${x - 5}" y="${y - 16}" width="10" height="20" rx="3" fill="#8a909e" ${OL}/><ellipse cx="${x}" cy="${y - 18}" rx="4" ry="6" fill="#ff9a30" opacity=".9"/></g>`).join('');
+      conHead = `<path d="M50 11 Q62 -6 80 4 Q70 6 66 12 Z" fill="${tc}" ${OL}/>`;
+      conFront = `<path d="M36 78 L48 74 M36 84 L50 80" stroke="${tc}" stroke-width="3" stroke-linecap="round"/>`;
+    } else if (B.construct === 'arcwright') {
+      conBack = `<rect x="27" y="0" width="6" height="58" rx="3" fill="${tc}" ${OL}/>${[14, 26, 38].map((y) => `<ellipse cx="30" cy="${y}" rx="9" ry="3" fill="none" stroke="${arc}" stroke-width="2.5" opacity=".85"/>`).join('')}
+        <circle cx="30" cy="-2" r="9" fill="${arc}" opacity=".3"/><circle cx="30" cy="-2" r="5.5" fill="url(#${U}c)" ${OL}/>`;
+      conFront = `<path d="M60 62 l-3 6 h4 l-3 7" fill="none" stroke="${arc}" stroke-width="2" stroke-linecap="round"/>`;
+    }
+    return `<svg viewBox="-4 -14 128 136" class="${opts.cls || ''}" aria-label="${AF.esc(B.name || 'Automaton')}">${grad}${conBack}${shield}${backArm}${legs}${body}${conFront}${weapon}${head}${conHead}</svg>`;
   };
-  AF.botSVG = (s, cls) => AF.robotSVG(s.parts, { core: AF.coreColor(s.look), bot: s.bot, cls });
-  AF.botKey = (s) => JSON.stringify(s.parts) + AF.coreColor(s.look) + JSON.stringify(s.bot || {});
+  AF.botSVG = (s, cls) => AF.robotSVG(s.parts, { core: AF.coreColor(s.look), bot: Object.assign({}, s.bot, { construct: s.construct }), cls });
+  AF.botKey = (s) => JSON.stringify(s.parts) + AF.coreColor(s.look) + JSON.stringify(s.bot || {}) + s.construct;
 
   AF.enemySVG = function (type) {
     const e = AF.ENEMIES[type], c = e.body;

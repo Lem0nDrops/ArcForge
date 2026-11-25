@@ -318,7 +318,7 @@
       const k = t.k;
       if (w.opened[k]) return { type: 'msg', text: 'You already searched this ruin.' };
       w.opened[k] = 1;
-      const locked = Object.keys(AF.CARDS).filter((id) => !state.known.includes(id));
+      const locked = AF.lockedCards(state);
       const r = AF.rng(AF.WORLD_SEED + t.x * 131 + t.y * 977 + state.steps);
       const cr = AF.randInt(r, 80, 200);
       state.credits += cr;

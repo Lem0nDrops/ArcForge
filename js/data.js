@@ -101,38 +101,93 @@
   //          selfDmg, charge, stun, fortify, tune, bash, salvage, exhaust
   // recipe: resources to forge one copy. bp: needs a blueprint from ruins first.
   // up: overrides for the upgraded (+) version. Default: dmg/block/heal x1.4.
+  // con: which Construct can use the card (no con = any automaton). bp = blueprint (must be found or bought first).
   AF.CARDS = {
+    // ----- Core cards: every construct -----
     claw:      { name: 'Claw Swipe',    cost: 1, kind: 'attack', range: 0, dmg: 6, recipe: { scrap: 3 } },
     blaster:   { name: 'Blaster Shot',  cost: 1, kind: 'attack', range: 1, dmg: 4, recipe: { scrap: 3, copper: 1 } },
     brace:     { name: 'Brace',         cost: 1, kind: 'defend', block: 5, recipe: { scrap: 3 } },
     advance:   { name: 'Advance',       cost: 1, kind: 'move', move: 'in', draw: 1, recipe: { scrap: 2 }, up: { cost: 0 } },
     retreat:   { name: 'Retreat',       cost: 1, kind: 'move', move: 'out', block: 3, recipe: { scrap: 2 } },
     patch:     { name: 'Patch Kit',     cost: 1, kind: 'repair', heal: 4, exhaust: true, recipe: { scrap: 4 } },
-
+    scan:      { name: 'Scan',          cost: 0, kind: 'tech', draw: 2, exhaust: true, recipe: { silicon: 3 }, up: { draw: 3 } },
     piston:    { name: 'Piston Punch',  cost: 2, kind: 'attack', range: 0, dmg: 12, recipe: { scrap: 6, copper: 3 } },
     rail:      { name: 'Rail Shot',     cost: 2, kind: 'attack', range: 2, dmg: 9, recipe: { scrap: 5, copper: 4, silicon: 2 } },
     scatter:   { name: 'Scatter Burst', cost: 1, kind: 'attack', range: 1, dmg: 3, hits: 2, recipe: { scrap: 4, copper: 2 } },
     salvager:  { name: 'Salvage Claw',  cost: 1, kind: 'attack', range: 0, dmg: 5, salvage: 2, recipe: { scrap: 5 } },
-    bulwark:   { name: 'Bulwark',       cost: 2, kind: 'defend', block: 12, recipe: { scrap: 8, copper: 2 } },
     dash:      { name: 'Thruster Dash', cost: 1, kind: 'move', move: 'close', block: 3, recipe: { scrap: 4, copper: 2 } },
-    scan:      { name: 'Scan',          cost: 0, kind: 'tech', draw: 2, exhaust: true, recipe: { silicon: 3 }, up: { draw: 3 } },
-
     deflector: { name: 'Deflector',     cost: 1, kind: 'defend', block: 4, draw: 1, bp: true, recipe: { copper: 3, silicon: 2 } },
-    roll:      { name: 'Evasive Roll',  cost: 0, kind: 'move', move: 'out', block: 2, bp: true, recipe: { scrap: 4, silicon: 2 } },
     magnet:    { name: 'Magnet Pull',   cost: 1, kind: 'attack', range: 2, dmg: 3, move: 'close', bp: true, recipe: { scrap: 4, copper: 3 } },
-    bash:      { name: 'Shield Bash',   cost: 1, kind: 'attack', range: 0, bash: true, bp: true, recipe: { scrap: 4, copper: 4 }, up: { cost: 0 } },
     weld:      { name: 'Weld Torch',    cost: 2, kind: 'repair', heal: 9, exhaust: true, bp: true, recipe: { scrap: 6, copper: 4, silicon: 2 } },
     nano:      { name: 'Nano Swarm',    cost: 1, kind: 'repair', heal: 3, draw: 1, exhaust: true, bp: true, recipe: { silicon: 3, arcite: 1 } },
-    capacitor: { name: 'Capacitor',     cost: 1, kind: 'tech', charge: 6, bp: true, recipe: { copper: 4, silicon: 2 }, up: { charge: 9 } },
     overclock: { name: 'Overclock',     cost: 0, kind: 'tech', energy: 2, selfDmg: 3, bp: true, recipe: { copper: 3, arcite: 1 }, up: { energy: 3 } },
     emp:       { name: 'EMP Pulse',     cost: 2, kind: 'tech', stun: 1, exhaust: true, bp: true, recipe: { silicon: 4, arcite: 2, circuits: 1 }, up: { cost: 1 } },
-    fortify:   { name: 'Reinforce',     cost: 2, kind: 'tech', fortify: 3, exhaust: true, bp: true, recipe: { scrap: 10, copper: 6, circuits: 1 }, up: { fortify: 5 } },
     tune:      { name: 'Field Tune-Up', cost: 1, kind: 'tech', tune: 2, exhaust: true, bp: true, recipe: { copper: 6, circuits: 1 }, up: { tune: 3 } },
-    lance:     { name: 'Arc Lance',     cost: 3, kind: 'attack', range: 2, dmg: 22, bp: true, recipe: { copper: 6, arcite: 4, circuits: 2 } },
+
+    // ----- The Bulwark: block, hold, punish -----
+    counter:   { con: 'bulwark', name: 'Counterstrike',  cost: 1, kind: 'attack', range: 0, dmg: 4, ifBlock: 5, recipe: { scrap: 4, copper: 1 } },
+    bash:      { con: 'bulwark', name: 'Shield Bash',    cost: 1, kind: 'attack', range: 0, bash: true, recipe: { scrap: 4, copper: 3 }, up: { cost: 0 } },
+    spikes:    { con: 'bulwark', name: 'Spiked Plating', cost: 1, kind: 'defend', block: 5, thorns: 3, recipe: { scrap: 4, copper: 1 } },
+    hold:      { con: 'bulwark', name: 'Hold the Line',  cost: 1, kind: 'defend', block: 6, retain: true, recipe: { scrap: 5 } },
+    rampart:   { con: 'bulwark', name: 'Rampart Charge', cost: 1, kind: 'move', move: 'in', block: 5, recipe: { scrap: 4 } },
+    slam:      { con: 'bulwark', name: 'Bulwark Slam',   cost: 2, kind: 'attack', range: 0, dmg: 8, block: 6, recipe: { scrap: 6, copper: 2 } },
+    ironwall:  { con: 'bulwark', name: 'Iron Wall',      cost: 2, kind: 'defend', block: 12, recipe: { scrap: 8, copper: 2 } },
+    fortify:   { con: 'bulwark', name: 'Reinforce',      cost: 2, kind: 'tech', fortify: 3, exhaust: true, bp: true, recipe: { scrap: 10, copper: 6, circuits: 1 }, up: { fortify: 5 } },
+    aegis:     { con: 'bulwark', name: 'Aegis Field',    cost: 2, kind: 'defend', block: 8, thorns: 5, bp: true, recipe: { copper: 5, silicon: 3, arcite: 1 } },
+    unbreak:   { con: 'bulwark', name: 'Unbreakable',    cost: 3, kind: 'defend', block: 20, retain: true, bp: true, recipe: { scrap: 12, copper: 6, circuits: 2 } },
+    vengeance: { con: 'bulwark', name: 'Vengeance Ram',  cost: 2, kind: 'attack', range: 0, bash: true, bonus: 6, bp: true, recipe: { scrap: 8, copper: 4, arcite: 2 } },
+
+    // ----- The Sprocket: speed and combo chains -----
+    jab:       { con: 'sprocket', name: 'Quick Jab',     cost: 0, kind: 'attack', range: 0, dmg: 3, combo: 1, recipe: { scrap: 3 } },
+    flurry:    { con: 'sprocket', name: 'Gear Flurry',   cost: 1, kind: 'attack', range: 0, dmg: 2, hits: 3, recipe: { scrap: 4, copper: 1 } },
+    spinkick:  { con: 'sprocket', name: 'Spin Kick',     cost: 1, kind: 'attack', range: 0, dmg: 5, combo: 2, recipe: { scrap: 4, copper: 2 } },
+    ratchet:   { con: 'sprocket', name: 'Ratchet Shot',  cost: 1, kind: 'attack', range: 1, dmg: 3, combo: 2, recipe: { scrap: 3, copper: 2 } },
+    zip:       { con: 'sprocket', name: 'Zip Step',      cost: 0, kind: 'move', move: 'in', recipe: { scrap: 2 } },
+    slipstream:{ con: 'sprocket', name: 'Slipstream',    cost: 1, kind: 'move', move: 'out', block: 3, draw: 1, recipe: { scrap: 3, copper: 1 } },
+    revup:     { con: 'sprocket', name: 'Rev Up',        cost: 0, kind: 'tech', energy: 1, draw: 1, exhaust: true, recipe: { copper: 2, silicon: 1 } },
+    finisher:  { con: 'sprocket', name: 'Overdrive Finisher', cost: 2, kind: 'attack', range: 0, dmg: 6, combo: 4, recipe: { scrap: 6, copper: 3, silicon: 1 } },
+    whirl:     { con: 'sprocket', name: 'Whirlwind',     cost: 2, kind: 'attack', range: 0, dmg: 3, hits: 4, bp: true, recipe: { scrap: 6, copper: 4, arcite: 1 } },
+    turbo:     { con: 'sprocket', name: 'Turbo Burst',   cost: 0, kind: 'tech', energy: 2, draw: 1, exhaust: true, bp: true, recipe: { copper: 4, arcite: 1 } },
+    chain:     { con: 'sprocket', name: 'Chain Drive',   cost: 1, kind: 'attack', range: 0, dmg: 4, combo: 3, draw: 1, bp: true, recipe: { scrap: 5, copper: 3, circuits: 1 } },
+
+    // ----- The Arcwright: keep away, hit hard from range -----
+    arcbolt:   { con: 'arcwright', name: 'Arc Bolt',     cost: 1, kind: 'attack', range: 2, dmg: 4, recipe: { scrap: 3, copper: 1 } },
+    volley:    { con: 'arcwright', name: 'Spark Volley', cost: 1, kind: 'attack', range: 2, dmg: 2, hits: 2, recipe: { scrap: 3, copper: 2 } },
+    chargeshot:{ con: 'arcwright', name: 'Charged Shot', cost: 2, kind: 'attack', range: 2, dmg: 7, farBonus: 4, recipe: { copper: 4, silicon: 2 } },
+    repulse:   { con: 'arcwright', name: 'Repulsor Wave',cost: 1, kind: 'attack', range: 0, dmg: 3, push: true, block: 3, recipe: { scrap: 3, copper: 2 } },
+    kite:      { con: 'arcwright', name: 'Kite',         cost: 1, kind: 'move', move: 'out', block: 2, draw: 1, recipe: { scrap: 3 } },
+    static:    { con: 'arcwright', name: 'Static Field', cost: 1, kind: 'tech', field: 4, recipe: { copper: 3, silicon: 1 } },
+    capacitor: { con: 'arcwright', name: 'Capacitor',    cost: 1, kind: 'tech', charge: 6, recipe: { copper: 4, silicon: 2 }, up: { charge: 9 } },
+    lance:     { con: 'arcwright', name: 'Arc Lance',    cost: 3, kind: 'attack', range: 2, dmg: 18, farBonus: 6, bp: true, recipe: { copper: 6, arcite: 4, circuits: 2 } },
+    tesla:     { con: 'arcwright', name: 'Tesla Coil',   cost: 2, kind: 'attack', range: 2, dmg: 6, field: 4, bp: true, recipe: { copper: 5, silicon: 3, arcite: 1 } },
+    blink:     { con: 'arcwright', name: 'Phase Blink',  cost: 0, kind: 'move', move: 'far', block: 2, bp: true, recipe: { silicon: 4, arcite: 1 } },
   };
 
-  AF.STARTER_DECK = ['claw', 'claw', 'claw', 'blaster', 'blaster', 'brace', 'brace', 'brace', 'advance', 'retreat', 'patch'];
-  AF.DECK_MIN = 8;
+  // ----- The three Constructs -----
+  // hpMul: max HP multiplier · speed 1-3 (draws, dodge Block, starting distance) · passive: battle rule in battle.js
+  AF.CONSTRUCTS = {
+    bulwark: { name: 'The Bulwark', short: 'Bulwark', tag: 'Heavy frame · shield plating', hpMul: 1.4, speed: 1, hp: 3, spd: 1, rng: 1,
+      text: 'Slow but tanky. Specialises in defense and punishing counterattacks.',
+      passive: 'Keeps half its Block between turns. When an attack is fully blocked, strikes back for 3. Defend cards +2 Block. Starts fights one step closer.',
+      deck: { claw: 4, counter: 3, bash: 2, slam: 2, blaster: 1, brace: 5, spikes: 3, hold: 2, ironwall: 1, advance: 2, rampart: 2, patch: 2, scan: 1 },
+      bot: { name: 'Bastion', chassis: 'boxy', head: 'square', eyes: 'visor', antenna: 'none', paint: 10, trim: 4 } },
+    sprocket: { name: 'The Sprocket', short: 'Sprocket', tag: 'Midweight frame · built for speed', hpMul: 0.85, speed: 3, hp: 1, spd: 3, rng: 1,
+      text: 'Fragile but hits hard. Chains cards together for big combos.',
+      passive: 'Combo: each card played this turn powers up combo cards. Every 3rd card in a turn draws 1. Draws 1 extra card per turn. Move cards +2 Block.',
+      deck: { jab: 4, claw: 3, flurry: 2, spinkick: 3, ratchet: 2, finisher: 1, brace: 4, advance: 2, zip: 3, slipstream: 2, retreat: 1, revup: 2, patch: 1 },
+      bot: { name: 'Zippy', chassis: 'round', head: 'dome', eyes: 'happy', antenna: 'bolt', paint: 5, trim: 4 } },
+    arcwright: { name: 'The Arcwright', short: 'Arcwright', tag: 'Lightweight frame · arc emitters', hpMul: 0.95, speed: 2, hp: 2, spd: 2, rng: 3,
+      text: 'Fragile up close, devastating at range.',
+      passive: 'Attacks deal +1 at Mid and +3 at Far. Takes +2 damage per hit at Close. Move cards +1 Block.',
+      deck: { arcbolt: 5, blaster: 3, volley: 2, chargeshot: 2, repulse: 2, brace: 5, retreat: 3, kite: 3, static: 2, patch: 2, capacitor: 1 },
+      bot: { name: 'Volta', chassis: 'tall', head: 'dome', eyes: 'round', antenna: 'ball', paint: 2, trim: 8 } },
+  };
+  AF.starterDeck = (con) => Object.entries(AF.CONSTRUCTS[con].deck).flatMap(([id, n]) => Array(n).fill(id));
+  AF.canUse = (s, id) => !AF.CARDS[id].con || AF.CARDS[id].con === s.construct;
+  AF.lockedCards = (s) => Object.keys(AF.CARDS).filter((id) => AF.canUse(s, id) && !s.known.includes(id));
+  AF.knownFor = (con) => Object.keys(AF.CARDS).filter((id) => !AF.CARDS[id].bp && (!AF.CARDS[id].con || AF.CARDS[id].con === con));
+  AF.DECK_SIZE = 30;
+  AF.DECK_MIN = 30;
   AF.DECK_MAX = 30;
   AF.CARD_UPGRADE_COST = { scrap: 5, circuits: 1 };
 
@@ -161,17 +216,27 @@
     const out = [];
     const dmgBonus = st.dmg + (ctx.tune || 0);
     if (d.bash) out.push(`Deal damage equal to your Block${ctx.block != null ? ` (${ctx.block + dmgBonus})` : ''}.`);
+    const rangeB = st.con === 'arcwright' && ctx.dist != null && d.kind === 'attack' ? [0, 1, 3][ctx.dist] : 0;
+    if (d.bonus) out.push(`+${d.bonus} damage.`);
     if (d.dmg) {
-      const n = d.dmg + dmgBonus + (ctx.charge || 0);
+      const n = d.dmg + dmgBonus + (ctx.charge || 0) + rangeB + (d.combo ? d.combo * (ctx.combo || 0) : 0) + (d.farBonus && ctx.dist === 2 ? d.farBonus : 0);
       out.push(`Deal ${n} damage${d.hits > 1 ? ` ${d.hits} times` : ''}.`);
     }
+    if (d.combo) out.push(`Combo: +${d.combo} per card played this turn${ctx.combo ? ` (${ctx.combo})` : ''}.`);
+    if (d.ifBlock) out.push(`+${d.ifBlock} if you have Block.`);
+    if (d.farBonus) out.push(`+${d.farBonus} at Far.`);
+    if (d.push) out.push('Knock enemy back.');
     if (d.move === 'in') out.push('Move closer.');
     if (d.move === 'out') out.push('Move away.');
     if (d.move === 'close') out.push(d.kind === 'attack' ? 'Pull enemy to Close.' : 'Rush to Close.');
+    if (d.move === 'far') out.push('Jump to Far.');
     if (d.block) {
       const b = d.block + (d.kind === 'defend' ? st.block : 0) + (d.kind === 'move' ? st.evade : 0);
       out.push(`Gain ${b} Block.`);
     } else if (d.kind === 'move' && st.evade) out.push(`Gain ${st.evade} Block.`);
+    if (d.thorns) out.push(`Thorns ${d.thorns}: hits on you this round deal ${d.thorns} back.`);
+    if (d.retain) out.push('Keep all Block next turn.');
+    if (d.field) out.push(`Field ${d.field}: enemy takes ${d.field} when it moves closer.`);
     if (d.heal) out.push(`Repair ${d.heal} HP.`);
     if (d.draw) out.push(`Draw ${d.draw}.`);
     if (d.energy) out.push(`Gain ${d.energy} energy.`);

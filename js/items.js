@@ -216,6 +216,14 @@
     const add = (stats) => { for (const [k, v] of Object.entries(stats)) { if (k === 'hp') st.maxHp += v; else st[k] = (st[k] || 0) + v; } };
     AF.equippedIds(s).forEach((id) => add(AF.ITEMS[id].stats));
     for (const [set, n] of Object.entries(AF.setCounts(s))) { if (n >= 3) add(AF.SETS[set].b3); if (n >= 5) add(AF.SETS[set].b5); }
+    const C = AF.CONSTRUCTS[s.construct];
+    st.con = s.construct || null; st.spd = C ? C.speed : 2;
+    if (C) {
+      st.maxHp = Math.round(st.maxHp * C.hpMul);
+      if (s.construct === 'bulwark') st.block += 2;
+      if (s.construct === 'sprocket') { st.hand += 1; st.evade += 2; }
+      if (s.construct === 'arcwright') st.evade += 1;
+    }
     st.hand = Math.min(st.hand, 9); st.energy = Math.min(st.energy, 7);
     return st;
   };

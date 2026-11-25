@@ -18,12 +18,13 @@
     AF.Render.snap();
     game.persist(); game.refresh();
     if (!state.flags.intro) setTimeout(() => AF.Quests.intro(state), 500);
+    else if (!state.construct && state.flags.robot) setTimeout(() => AF.Studio.open(state, {}), 400);
   };
 
   game.toTitle = function () {
     game.persist();
     game.state = null; game.battle = null;
-    ['#game', '#battle', '#result', '#panel', '#menu'].forEach((s) => ($(s).hidden = true));
+    ['#game', '#battle', '#result', '#panel', '#menu'].forEach((s) => ($(s).hidden = true)); AF.Studio.close();
     $('#title').hidden = false;
     renderSlots();
   };
@@ -144,7 +145,7 @@
   }
   function newPilot(n) {
     $('#title').hidden = true;
-    AF.Creator.open({ mode: 'new', onDone: (look, outfit) => game.start(AF.newGame(look, n, null, outfit)), onCancel: () => { $('#title').hidden = false; renderSlots(); } });
+    AF.Creator.open({ mode: 'new', onDone: (look, outfit, con) => game.start(AF.newGame(look, n, null, outfit, con)), onCancel: () => { $('#title').hidden = false; renderSlots(); } });
   }
 
   // ---------- Keyboard ----------

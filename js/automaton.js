@@ -14,8 +14,22 @@
     decal: [['none', 'None', 1], ['stripe', 'Stripe', 1], ['bolt', 'Lightning', 1], ['star', 'Star', 2], ['number', 'Number', 3], ['flame', 'Flames', 5]],
   };
   AF.BOT_NAMES = ['Sprocket', 'Bolt', 'Widget', 'Pistonette', 'Gizmo', 'Rivet', 'Tinker', 'Clank', 'Dynamo', 'Fuse', 'Cog', 'Nyx', 'Ember', 'Pixel'];
-  AF.defaultBot = () => ({ name: 'Sprocket', chassis: 'round', head: 'dome', eyes: 'round', antenna: 'ball', paint: 0, trim: 1, decal: 'none', num: 7, named: false });
-  AF.botName = (s) => (s.bot && s.bot.name) || 'Sprocket';
+  AF.defaultBot = (con) => Object.assign({ name: 'Rivet', chassis: 'round', head: 'dome', eyes: 'round', antenna: 'ball', paint: 0, trim: 1, decal: 'none', num: 7, named: false },
+    (AF.CONSTRUCTS[con] && AF.CONSTRUCTS[con].bot) || {}, { construct: con || null });
+  AF.botName = (s) => (s.bot && s.bot.name) || 'Rivet';
+
+  // Construct picker (used by the character creator and by older saves).
+  const bars = (n) => `<span class="pips3">${[1, 2, 3].map((i) => `<i class="${i <= n ? 'on' : ''}"></i>`).join('')}</span>`;
+  AF.constructPicker = function (sel, core) {
+    return `<div class="cons">${Object.entries(AF.CONSTRUCTS).map(([k, C]) => `
+      <button class="con${sel === k ? ' on' : ''}" data-construct="${k}">
+        <span class="con-pic">${AF.robotSVG({ arc: 2, frame: 2, legs: k === 'bulwark' ? 2 : 1, arms: 2, weapon: 2, shield: k === 'bulwark' ? 3 : 1 }, { core: core || '#3ad0ff', bot: AF.defaultBot(k) })}</span>
+        <b>${C.name}</b><small>${C.tag}</small>
+        <span class="con-stats"><span>HP</span>${bars(C.hp)}<span>Speed</span>${bars(C.spd)}<span>Range</span>${bars(C.rng)}</span>
+        <em>${C.text}</em>
+      </button>`).join('')}</div>
+      ${sel ? `<p class="con-passive"><b>${AF.CONSTRUCTS[sel].short} passive:</b> ${AF.CONSTRUCTS[sel].passive}</p>` : ''}`;
+  };
 
   const S = (AF.Studio = { bot: null, state: null });
   function el() {
@@ -26,8 +40,8 @@
   S.isOpen = () => !el().hidden;
   S.open = function (state, opts) {
     opts = opts || {};
-    S.state = state; S.first = !!opts.first; S.onDone = opts.onDone;
-    S.bot = Object.assign(AF.defaultBot(), state.bot || {});
+    S.state = state; S.first = !!opts.first; S.onDone = opts.onDone; S.pick = !state.construct; S.con = state.construct || null;
+    S.bot = Object.assign(AF.defaultBot(state.construct), state.bot || {});
     el().hidden = false; S.render();
   };
   S.close = function () { el().hidden = true; };
@@ -40,14 +54,15 @@
     const pal = (k) => AF.BOT_PAINT.map(([c, n], i) => `<button class="sw${b[k] === i ? ' on' : ''}" data-bot="${k}" data-i="${i}" style="--c:${c}" title="${n}" aria-label="${n}"></button>`).join('');
     el().querySelector('.cr').innerHTML = `
       <div class="cr-side">
-        <h2>${S.first ? 'Name your automaton' : 'Automaton Studio'}</h2>
-        <div class="cr-stage bot-stage"><div class="bot-pre">${AF.robotSVG(s.parts, { core: AF.coreColor(s.look), bot: b })}</div></div>
+        <h2>${S.pick ? 'Choose your Construct' : S.first ? 'Name your automaton' : 'Automaton Studio'}</h2>
+        <div class="cr-stage bot-stage"><div class="bot-pre">${AF.robotSVG(s.parts, { core: AF.coreColor(s.look), bot: Object.assign({}, b, { construct: S.con }) })}</div></div>
         <label class="fld">Name<input id="bot-name" maxlength="14" value="${AF.esc(b.name)}" autocomplete="off"></label>
         <div class="row"><button class="btn" data-bot-act="randname">Random name</button><button class="btn" data-bot-act="random">Surprise me</button></div>
-        <div class="row">${S.first ? '' : '<button class="btn ghost" data-bot-act="cancel">Cancel</button>'}<button class="btn primary" data-bot-act="done">${S.first ? "Let's go!" : 'Save'}</button></div>
+        <div class="row">${S.first || S.pick ? '' : '<button class="btn ghost" data-bot-act="cancel">Cancel</button>'}<button class="btn primary" data-bot-act="done">${S.first ? "Let's go!" : 'Save'}</button></div>
       </div>
       <div class="cr-opts">
         <p class="hint">Style is free to change any time. More shapes unlock as your pilot levels up. Garage upgrades add wheels, arms, weapons and shields.</p>
+        ${S.pick ? `<section><h3>Choose a Construct</h3><p class="hint">Automata now come in three Constructs. Your automaton gets a fresh 30-card deck built for its type. Cards it can't use are traded in for Bolts.</p>${AF.constructPicker(S.con, AF.coreColor(s.look))}</section>` : `<p class="con-badge"><b>${AF.CONSTRUCTS[s.construct].name}</b> · ${AF.CONSTRUCTS[s.construct].passive}</p>`}
         ${row('chassis', 'Chassis')}${row('head', 'Head')}${row('eyes', 'Eyes')}${row('antenna', 'Antenna')}
         <section><h3>Paint</h3><div class="swatches">${pal('paint')}</div></section>
         <section><h3>Trim</h3><div class="swatches">${pal('trim')}</div></section>
@@ -57,10 +72,11 @@
       </div>`;
   };
   S.handle = function (t) {
-    const e = t.closest('[data-bot],[data-bot-act]'); if (!e) return false;
+    const e = t.closest('[data-bot],[data-bot-act],[data-construct]'); if (!e) return false;
     const nm = document.querySelector('#bot-name'); if (nm) S.bot.name = nm.value;
     const num = document.querySelector('#bot-num'); if (num) S.bot.num = Math.max(0, Math.min(99, +num.value || 0));
     const b = S.bot, lvl = S.state.level || 1;
+    if (e.dataset.construct) { S.con = e.dataset.construct; const d = AF.defaultBot(S.con); Object.assign(b, { chassis: d.chassis, head: d.head, eyes: d.eyes, antenna: d.antenna, construct: S.con }); AF.sfx('card'); S.render(); return true; }
     if (e.dataset.bot === 'core') { S.state.look.core = +e.dataset.i; }
     else if (e.dataset.bot) b[e.dataset.bot] = e.dataset.i != null ? +e.dataset.i : e.dataset.v;
     const act = e.dataset.botAct;
@@ -72,6 +88,8 @@
     }
     if (act === 'cancel') { S.close(); return true; }
     if (act === 'done') {
+      if (S.pick && !S.con) { AF.game.toast('Pick a Construct first.'); return true; }
+      if (S.pick) { const refund = AF.setConstruct(S.state, S.con); b.construct = S.con; S.pick = false; if (refund) AF.game.toast(`Old cards for other Constructs traded in for ${AF.moneyText(refund)}.`, 5000); }
       b.name = (b.name || '').trim().slice(0, 14) || 'Sprocket'; b.named = true;
       S.state.bot = b; S.close(); AF.sfx('forge');
       AF.game.persist(); AF.game.refresh(); if (AF.UI.isOpen()) AF.UI.render(); S.onDone && S.onDone();
