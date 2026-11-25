@@ -28,60 +28,102 @@
     return { uid: 'c' + Date.now().toString(36) + (uidCounter++), id, plus: !!plus, inDeck: true };
   };
 
-  AF.newGame = function (seed) {
+  // ---------- Save slots ----------
+  AF.SLOTS = 4;
+  const OLD_KEY = 'arcforge.save.v1';
+  const slotKey = (n) => 'arcforge.slot.' + n;
+
+  AF.newGame = function (look, slot, seed) {
     seed = seed || Math.floor(Math.random() * 1e9);
     const parts = { arc: 1, frame: 1, legs: 1, arms: 1, weapon: 1, shield: 1 };
     const known = Object.keys(AF.CARDS).filter((k) => !AF.CARDS[k].bp);
-    const state = {
-      version: 1,
-      seed,
-      steps: 0,
-      parts,
+    return AF.upgradeSave({
+      version: 3, slot: slot || 1, flags: { robot: false, intro: false }, quests: AF.Quests.fresh(), seed, steps: 0, parts,
       hp: AF.stats(parts).maxHp,
       res: { scrap: 6, copper: 2, silicon: 0, arcite: 0, circuits: 0 },
       cards: AF.STARTER_DECK.map((id) => AF.newCard(id)),
-      known,
-      world: null, // filled by AF.World.generate
-      stats: { wins: 0, forged: 0 },
-      won: false,
-    };
-    return state;
+      known, world: null, look, created: Date.now(),
+      stats: { wins: 0, forged: 0 }, won: false,
+    });
+  };
+
+  // Fill in anything an older save is missing (v1 saves get a fresh map with the new town).
+  AF.upgradeSave = function (s) {
+    // Older saves keep their robot, cards and materials but move into the new shared world.
+    if (s.version < 3) {
+      s.version = 3; s.world = null;
+      s.flags = { robot: true, intro: true };
+      s.quests = Object.assign(AF.Quests.fresh(), { story: 's2', tut: 'declined' });
+    }
+    s.flags = s.flags || { robot: false, intro: false };
+    s.quests = s.quests || AF.Quests.fresh();
+    s.look = s.look || Object.assign(AF.defaultLook('f'), { name: 'Pilot' });
+    if (s.credits == null) s.credits = 30;
+    s.pilot = Object.assign({ vit: 20, perks: [], buffs: {}, rations: 2 }, s.pilot || {});
+    s.bank = s.bank || { credits: 0, res: {} };
+    s.unlocks = s.unlocks || [];
+    s.stats = Object.assign({ wins: 0, forged: 0 }, s.stats || {});
+    s.slot = s.slot || 1;
+    return s;
   };
 
   AF.save = function (state) {
-    try { localStorage.setItem(SAVE_KEY, JSON.stringify(state)); return true; } catch (e) { return false; }
+    try { state.saved = Date.now(); localStorage.setItem(slotKey(state.slot), JSON.stringify(state)); return true; } catch (e) { return false; }
   };
-  AF.load = function () {
+  AF.loadSlot = function (n) {
     try {
-      const raw = localStorage.getItem(SAVE_KEY);
+      const raw = localStorage.getItem(slotKey(n));
       if (!raw) return null;
       const s = JSON.parse(raw);
-      return s && s.version === 1 ? s : null;
+      return s && s.version >= 1 && s.version <= 3 ? AF.upgradeSave(Object.assign(s, { slot: n })) : null;
     } catch (e) { return null; }
   };
-  AF.clearSave = function () { try { localStorage.removeItem(SAVE_KEY); } catch (e) {} };
+  AF.deleteSlot = function (n) { try { localStorage.removeItem(slotKey(n)); } catch (e) {} };
+  AF.listSlots = function () { const out = []; for (let n = 1; n <= AF.SLOTS; n++) out.push(AF.loadSlot(n)); return out; };
+  // Move a save from the first version into slot 1.
+  AF.migrateOldSave = function () {
+    try {
+      const raw = localStorage.getItem(OLD_KEY);
+      if (!raw) return;
+      if (!localStorage.getItem(slotKey(1))) localStorage.setItem(slotKey(1), raw);
+      localStorage.removeItem(OLD_KEY);
+    } catch (e) {}
+  };
 
   // Save codes let players move a save between devices (or into the desktop build).
   AF.exportCode = (state) => btoa(unescape(encodeURIComponent(JSON.stringify(state))));
-  AF.importCode = function (code) {
+  AF.importCode = function (code, slot) {
     try {
       const s = JSON.parse(decodeURIComponent(escape(atob(code.trim()))));
-      return s && s.version === 1 && s.parts && s.world ? s : null;
+      if (!s || !s.parts || !(s.version >= 1 && s.version <= 3)) return null;
+      s.slot = slot;
+      return AF.upgradeSave(s);
     } catch (e) { return null; }
   };
+
+  AF.pilotMaxVit = (s) => 20 + (s.pilot.perks.includes('endurance') ? 10 : 0);
+  AF.hasPerk = (s, id) => s.pilot.perks.includes(id);
 
   // ---------- Resource helpers ----------
   AF.canAfford = (res, cost) => Object.keys(cost).every((k) => (res[k] || 0) >= cost[k]);
   AF.pay = function (res, cost) { Object.keys(cost).forEach((k) => (res[k] -= cost[k])); };
   AF.gain = function (res, add) { Object.keys(add).forEach((k) => (res[k] = (res[k] || 0) + add[k])); };
 
+  // Costs may include credits as well as materials.
+  AF.canPay = (s, cost) => Object.keys(cost).every((k) => (k === 'credits' ? s.credits : (s.res[k] || 0)) >= cost[k]);
+  AF.payCost = function (s, cost) { Object.keys(cost).forEach((k) => { if (k === 'credits') s.credits -= cost[k]; else s.res[k] -= cost[k]; }); };
+  AF.CREDIT_COLOR = '#ffd24a';
+
   AF.esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
   // Resource chips: "<chip> 5"
+  // res can be a resource object or a full game state (then credits are checked too).
   AF.costHtml = function (cost, res) {
+    const have = (k) => !res ? Infinity : res.res ? (k === 'credits' ? res.credits : res.res[k] || 0) : (res[k] || 0);
     return Object.keys(cost).map((k) => {
-      const short = res && (res[k] || 0) < cost[k] ? ' short' : '';
-      return `<span class="cost${short}"><i class="chip" style="--c:${AF.RES[k].color}"></i>${cost[k]} ${AF.RES[k].name}</span>`;
+      const short = have(k) < cost[k] ? ' short' : '';
+      const c = k === 'credits' ? AF.CREDIT_COLOR : AF.RES[k].color, n = k === 'credits' ? 'Cr' : AF.RES[k].name;
+      return `<span class="cost${short}"><i class="chip" style="--c:${c}"></i>${cost[k]} ${n}</span>`;
     }).join('');
   };
 

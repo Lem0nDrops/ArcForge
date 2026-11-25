@@ -1,376 +1,441 @@
-/* ArcForge — the open world: generation, movement, gathering, fog, drawing. */
+/* ArcForge — the world.
+   The map is built once from AF.WORLD_SEED, so every player explores the same world.
+   Each save only stores what changes: positions, harvested nodes, searched ruins, enemies, explored area. */
 (function () {
   const AF = (window.AF = window.AF || {});
-  const W = 72, H = 72, VISION = 5, SAFE = 3;
-  const CH = { w: 'water', s: 'sand', g: 'grass', f: 'forest', r: 'rubble', m: 'mountain' };
+  const W = 96, H = 96, VISION = 6, TS = 16;
+  const TW = 34, TH = 28, TX = (W >> 1) - 17, TY = (H >> 1) - 14; // town rectangle
+  const CH = { w: 'water', s: 'sand', g: 'grass', f: 'forest', r: 'rubble', m: 'mountain', p: 'path', l: 'lawn' };
   const key = (x, y) => x + ',' + y;
+  const inTownXY = (x, y) => x >= TX && y >= TY && x < TX + TW && y < TY + TH;
+  const DIRS = { '0,1': 'down', '0,-1': 'up', '-1,0': 'left', '1,0': 'right' };
 
-  // ---------- Generation ----------
+  // ---------- Static map ----------
+  let M = null;
+
   function valueNoise(r, scale) {
     const gw = Math.ceil(W / scale) + 2, gh = Math.ceil(H / scale) + 2;
     const g = Array.from({ length: gw * gh }, () => r());
     const sm = (t) => t * t * (3 - 2 * t);
     return function (x, y) {
       const fx = x / scale, fy = y / scale, ix = Math.floor(fx), iy = Math.floor(fy);
-      const tx = sm(fx - ix), ty = sm(fy - iy);
-      const v = (i, j) => g[(iy + j) * gw + (ix + i)];
+      const tx = sm(fx - ix), ty = sm(fy - iy), v = (i, j) => g[(iy + j) * gw + (ix + i)];
       const a = v(0, 0) + (v(1, 0) - v(0, 0)) * tx, b = v(0, 1) + (v(1, 1) - v(0, 1)) * tx;
       return a + (b - a) * ty;
     };
   }
 
-  // Retry seeds until the starting region is big enough to explore on Wheels.
-  function generate(seed) {
-    let w = null;
-    for (let k = 0; k < 25; k++) { w = build(seed + k * 101); if (w.reach >= 900) break; }
-    delete w.reach;
-    return w;
+  function map() {
+    if (M) return M;
+    for (let k = 0; k < 25; k++) { M = buildMap(AF.WORLD_SEED + k * 101); if (M.reach >= 1600) break; }
+    return M;
   }
 
-  function build(seed) {
+  function buildMap(seed) {
     const r = AF.rng(seed);
-    const n1 = valueNoise(r, 14), n2 = valueNoise(r, 6), m1 = valueNoise(r, 12);
+    const n1 = valueNoise(r, 18), n2 = valueNoise(r, 8), m1 = valueNoise(r, 15);
     const cx = W >> 1, cy = H >> 1;
-    let tiles = '';
+    const t = new Array(W * H), solid = new Uint8Array(W * H), deco = new Array(W * H).fill(null);
+    const near = (x, y, pad) => x >= TX - pad && y >= TY - pad && x < TX + TW + pad && y < TY + TH + pad;
     for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
       const d = Math.hypot(x - cx, y - cy) / (W / 2);
       let e = n1(x, y) * 0.75 + n2(x, y) * 0.25 + 0.2 - d * d * 0.6;
       const m = m1(x, y);
-      if (Math.max(Math.abs(x - cx), Math.abs(y - cy)) <= 4) e = Math.min(Math.max(e, 0.45), 0.6);
-      let t;
-      if (e < 0.3) t = 'w'; else if (e < 0.34) t = 's';
-      else if (e > 0.72) t = 'm'; else if (e > 0.63) t = 'r';
-      else if (m > 0.62) t = 'f'; else if (m < 0.3) t = 's'; else t = 'g';
-      if (Math.max(Math.abs(x - cx), Math.abs(y - cy)) <= 4) t = (t === 'f' || t === 'g') ? t : 'g';
-      tiles += t;
+      if (near(x, y, 5)) e = Math.min(Math.max(e, 0.45), 0.6);
+      let c;
+      if (e < 0.3) c = 'w'; else if (e < 0.34) c = 's';
+      else if (e > 0.72) c = 'm'; else if (e > 0.63) c = 'r';
+      else if (m > 0.62) c = 'f'; else if (m < 0.3) c = 's'; else c = 'g';
+      if (near(x, y, 3)) c = 'g';
+      t[y * W + x] = c;
     }
-    const world = { w: W, h: H, tiles, nodes: {}, ruins: {}, enemies: [], fog: '', px: cx, py: cy,
-      base: { x: cx, y: cy }, lair: null, nextId: 1 };
-    const tAt = (x, y) => CH[tiles[y * W + x]];
-    const dist = (x, y) => Math.hypot(x - cx, y - cy);
-    const land = (x, y) => tAt(x, y) !== 'water';
+    const I = (x, y) => y * W + x;
+    const set = (x, y, c) => { t[I(x, y)] = c; };
 
-    // Titan's lair: farthest land tile, ringed by mountains (needs Spider Legs).
+    // ----- Rivet Hollow: a hand-built town (local coords 0..33 × 0..27) -----
+    const L = (lx, ly) => [TX + lx, TY + ly];
+    for (let ly = 0; ly < TH; ly++) for (let lx = 0; lx < TW; lx++) set(...L(lx, ly), 'l');
+    const path = (x0, y0, x1, y1) => { for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) set(...L(x, y), 'p'); };
+    path(16, 0, 17, 27); path(0, 13, 33, 14); path(2, 7, 31, 7); path(2, 24, 31, 24); path(12, 15, 21, 18);
+    // roads leading out of town
+    for (let i = 1; i <= 4; i++) { set(TX + 16, TY - i, 'p'); set(TX + 17, TY - i, 'p'); set(TX + 16, TY + TH - 1 + i, 'p'); set(TX + 17, TY + TH - 1 + i, 'p');
+      set(TX - i, TY + 13, 'p'); set(TX - i, TY + 14, 'p'); set(TX + TW - 1 + i, TY + 13, 'p'); set(TX + TW - 1 + i, TY + 14, 'p'); }
+    const put = (lx, ly, kind) => { const [x, y] = L(lx, ly); deco[I(x, y)] = kind; if (kind !== 'flowers') solid[I(x, y)] = 1; };
+    // border trees with four gateways
+    for (let ly = 0; ly < TH; ly++) for (let lx = 0; lx < TW; lx++) {
+      const edge = lx === 0 || ly === 0 || lx === TW - 1 || ly === TH - 1;
+      const gate = ((ly === 0 || ly === TH - 1) && (lx === 16 || lx === 17)) || ((lx === 0 || lx === TW - 1) && (ly === 13 || ly === 14));
+      if (edge && !gate) put(lx, ly, 'tree');
+    }
+    [[1, 1], [2, 1], [1, 2], [32, 1], [31, 1], [32, 2], [1, 26], [1, 25], [2, 26], [32, 26], [32, 25], [31, 26], [14, 1], [20, 1], [27, 1], [7, 1]].forEach(([a, b]) => put(a, b, 'tree'));
+    // pond, fence, fountain, lamps, signs
+    for (let ly = 15; ly <= 17; ly++) for (let lx = 3; lx <= 7; lx++) { const [x, y] = L(lx, ly); set(x, y, 'w'); solid[I(x, y)] = 1; }
+    for (let lx = 2; lx <= 8; lx++) put(lx, 18, 'fence');
+    { const [x, y] = L(16, 16); deco[I(x, y)] = 'fountain'; for (const [a, b] of [[0, 0], [1, 0], [0, 1], [1, 1]]) solid[I(x + a, y + b)] = 1; }
+    [[15, 8], [18, 8], [15, 23], [18, 23], [11, 15], [22, 15], [25, 12], [8, 12]].forEach(([a, b]) => put(a, b, 'lamp'));
+    const signs = {};
+    const sign = (lx, ly, text) => { put(lx, ly, 'sign'); const [x, y] = L(lx, ly); signs[key(x, y)] = text; };
+    sign(14, 26, 'RIVET HOLLOW — "Every bolt has a story." South: the Rustfields.');
+    sign(19, 1, 'North: the Glassdunes. Beware the Spark Spitters.');
+    sign(1, 12, 'West: Old Pylon Road.');
+    sign(32, 15, 'East: the Rubble Wastes. Treads recommended.');
+    sign(23, 18, 'TOWN SQUARE — The Arc Fountain still runs on a sliver of the Titan Core\'s old power.');
+
+    // buildings
+    const buildings = [], doors = {};
+    for (const [id, b] of Object.entries(AF.BUILDINGS)) {
+      const [x, y] = L(b.x, b.y), door = [x + Math.floor(b.w / 2), y + b.h - 1];
+      for (let yy = y; yy < y + b.h; yy++) for (let xx = x; xx < x + b.w; xx++) { solid[I(xx, yy)] = 1; deco[I(xx, yy)] = null; }
+      doors[key(...door)] = id;
+      buildings.push({ id, x, y, w: b.w, h: b.h, door });
+    }
+    // flowers on open lawn
+    for (let ly = 1; ly < TH - 1; ly++) for (let lx = 1; lx < TW - 1; lx++) {
+      const [x, y] = L(lx, ly);
+      if (t[I(x, y)] === 'l' && !solid[I(x, y)] && r() < 0.09) deco[I(x, y)] = 'flowers';
+    }
+
+    // ----- Titan's lair: farthest land tile, ringed by mountains -----
     let best = null;
-    for (let y = 2; y < H - 2; y++) for (let x = 2; x < W - 2; x++)
-      if (land(x, y) && (!best || dist(x, y) > best.d)) best = { x, y, d: dist(x, y) };
-    const arr = tiles.split('');
-    for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) {
-      const x = best.x + dx, y = best.y + dy, ring = Math.max(Math.abs(dx), Math.abs(dy));
-      arr[y * W + x] = ring === 2 ? 'm' : 'r';
-    }
-    world.tiles = tiles = arr.join('');
-    world.lair = { x: best.x, y: best.y };
+    for (let y = 3; y < H - 3; y++) for (let x = 3; x < W - 3; x++)
+      if (t[I(x, y)] !== 'w' && (!best || Math.hypot(x - cx, y - cy) > best.d)) best = { x, y, d: Math.hypot(x - cx, y - cy) };
+    for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) set(best.x + dx, best.y + dy, Math.max(Math.abs(dx), Math.abs(dy)) === 2 ? 'm' : 'r');
 
-    // Tiles reachable from base on starting Wheels.
-    const reach = new Set([key(cx, cy)]), q = [[cx, cy]];
+    // ----- Reachability on starting Wheels -----
+    const spawn = L(4, 7);
+    const passable = (x, y, legs) => x >= 0 && y >= 0 && x < W && y < H && !solid[I(x, y)] && AF.TERRAIN[CH[t[I(x, y)]]].legs <= legs;
+    const reach = new Set([key(...spawn)]), q = [spawn];
     while (q.length) {
       const [x, y] = q.pop();
       for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
-        const nx = x + dx, ny = y + dy, t = nx >= 0 && ny >= 0 && nx < W && ny < H && tAt(nx, ny);
-        if (t && AF.TERRAIN[t].legs <= 1 && !reach.has(key(nx, ny))) { reach.add(key(nx, ny)); q.push([nx, ny]); }
+        const nx = x + dx, ny = y + dy;
+        if (passable(nx, ny, 1) && !reach.has(key(nx, ny))) { reach.add(key(nx, ny)); q.push([nx, ny]); }
       }
     }
-    world.reach = reach.size;
 
-    const free = (x, y) => !world.nodes[key(x, y)] && !world.ruins[key(x, y)] && !(x === cx && y === cy)
-      && !(Math.abs(x - best.x) <= 2 && Math.abs(y - best.y) <= 2);
-
-    // Resource nodes
+    // ----- Resource nodes and ruins (fixed for everyone) -----
+    const nodes = {}, ruins = [];
+    const lair = { x: best.x, y: best.y };
+    const free = (x, y) => !near(x, y, 2) && !nodes[key(x, y)] && !ruins.includes(key(x, y)) && !(Math.abs(x - lair.x) <= 2 && Math.abs(y - lair.y) <= 2);
     for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
       if (!free(x, y)) continue;
-      const t = tAt(x, y), roll = r(), far = dist(x, y) > 8;
+      const c = CH[t[I(x, y)]], roll = r(), d = Math.hypot(x - cx, y - cy);
       let n = null;
-      if ((t === 'grass' || t === 'forest') && roll < 0.035 && far) n = 'scrap';
-      else if (t === 'rubble') n = roll < 0.07 ? 'copper' : roll < 0.1 ? 'scrap' : null;
-      else if (t === 'sand' && roll < 0.06) n = 'silicon';
-      else if (t === 'mountain' && roll < 0.07) n = 'arcite';
-      else if (t === 'forest' && roll < 0.008 && dist(x, y) > 16) n = 'arcite';
-      if (n) world.nodes[key(x, y)] = { t: n, ready: 0 };
+      if ((c === 'grass' || c === 'forest') && roll < 0.03 && d > 22) n = 'scrap';
+      else if (c === 'rubble') n = roll < 0.07 ? 'copper' : roll < 0.1 ? 'scrap' : null;
+      else if (c === 'sand' && roll < 0.05) n = 'silicon';
+      else if (c === 'mountain' && roll < 0.07) n = 'arcite';
+      else if (c === 'forest' && roll < 0.008 && d > 26) n = 'arcite';
+      if (n) nodes[key(x, y)] = n;
     }
-    // Starter nodes near base so the first upgrade is reachable on Wheels.
-    const starter = ['scrap', 'scrap', 'scrap', 'scrap', 'copper', 'copper', 'copper', 'silicon'];
+    const starter = ['scrap', 'scrap', 'scrap', 'scrap', 'scrap', 'copper', 'copper', 'copper', 'silicon'];
     let guard = 0;
-    while (starter.length && guard++ < 2000) {
-      const x = cx + AF.randInt(r, -9, 9), y = cy + AF.randInt(r, -9, 9);
-      const t = tAt(x, y);
-      if (dist(x, y) > 4 && reach.has(key(x, y)) && (t === 'grass' || t === 'sand' || t === 'forest') && free(x, y))
-        world.nodes[key(x, y)] = { t: starter.pop(), ready: 0 };
+    while (starter.length && guard++ < 4000) {
+      const x = AF.randInt(r, TX - 9, TX + TW + 8), y = AF.randInt(r, TY - 9, TY + TH + 8), c = CH[t[I(x, y)]];
+      if (reach.has(key(x, y)) && (c === 'grass' || c === 'sand' || c === 'forest') && free(x, y)) nodes[key(x, y)] = starter.pop();
     }
-    // Ruins hold blueprints.
-    let ruins = 0; guard = 0;
-    while (ruins < 14 && guard++ < 5000) {
+    guard = 0;
+    while (ruins.length < 22 && guard++ < 8000) {
       const x = AF.randInt(r, 2, W - 3), y = AF.randInt(r, 2, H - 3);
-      if (land(x, y) && dist(x, y) > 7 && free(x, y)) { world.ruins[key(x, y)] = { open: false }; ruins++; }
+      if (t[I(x, y)] !== 'w' && Math.hypot(x - cx, y - cy) > 20 && free(x, y)) ruins.push(key(x, y));
     }
-    // Enemies
-    for (let i = 0; i < 46; i++) spawnEnemy(world, r, 7);
-    world.enemies.push({ id: world.nextId++, type: 'titan', x: best.x, y: best.y, boss: true });
-    world.fog = '0'.repeat(W * H);
-    reveal(world);
-    return world;
+
+    const mp = { w: W, h: H, t, solid, deco, signs, buildings, doors, nodes, ruins, lair, spawn, reach: reach.size, I };
+    // ----- Starting enemies (same for everyone) -----
+    mp.enemies0 = [];
+    let id = 1;
+    for (let i = 0; i < 80; i++) {
+      for (let tries = 0; tries < 300; tries++) {
+        const x = AF.randInt(r, 1, W - 2), y = AF.randInt(r, 1, H - 2);
+        if (!enemyOK(mp, x, y, mp.enemies0) || Math.hypot(x - cx, y - cy) < 23) continue;
+        const pool = AF.TIERS[tierFor(Math.hypot(x - cx, y - cy), r)];
+        mp.enemies0.push({ id: id++, type: pool[Math.floor(r() * pool.length)], x, y }); break;
+      }
+    }
+    mp.enemies0.push({ id: id++, type: 'titan', x: lair.x, y: lair.y, boss: true });
+    return mp;
   }
 
   function tierFor(d, r) {
-    if (d < 12) return 1;
-    if (d < 16) return r() < 0.7 ? 1 : 2;
-    if (d < 24) return r() < 0.25 ? 1 : r() < 0.85 ? 2 : 3;
+    if (d < 25) return 1;
+    if (d < 30) return r() < 0.7 ? 1 : 2;
+    if (d < 38) return r() < 0.2 ? 1 : r() < 0.85 ? 2 : 3;
     return r() < 0.35 ? 2 : 3;
   }
-
-  function spawnEnemy(world, r, minDist, avoid) {
-    for (let tries = 0; tries < 300; tries++) {
-      const x = AF.randInt(r, 1, W - 2), y = AF.randInt(r, 1, H - 2);
-      const d = Math.hypot(x - world.base.x, y - world.base.y);
-      if (d < minDist || !enemyCanEnter(world, x, y)) continue;
-      if (avoid && Math.abs(x - avoid.x) + Math.abs(y - avoid.y) < 10) continue;
-      const pool = AF.TIERS[tierFor(d, r)];
-      world.enemies.push({ id: world.nextId++, type: pool[Math.floor(r() * pool.length)], x, y });
-      return;
-    }
+  const terr = (mp, x, y) => (x < 0 || y < 0 || x >= W || y >= H) ? null : CH[mp.t[y * W + x]];
+  function enemyOK(mp, x, y, list, w) {
+    const c = terr(mp, x, y);
+    return c && AF.TERRAIN[c].legs <= 2 && !mp.solid[y * W + x] && !(x >= TX - 2 && y >= TY - 2 && x < TX + TW + 2 && y < TY + TH + 2)
+      && !list.some((e) => e.x === x && e.y === y) && !(w && w.rx === x && w.ry === y)
+      && !(Math.abs(x - mp.lair.x) <= 2 && Math.abs(y - mp.lair.y) <= 2);
   }
 
-  // ---------- Queries ----------
-  const terrainAt = (w, x, y) => (x < 0 || y < 0 || x >= w.w || y >= w.h) ? null : CH[w.tiles[y * w.w + x]];
-  const inSafe = (w, x, y) => Math.max(Math.abs(x - w.base.x), Math.abs(y - w.base.y)) <= SAFE;
-  const enemyAt = (w, x, y) => w.enemies.find((e) => e.x === x && e.y === y);
-  function enemyCanEnter(w, x, y) {
-    const t = terrainAt(w, x, y);
-    return t && AF.TERRAIN[t].legs <= 2 && !inSafe(w, x, y) && !enemyAt(w, x, y)
-      && !(w.lair && Math.abs(x - w.lair.x) <= 2 && Math.abs(y - w.lair.y) <= 2);
+  // ---------- Per-save world state ----------
+  function init() {
+    const mp = map();
+    const w = { px: mp.spawn[0], py: mp.spawn[1], rx: mp.spawn[0], ry: mp.spawn[1], dir: 'down', rdir: 'down',
+      ready: {}, opened: {}, enemies: mp.enemies0.map((e) => Object.assign({}, e)), nextId: mp.enemies0.length + 1,
+      fog: Array.from({ length: W * H }, (_, i) => (inTownXY(i % W, Math.floor(i / W)) ? '1' : '0')).join('') };
+    reveal(w);
+    return w;
   }
   function reveal(w) {
     const f = w.fog.split('');
     for (let dy = -VISION; dy <= VISION; dy++) for (let dx = -VISION; dx <= VISION; dx++) {
       const x = w.px + dx, y = w.py + dy;
-      if (x >= 0 && y >= 0 && x < w.w && y < w.h && dx * dx + dy * dy <= VISION * VISION + 2) f[y * w.w + x] = '1';
+      if (x >= 0 && y >= 0 && x < W && y < H && dx * dx + dy * dy <= VISION * VISION + 2) f[y * W + x] = '1';
     }
     w.fog = f.join('');
   }
-  const seen = (w, x, y) => w.fog[y * w.w + x] === '1';
-  const visible = (w, x, y) => (x - w.px) ** 2 + (y - w.py) ** 2 <= VISION * VISION + 2;
 
-  // ---------- Turn: player moves, world reacts ----------
-  // Returns an event: {type:'battle', enemy} | {type:'msg', text} | null
+  // ---------- NPC positions (not saved; they wander around their home spot) ----------
+  let npcs = null;
+  function npcList() {
+    if (!npcs) npcs = Object.entries(AF.NPCS).map(([id, n]) => ({ id, x: TX + n.x, y: TY + n.y, hx: TX + n.x, hy: TY + n.y, dir: n.dir || 'down' }));
+    return npcs;
+  }
+  const npcAt = (x, y) => npcList().find((n) => n.x === x && n.y === y);
+
+  // ---------- A turn: the pilot moves, the robot follows, the world reacts ----------
   function move(state, dx, dy) {
-    const w = state.world, nx = w.px + dx, ny = w.py + dy, st = AF.stats(state.parts);
-    const t = terrainAt(w, nx, ny);
-    if (!t) return { type: 'blocked', text: 'The edge of the known world.' };
-    const need = AF.TERRAIN[t].legs;
+    const mp = map(), w = state.world, nx = w.px + dx, ny = w.py + dy, st = AF.stats(state.parts);
+    w.dir = DIRS[dx + ',' + dy];
+    const c = terr(mp, nx, ny);
+    if (!c) return { type: 'blocked', text: 'The edge of the known world.' };
+    const k = key(nx, ny);
+    if (mp.doors[k]) return { type: 'door', id: mp.doors[k] };
+    const npc = npcAt(nx, ny);
+    if (npc) { npc.dir = { down: 'up', up: 'down', left: 'right', right: 'left' }[w.dir]; return { type: 'talk', npc: npc.id }; }
+    if (mp.signs[k]) return { type: 'sign', text: mp.signs[k] };
+    if (mp.solid[ny * W + nx]) return { type: 'bump', text: mp.deco[ny * W + nx] === 'fountain' ? 'The Arc Fountain hums with warm blue light.' : '' };
+    if (!state.flags.robot && inTownXY(w.px, w.py) && !inTownXY(nx, ny)) return { type: 'talk', npc: 'rook' };
+    const need = AF.TERRAIN[c].legs;
     if (st.legs < need)
-      return { type: 'blocked', text: `Your ${AF.PARTS.legs.tiers[st.legs - 1]} can't cross ${AF.TERRAIN[t].name}. Upgrade Locomotion to ${AF.PARTS.legs.tiers[need - 1]}.` };
-    const foe = enemyAt(w, nx, ny);
+      return { type: 'blocked', text: `Your ${AF.PARTS.legs.tiers[st.legs - 1]} can't cross ${AF.TERRAIN[c].name}. Upgrade Locomotion to ${AF.PARTS.legs.tiers[need - 1]} at the Garage.` };
+    const foe = w.enemies.find((e) => e.x === nx && e.y === ny);
     if (foe) return { type: 'battle', enemy: foe };
 
-    w.px = nx; w.py = ny; state.steps++;
+    // move
+    const wasInTown = inTownXY(w.px, w.py);
+    w.rdir = DIRS[Math.sign(w.px - w.rx) + ',' + Math.sign(w.py - w.ry)] || w.rdir;
+    w.rx = w.px; w.ry = w.py; w.px = nx; w.py = ny; state.steps++;
     reveal(w);
-    const msgs = [];
-    const k = key(nx, ny);
+    const msgs = [], nowInTown = inTownXY(nx, ny);
+    if (nowInTown && !wasInTown) msgs.push(`Back in ${AF.TOWN_NAME}.`);
 
-    const node = w.nodes[k];
+    const p = state.pilot;
+    if (!nowInTown && state.steps % (AF.hasPerk(state, 'endurance') ? 16 : 12) === 0 && p.vit > 0) {
+      p.vit--;
+      if (p.vit === 0) msgs.push('Your pilot is exhausted: less energy in battle and smaller harvests. Eat something!');
+      else if (p.vit === 5) msgs.push('Your pilot is getting hungry.');
+    }
+    const node = mp.nodes[k];
     if (node) {
-      const def = AF.NODES[node.t];
-      if (node.ready > state.steps) msgs.push(`${def.label} is depleted. It regrows in ${node.ready - state.steps} steps.`);
-      else if (def.arms && state.parts.arms < def.arms) msgs.push(`${def.label}: too hard for Grabbers. Upgrade Arms to Drill Arms.`);
+      const def = AF.NODES[node];
+      if ((w.ready[k] || 0) > state.steps) msgs.push(`${def.label} is depleted. It regrows in ${w.ready[k] - state.steps} steps.`);
+      else if (def.arms && state.parts.arms < def.arms) msgs.push(`${def.label}: too hard for Grabbers. Upgrade Arms to Drill Arms at the Garage.`);
       else {
         const r = AF.rng(state.seed + state.steps * 7);
-        const amt = AF.randInt(r, def.amount[0], def.amount[1]) + (st.gather - 1);
+        let amt = AF.randInt(r, def.amount[0], def.amount[1]) + (st.gather - 1) + (AF.hasPerk(state, 'scavenger') ? 1 : 0);
+        if (p.vit <= 0) amt = Math.max(1, amt - 2);
         AF.gain(state.res, { [def.res]: amt });
-        node.ready = state.steps + def.respawn;
+        w.ready[k] = state.steps + def.respawn;
         msgs.push(`Gathered ${amt} ${AF.RES[def.res].name}.`);
         AF.sfx('gather');
+        AF.Quests.event(state, 'gather', { res: def.res, amt });
       }
     }
-    const ruin = w.ruins[k];
-    if (ruin && !ruin.open) {
-      ruin.open = true;
+    if (mp.ruins.includes(k) && !w.opened[k]) {
+      w.opened[k] = 1;
       const locked = Object.keys(AF.CARDS).filter((id) => !state.known.includes(id));
+      const r = AF.rng(AF.WORLD_SEED + nx * 131 + ny * 977 + state.steps);
+      const cr = AF.randInt(r, 8, 20);
+      state.credits += cr;
       if (locked.length) {
-        const r = AF.rng(state.seed + state.steps * 13);
         const id = locked[Math.floor(r() * locked.length)];
         state.known.push(id);
-        msgs.push(`Ruin searched: blueprint found for ${AF.CARDS[id].name}! Forge it at base.`);
-      } else {
-        AF.gain(state.res, { circuits: 2, copper: 4 });
-        msgs.push('Ruin searched: 2 Circuits and 4 Copper salvaged.');
-      }
+        msgs.push(`Ruin searched: blueprint for ${AF.CARDS[id].name} and ${cr} credits!`);
+      } else { AF.gain(state.res, { circuits: 2, copper: 4 }); msgs.push(`Ruin searched: 2 Circuits, 4 Copper and ${cr} credits.`); }
       AF.sfx('forge');
-    }
-    if (nx === w.base.x && ny === w.base.y) {
-      state.hp = st.maxHp;
-      msgs.push('Home Forge: fully repaired. Open the Workshop to craft and upgrade.');
-      AF.sfx('heal');
+      AF.Quests.event(state, 'ruin', {});
     }
 
-    // Enemies take their turn.
+    // enemies
     const r = AF.rng(state.seed ^ (state.steps * 2654435761));
     let ambush = null;
     for (const e of w.enemies) {
       if (e.boss) continue;
       const d = Math.abs(e.x - w.px) + Math.abs(e.y - w.py);
       let step = null;
-      if (d <= 6 && r() < 0.55) {
+      if (d <= 6 && !nowInTown && r() < 0.55) {
         const sx = Math.sign(w.px - e.x), sy = Math.sign(w.py - e.y);
         step = Math.abs(w.px - e.x) >= Math.abs(w.py - e.y) ? [sx, 0] : [0, sy];
-      } else if (r() < 0.25) {
-        step = [[1, 0], [-1, 0], [0, 1], [0, -1]][Math.floor(r() * 4)];
-      }
+      } else if (r() < 0.25) step = [[1, 0], [-1, 0], [0, 1], [0, -1]][Math.floor(r() * 4)];
       if (!step) continue;
       const tx = e.x + step[0], ty = e.y + step[1];
-      if (tx === w.px && ty === w.py && !inSafe(w, tx, ty)) { ambush = e; continue; }
-      if (enemyCanEnter(w, tx, ty)) { e.x = tx; e.y = ty; }
+      if (tx === w.px && ty === w.py && !nowInTown) { ambush = e; continue; }
+      if (enemyOK(mp, tx, ty, w.enemies, w)) { e.x = tx; e.y = ty; }
     }
-    if (state.steps % 40 === 0 && w.enemies.length < 40) spawnEnemy(w, r, 10, { x: w.px, y: w.py });
+    if (state.steps % 40 === 0 && w.enemies.length < 70) {
+      for (let tries = 0; tries < 200; tries++) {
+        const x = AF.randInt(r, 1, W - 2), y = AF.randInt(r, 1, H - 2), d = Math.hypot(x - (W >> 1), y - (H >> 1));
+        if (d < 24 || Math.abs(x - w.px) + Math.abs(y - w.py) < 10 || !enemyOK(mp, x, y, w.enemies, w)) continue;
+        const pool = AF.TIERS[tierFor(d, r)];
+        w.enemies.push({ id: w.nextId++, type: pool[Math.floor(r() * pool.length)], x, y }); break;
+      }
+    }
+    // townsfolk wander
+    if (nowInTown || wasInTown) for (const n of npcList()) {
+      if (!AF.NPCS[n.id].wander || r() > 0.3) continue;
+      const [ddx, ddy] = [[1, 0], [-1, 0], [0, 1], [0, -1]][Math.floor(r() * 4)], tx = n.x + ddx, ty = n.y + ddy;
+      const cc = terr(mp, tx, ty);
+      if (Math.abs(tx - n.hx) > 2 || Math.abs(ty - n.hy) > 2 || mp.solid[ty * W + tx] || !(cc === 'lawn' || cc === 'path') || npcAt(tx, ty)
+        || (tx === w.px && ty === w.py) || (tx === w.rx && ty === w.ry) || mp.doors[key(tx, ty)]) continue;
+      n.x = tx; n.y = ty; n.dir = DIRS[ddx + ',' + ddy];
+    }
     if (ambush) return { type: 'battle', enemy: ambush, ambush: true, text: msgs.join(' ') };
     return msgs.length ? { type: 'msg', text: msgs.join(' ') } : null;
   }
 
   function removeEnemy(state, id) { state.world.enemies = state.world.enemies.filter((e) => e.id !== id); }
-  function sendHome(state) { state.world.px = state.world.base.x; state.world.py = state.world.base.y; reveal(state.world); }
-  const atBase = (state) => state.world.px === state.world.base.x && state.world.py === state.world.base.y;
-
-  function describeHere(state) {
-    const w = state.world, k = key(w.px, w.py), t = terrainAt(w, w.px, w.py);
-    if (atBase(state)) return 'Home Forge';
-    if (w.nodes[k]) return AF.NODES[w.nodes[k].t].label;
-    if (w.ruins[k]) return 'Searched ruin';
-    return AF.TERRAIN[t].name;
+  function sendHome(state) {
+    const w = state.world, mp = map();
+    w.px = mp.spawn[0]; w.py = mp.spawn[1]; w.rx = w.px + 1; w.ry = w.py; w.dir = 'down';
+    reveal(w); snap = null;
   }
+  // Put the robot on a free tile next to the pilot.
+  function placeRobot(state) {
+    const mp = map(), w = state.world;
+    for (const [dx, dy] of [[0, 1], [1, 0], [-1, 0], [0, -1]]) {
+      const x = w.px + dx, y = w.py + dy;
+      if (!mp.solid[y * W + x] && !npcAt(x, y)) { w.rx = x; w.ry = y; return; }
+    }
+  }
+  const inTown = (state) => inTownXY(state.world.px, state.world.py);
+  function describeHere(state) {
+    const mp = map(), w = state.world, k = key(w.px, w.py);
+    const ahead = mp.doors[key(w.px, w.py - 1)];
+    if (ahead) return AF.BUILDINGS[ahead].name;
+    if (inTown(state)) return AF.TOWN_NAME;
+    if (mp.nodes[k]) return AF.NODES[mp.nodes[k]].label;
+    if (mp.ruins.includes(k)) return 'Searched ruin';
+    return AF.TERRAIN[terr(mp, w.px, w.py)].name;
+  }
+  function terrainHere(state) { return terr(map(), state.world.px, state.world.py); }
 
   // ---------- Drawing ----------
-  function hash(x, y) { let h = (x * 374761393 + y * 668265263) ^ 0x5bf03635; h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967296; }
-  function shade(hex, amt) {
-    const n = parseInt(hex.slice(1), 16);
-    const c = (s) => Math.max(0, Math.min(255, ((n >> s) & 255) + amt));
-    return `rgb(${c(16)},${c(8)},${c(0)})`;
-  }
-
-  function drawTile(g, t, x, y, s, wx, wy, time) {
-    const h = hash(wx, wy), base = AF.TERRAIN[t].color;
-    g.fillStyle = shade(base, Math.round((h - 0.5) * 14));
-    g.fillRect(x, y, s + 1, s + 1);
-    if (t === 'water') {
-      g.strokeStyle = 'rgba(255,255,255,.18)'; g.lineWidth = Math.max(1, s / 20);
-      const o = Math.sin(time / 600 + h * 6) * s * 0.08;
-      g.beginPath(); g.moveTo(x + s * 0.2 + o, y + s * 0.4); g.quadraticCurveTo(x + s * 0.35 + o, y + s * 0.3, x + s * 0.5 + o, y + s * 0.4); g.stroke();
-    } else if (t === 'forest') {
-      for (const [ox, oy, rr] of [[0.3, 0.38, 0.22], [0.68, 0.6, 0.2], [0.35, 0.75, 0.15]]) {
-        g.fillStyle = '#1f4a28'; g.beginPath(); g.arc(x + s * ox, y + s * oy + s * 0.04, s * rr, 0, 7); g.fill();
-        g.fillStyle = h > 0.5 ? '#3d8a48' : '#367a40'; g.beginPath(); g.arc(x + s * ox, y + s * oy, s * rr * 0.9, 0, 7); g.fill();
-      }
-    } else if (t === 'mountain') {
-      g.fillStyle = '#5d6168'; g.beginPath(); g.moveTo(x + s * 0.08, y + s * 0.9); g.lineTo(x + s * 0.5, y + s * 0.12); g.lineTo(x + s * 0.92, y + s * 0.9); g.fill();
-      g.fillStyle = '#e8edf2'; g.beginPath(); g.moveTo(x + s * 0.38, y + s * 0.34); g.lineTo(x + s * 0.5, y + s * 0.12); g.lineTo(x + s * 0.62, y + s * 0.34); g.fill();
-    } else if (t === 'rubble') {
-      g.fillStyle = '#4e4a45';
-      for (let i = 0; i < 4; i++) { const hx = hash(wx * 3 + i, wy * 5 - i); g.fillRect(x + s * (0.1 + hx * 0.7), y + s * (0.15 + hash(wx + i, wy * 2) * 0.65), s * 0.16, s * 0.12); }
-    } else if (t === 'sand' && h > 0.6) {
-      g.fillStyle = 'rgba(120,90,40,.25)'; g.fillRect(x + s * 0.2, y + s * 0.6, s * 0.3, s * 0.05);
-    } else if (t === 'grass' && h > 0.55) {
-      g.strokeStyle = '#6fae63'; g.lineWidth = Math.max(1, s / 22);
-      g.beginPath(); g.moveTo(x + s * 0.3, y + s * 0.7); g.lineTo(x + s * 0.34, y + s * 0.55); g.moveTo(x + s * 0.4, y + s * 0.7); g.lineTo(x + s * 0.42, y + s * 0.58); g.stroke();
+  let staticLayer = null;
+  function buildStatic() {
+    const mp = map(), P = AF.Pixel, C = P.COL;
+    const cv = P.canvas(W * TS, H * TS), g = cv.getContext('2d');
+    const R = (x, y, w, h, c) => P.R(g, x, y, w, h, c);
+    const hash = (x, y) => ((x * 73856093) ^ (y * 19349663)) >>> 0;
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      const c = CH[mp.t[y * W + x]], px = x * TS, py = y * TS;
+      g.drawImage(P.tile(c, hash(x, y) % 4), px, py);
+      const nb = (dx, dy) => terr(mp, x + dx, y + dy);
+      if (c === 'water') {
+        if (nb(0, -1) && nb(0, -1) !== 'water') { R(px, py, 16, 1, '#f0fbff'); R(px, py + 1, 16, 1, C.w2); }
+        if (nb(0, 1) && nb(0, 1) !== 'water') { R(px, py + 15, 16, 1, '#f0fbff'); R(px, py + 14, 16, 1, C.w2); }
+        if (nb(-1, 0) && nb(-1, 0) !== 'water') { R(px, py, 1, 16, '#f0fbff'); R(px + 1, py, 1, 16, C.w2); }
+        if (nb(1, 0) && nb(1, 0) !== 'water') { R(px + 15, py, 1, 16, '#f0fbff'); R(px + 14, py, 1, 16, C.w2); }
+      } else if (c === 'mountain') {
+        if (nb(0, 1) && nb(0, 1) !== 'mountain') { R(px, py + 10, 16, 6, C.m2); R(px, py + 10, 16, 1, C.m4); for (let i = 1; i < 16; i += 4) R(px + i, py + 11, 1, 5, C.m4); }
+        if (nb(0, -1) && nb(0, -1) !== 'mountain') R(px, py, 16, 2, C.m3);
+        if (nb(-1, 0) && nb(-1, 0) !== 'mountain') R(px, py, 1, 16, C.m4);
+        if (nb(1, 0) && nb(1, 0) !== 'mountain') R(px + 15, py, 1, 16, C.m4);
+      } else if (c === 'path') {
+        const edge = (n) => n && n !== 'path';
+        if (edge(nb(0, -1))) R(px, py, 16, 1, C.p2);
+        if (edge(nb(0, 1))) R(px, py + 15, 16, 1, C.p2);
+        if (edge(nb(-1, 0))) R(px, py, 1, 16, C.p2);
+        if (edge(nb(1, 0))) R(px + 15, py, 1, 16, C.p2);
+      } else if (c === 'forest' && nb(0, 1) !== 'forest') R(px, py + 15, 16, 1, C.t2);
     }
-  }
-
-  function drawNode(g, n, x, y, s, ready) {
-    g.globalAlpha = ready ? 1 : 0.35;
-    const c = AF.RES[AF.NODES[n].res].color;
-    if (n === 'scrap') {
-      g.fillStyle = '#5b636b'; g.fillRect(x + s * 0.22, y + s * 0.55, s * 0.56, s * 0.22);
-      g.fillStyle = c; g.beginPath(); g.arc(x + s * 0.4, y + s * 0.5, s * 0.14, 0, 7); g.fill();
-      g.fillStyle = '#cfd6dc'; g.fillRect(x + s * 0.52, y + s * 0.38, s * 0.18, s * 0.18);
-    } else if (n === 'copper') {
-      g.fillStyle = '#5a4a3e'; g.beginPath(); g.arc(x + s * 0.5, y + s * 0.6, s * 0.3, Math.PI, 0); g.fill();
-      g.fillStyle = c; [[0.4, 0.5], [0.56, 0.44], [0.6, 0.58]].forEach(([a, b]) => g.fillRect(x + s * a, y + s * b, s * 0.1, s * 0.1));
-    } else if (n === 'silicon') {
-      g.fillStyle = c; g.beginPath(); g.moveTo(x + s * 0.5, y + s * 0.2); g.lineTo(x + s * 0.68, y + s * 0.6); g.lineTo(x + s * 0.32, y + s * 0.6); g.fill();
-      g.fillStyle = '#fff'; g.globalAlpha *= 0.6; g.fillRect(x + s * 0.46, y + s * 0.34, s * 0.05, s * 0.16);
-    } else {
-      g.shadowColor = c; g.shadowBlur = ready ? s * 0.4 : 0;
-      g.fillStyle = c; g.beginPath(); g.moveTo(x + s * 0.5, y + s * 0.12); g.lineTo(x + s * 0.66, y + s * 0.5); g.lineTo(x + s * 0.5, y + s * 0.8); g.lineTo(x + s * 0.34, y + s * 0.5); g.fill();
-      g.shadowBlur = 0;
+    // decorations and buildings
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      const d = mp.deco[y * W + x]; if (!d) continue;
+      if (d === 'fountain') g.drawImage(P.fountain(), x * TS - 1, y * TS - 1);
+      else g.drawImage(P.deco(d), x * TS - 1, y * TS - 1);
     }
-    g.globalAlpha = 1;
+    for (const b of mp.buildings) {
+      g.fillStyle = 'rgba(0,0,0,.22)'; g.fillRect(b.x * TS + 3, b.y * TS + 4, b.w * TS, b.h * TS);
+      g.drawImage(P.building(b.id), b.x * TS - 1, b.y * TS - 1);
+    }
+    // lair marker
+    const lx = mp.lair.x * TS, ly = mp.lair.y * TS;
+    R(lx - 16, ly - 16, 48, 48, 'rgba(60,20,30,.25)');
+    staticLayer = cv;
   }
 
-  function drawBot(g, x, y, s, body, eyeCol, boss) {
-    const k = boss ? 1.25 : 1, o = (1 - 0.6 * k) / 2;
-    g.fillStyle = 'rgba(0,0,0,.3)'; g.beginPath(); g.ellipse(x + s / 2, y + s * 0.85, s * 0.3 * k, s * 0.08, 0, 0, 7); g.fill();
-    g.fillStyle = '#222'; g.fillRect(x + s * o - s * 0.04, y + s * 0.3, s * 0.08, s * 0.5); g.fillRect(x + s * (1 - o) - s * 0.04, y + s * 0.3, s * 0.08, s * 0.5);
-    g.fillStyle = body; g.beginPath(); g.roundRect(x + s * o, y + s * (0.22 - (k - 1) * 0.2), s * 0.6 * k, s * 0.55 * k, s * 0.12); g.fill();
-    g.fillStyle = eyeCol; g.beginPath(); g.arc(x + s * 0.5, y + s * 0.42, s * 0.09 * k, 0, 7); g.fill();
-  }
-
+  let snap = null, buf = null;
   function draw(canvas, state, time) {
-    const w = state.world, g = canvas.getContext('2d');
+    if (!staticLayer) buildStatic();
+    const mp = map(), w = state.world, P = AF.Pixel, g = canvas.getContext('2d');
     const dpr = window.devicePixelRatio || 1, cw = canvas.clientWidth, chh = canvas.clientHeight;
-    if (canvas.width !== Math.round(cw * dpr) || canvas.height !== Math.round(chh * dpr)) {
-      canvas.width = Math.round(cw * dpr); canvas.height = Math.round(chh * dpr);
+    if (canvas.width !== Math.round(cw * dpr) || canvas.height !== Math.round(chh * dpr)) { canvas.width = Math.round(cw * dpr); canvas.height = Math.round(chh * dpr); }
+    // zoom: whole-pixel scale so a screen shows roughly 15×11 tiles (more on big screens)
+    const Z = Math.max(2, Math.min(5, Math.floor(Math.min((cw * dpr) / (15 * TS), (chh * dpr) / (11 * TS)))));
+    const vw = Math.ceil(canvas.width / Z), vh = Math.ceil(canvas.height / Z);
+    if (!buf || buf.width !== vw || buf.height !== vh) buf = P.canvas(vw, vh);
+    const b = buf.getContext('2d'); b.imageSmoothingEnabled = false;
+    if (!snap || Math.abs(snap.px - w.px) > 3 || Math.abs(snap.py - w.py) > 3) snap = { px: w.px, py: w.py, rx: w.rx, ry: w.ry };
+    const ease = (a, t2) => { const d = t2 - a; return Math.abs(d) < 0.02 ? t2 : a + d * 0.28; };
+    snap.px = ease(snap.px, w.px); snap.py = ease(snap.py, w.py); snap.rx = ease(snap.rx, w.rx); snap.ry = ease(snap.ry, w.ry);
+    const camX = Math.round(snap.px * TS + 8 - vw / 2), camY = Math.round(snap.py * TS + 8 - vh / 2);
+    b.fillStyle = AF.Pixel.COL.w1; b.fillRect(0, 0, vw, vh);
+    const sx = Math.max(0, camX), sy = Math.max(0, camY), ex = Math.min(W * TS, camX + vw), ey = Math.min(H * TS, camY + vh);
+    if (ex > sx && ey > sy) b.drawImage(staticLayer, sx, sy, ex - sx, ey - sy, sx - camX, sy - camY, ex - sx, ey - sy);
+
+    // sprites, sorted by row so lower things draw in front
+    const sprites = [], tx0 = Math.floor(camX / TS) - 1, ty0 = Math.floor(camY / TS) - 1, tx1 = tx0 + vw / TS + 3, ty1 = ty0 + vh / TS + 3;
+    const inView = (x, y) => x >= tx0 && x <= tx1 && y >= ty0 && y <= ty1;
+    const at = (img, x, y, oy) => b.drawImage(img, Math.round(x * TS - camX - 1), Math.round(y * TS - camY - 1 - (oy || 0)));
+    for (const [k, n] of Object.entries(mp.nodes)) {
+      const [x, y] = k.split(',').map(Number); if (!inView(x, y)) continue;
+      const ready = (w.ready[k] || 0) <= state.steps;
+      sprites.push([y - 0.1, () => { b.globalAlpha = ready ? 1 : 0.35; at(P.node(n), x, y); b.globalAlpha = 1; }]);
     }
-    g.setTransform(dpr, 0, 0, dpr, 0, 0);
-    const s = Math.max(30, Math.min(52, Math.round(Math.min(cw, chh) / 11)));
-    const ox = cw / 2 - (w.px + 0.5) * s, oy = chh / 2 - (w.py + 0.5) * s;
-    g.fillStyle = '#081014'; g.fillRect(0, 0, cw, chh);
-    const x0 = Math.max(0, Math.floor(-ox / s)), y0 = Math.max(0, Math.floor(-oy / s));
-    const x1 = Math.min(w.w - 1, Math.ceil((cw - ox) / s)), y1 = Math.min(w.h - 1, Math.ceil((chh - oy) / s));
-    for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
-      if (!seen(w, x, y)) continue;
-      const sx = ox + x * s, sy = oy + y * s, t = terrainAt(w, x, y);
-      drawTile(g, t, sx, sy, s, x, y, time);
-      if (inSafe(w, x, y)) { g.fillStyle = 'rgba(94,242,225,.07)'; g.fillRect(sx, sy, s, s); }
-      const k = key(x, y);
-      if (w.nodes[k]) drawNode(g, w.nodes[k].t, sx, sy, s, w.nodes[k].ready <= state.steps);
-      if (w.ruins[k]) {
-        g.fillStyle = '#7a6a58'; g.fillRect(sx + s * 0.2, sy + s * 0.3, s * 0.18, s * 0.5); g.fillRect(sx + s * 0.6, sy + s * 0.4, s * 0.18, s * 0.4);
-        g.fillRect(sx + s * 0.16, sy + s * 0.26, s * 0.66, s * 0.1);
-        if (!w.ruins[k].open) { g.fillStyle = '#5ef2e1'; g.beginPath(); g.arc(sx + s * 0.5, sy + s * 0.6, s * 0.08, 0, 7); g.fill(); }
-      }
-    }
-    { // Home Forge building (drawn after tiles so neighbours don't cover it)
-      const sx = ox + w.base.x * s, sy = oy + w.base.y * s;
-      g.fillStyle = '#2b3a40'; g.fillRect(sx - s * 0.2, sy + s * 0.1, s * 1.4, s * 0.85);
-      g.fillStyle = '#3d5058'; g.beginPath(); g.moveTo(sx - s * 0.3, sy + s * 0.15); g.lineTo(sx + s * 0.5, sy - s * 0.35); g.lineTo(sx + s * 1.3, sy + s * 0.15); g.fill();
-      g.fillStyle = '#e0894a'; g.shadowColor = '#e0894a'; g.shadowBlur = s * 0.5;
-      g.fillRect(sx + s * 0.32, sy + s * 0.45, s * 0.36, s * 0.5); g.shadowBlur = 0;
-    }
-    // Fog edge: dim tiles that are remembered but not currently in sight.
-    g.fillStyle = 'rgba(8,16,20,.45)';
-    for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++)
-      if (seen(w, x, y) && !visible(w, x, y)) g.fillRect(ox + x * s, oy + y * s, s + 1, s + 1);
-    // Enemies (only those in sight, plus the lair boss once discovered)
+    for (const k of mp.ruins) { const [x, y] = k.split(',').map(Number); if (inView(x, y)) sprites.push([y - 0.1, () => at(P.ruin(!!w.opened[k]), x, y)]); }
+    const f2 = Math.floor(time / 400) % 2;
     for (const e of w.enemies) {
-      if (!(visible(w, e.x, e.y) || (e.boss && seen(w, e.x, e.y)))) continue;
-      const def = AF.ENEMIES[e.type];
-      drawBot(g, ox + e.x * s, oy + e.y * s + Math.sin(time / 300 + e.id) * s * 0.03, s, def.body, '#ff3b3b', e.boss);
-      g.fillStyle = 'rgba(0,0,0,.6)'; g.fillRect(ox + e.x * s + s * 0.15, oy + e.y * s - s * 0.02, s * 0.7, s * 0.14);
-      g.fillStyle = ['#7ee08a', '#ffd75e', '#ff8a4a', '#ff3b5c'][def.tier - 1];
-      g.fillRect(ox + e.x * s + s * 0.17, oy + e.y * s, s * 0.66 * (def.tier / 4), s * 0.1);
+      if (!inView(e.x, e.y)) continue;
+      const spr = P.enemy(e.type, f2);
+      sprites.push([e.y, () => e.boss ? b.drawImage(spr, Math.round(e.x * TS - camX - 8), Math.round(e.y * TS - camY - 14)) : at(spr, e.x, e.y)]);
     }
-    // Player
-    const px = ox + w.px * s, py = oy + w.py * s;
-    const FR = ['#8a5a3c', '#7d8a96', '#5f9aa8', '#c7cdd4', '#3fd0c9'][state.parts.frame - 1];
-    const ARC = ['#ffd75e', '#ffb03b', '#5ef2e1', '#7fb8ff', '#e2a6ff'][state.parts.arc - 1];
-    g.shadowColor = ARC; g.shadowBlur = s * 0.3;
-    drawBot(g, px, py + Math.sin(time / 250) * s * 0.02, s, FR, ARC);
-    g.shadowBlur = 0;
+    for (const n of npcList()) if (inView(n.x, n.y)) sprites.push([n.y, () => at(AF.pilotSprite(AF.NPCS[n.id].look, n.dir, 0), n.x, n.y, 8)]);
+    const moving = Math.abs(snap.px - w.px) + Math.abs(snap.py - w.py) > 0.03, wf = moving ? 1 + (Math.floor(time / 140) % 2) : 0;
+    if (state.flags.robot) {
+      const rm = Math.abs(snap.rx - w.rx) + Math.abs(snap.ry - w.ry) > 0.03;
+      sprites.push([snap.ry, () => at(P.robot(state.parts, AF.coreColor(state.look), w.rdir, rm ? Math.floor(time / 140) % 2 : Math.floor(time / 500) % 2), snap.rx, snap.ry, 1)]);
+    }
+    sprites.push([snap.py + 0.01, () => at(AF.pilotSprite(state.look, w.dir, wf), snap.px, snap.py, 8)]);
+    sprites.sort((a, c) => a[0] - c[0]).forEach((s) => s[1]());
+
+    g.setTransform(1, 0, 0, 1, 0, 0); g.imageSmoothingEnabled = false;
+    g.drawImage(buf, 0, 0, vw * Z, vh * Z);
   }
 
-  // Overview map for the Map panel.
   function drawMap(canvas, state) {
-    const w = state.world, g = canvas.getContext('2d'), s = 4;
-    canvas.width = w.w * s; canvas.height = w.h * s;
-    g.fillStyle = '#081014'; g.fillRect(0, 0, canvas.width, canvas.height);
-    for (let y = 0; y < w.h; y++) for (let x = 0; x < w.w; x++) {
-      if (!seen(w, x, y)) continue;
-      g.fillStyle = AF.TERRAIN[terrainAt(w, x, y)].color; g.fillRect(x * s, y * s, s, s);
-      if (w.ruins[key(x, y)] && !w.ruins[key(x, y)].open) { g.fillStyle = '#5ef2e1'; g.fillRect(x * s, y * s, s, s); }
+    const mp = map(), w = state.world, g = canvas.getContext('2d'), s = 3;
+    canvas.width = W * s; canvas.height = H * s;
+    g.fillStyle = '#20303a'; g.fillRect(0, 0, canvas.width, canvas.height);
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      if (w.fog[y * W + x] !== '1') continue;
+      g.fillStyle = AF.TERRAIN[CH[mp.t[y * W + x]]].color;
+      if (mp.solid[y * W + x] && mp.deco[y * W + x] === 'tree') g.fillStyle = '#3c9a3c';
+      g.fillRect(x * s, y * s, s, s);
     }
-    g.fillStyle = '#e0894a'; g.fillRect((w.base.x - 1) * s, (w.base.y - 1) * s, s * 3, s * 3);
-    if (seen(w, w.lair.x, w.lair.y)) { g.fillStyle = '#ff3b5c'; g.fillRect((w.lair.x - 1) * s, (w.lair.y - 1) * s, s * 3, s * 3); }
-    g.fillStyle = '#fff'; g.fillRect((w.px - 1) * s, (w.py - 1) * s, s * 3, s * 3);
-    const total = w.w * w.h, n = w.fog.split('1').length - 1;
-    return Math.round((n / total) * 100);
+    g.fillStyle = '#e05848';
+    for (const b of mp.buildings) g.fillRect(b.x * s, b.y * s, b.w * s, b.h * s);
+    g.fillStyle = '#5ef2e1';
+    for (const k of mp.ruins) { if (w.opened[k]) continue; const [x, y] = k.split(',').map(Number); if (w.fog[y * W + x] === '1') g.fillRect(x * s, y * s, s, s); }
+    if (w.fog[mp.lair.y * W + mp.lair.x] === '1') { g.fillStyle = '#ff3b5c'; g.fillRect((mp.lair.x - 1) * s, (mp.lair.y - 1) * s, s * 3, s * 3); }
+    g.fillStyle = '#ffffff'; g.fillRect((w.px - 1) * s, (w.py - 1) * s, s * 3, s * 3);
+    g.strokeStyle = '#202830'; g.strokeRect((w.px - 1) * s + 0.5, (w.py - 1) * s + 0.5, s * 3 - 1, s * 3 - 1);
+    return Math.round(((w.fog.split('1').length - 1) / (W * H)) * 100);
   }
 
-  AF.World = { generate, move, draw, drawMap, removeEnemy, sendHome, atBase, describeHere, terrainAt };
+  AF.World = { map, init, placeRobot, move, draw, drawMap, removeEnemy, sendHome, inTown, describeHere, terrainHere, npcList,
+    terrainAt: (state, x, y) => terr(map(), x, y) };
 })();

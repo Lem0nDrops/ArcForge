@@ -61,21 +61,23 @@
 
   // Cost to upgrade FROM level n to n+1 (same table for every part).
   AF.UPGRADE_COST = {
-    1: { scrap: 8, copper: 4 },
-    2: { scrap: 14, copper: 8, silicon: 4, circuits: 1 },
-    3: { scrap: 20, copper: 12, silicon: 8, arcite: 3, circuits: 2 },
-    4: { scrap: 30, copper: 18, silicon: 12, arcite: 6, circuits: 4 },
+    1: { scrap: 8, copper: 4, credits: 10 },
+    2: { scrap: 14, copper: 8, silicon: 4, circuits: 1, credits: 30 },
+    3: { scrap: 20, copper: 12, silicon: 8, arcite: 3, circuits: 2, credits: 60 },
+    4: { scrap: 30, copper: 18, silicon: 12, arcite: 6, circuits: 4, credits: 100 },
   };
 
   // ---------- Terrain ----------
   // legs = minimum Locomotion level needed to enter.
   AF.TERRAIN = {
-    water:    { name: 'Water',     legs: 3, color: '#1d5a78' },
-    sand:     { name: 'Sand',      legs: 1, color: '#c9b37a' },
-    grass:    { name: 'Grassland', legs: 1, color: '#4f8a4a' },
-    forest:   { name: 'Forest',    legs: 1, color: '#2f6b3a' },
-    rubble:   { name: 'Rubble',    legs: 2, color: '#6f6a63' },
-    mountain: { name: 'Mountains', legs: 4, color: '#8a8f96' },
+    water:    { name: 'Water',     legs: 3, color: '#5090e8' },
+    sand:     { name: 'Sand',      legs: 1, color: '#f0dc98' },
+    grass:    { name: 'Grassland', legs: 1, color: '#88d068' },
+    forest:   { name: 'Tall grass', legs: 1, color: '#58a840' },
+    rubble:   { name: 'Rubble',    legs: 2, color: '#b8a890' },
+    mountain: { name: 'Mountains', legs: 4, color: '#b8905a' },
+    path:     { name: 'Rivet Hollow', legs: 1, color: '#e8d8a0' },
+    lawn:     { name: 'Rivet Hollow', legs: 1, color: '#90d870' },
   };
   AF.TERRAIN_BY_LEGS = {
     1: 'grass, sand & forest', 2: '+ rubble', 3: '+ water', 4: '+ mountains', 5: 'everything, fast',
@@ -210,5 +212,32 @@
                 { a: 'overcharge', dmg: 4 }, { a: 'shoot', dmg: 10, hits: 2, r: 2 }, { a: 'drain', dmg: 18, r: 1 }],
       loot: { arcite: [8, 8], circuits: [6, 6] } },
   };
+  // Credits dropped per enemy tier [min, max]
+  AF.CREDITS_BY_TIER = { 1: [4, 9], 2: [10, 18], 3: [22, 34], 4: [250, 250] };
+
+  // ---------- The shared world ----------
+  // Every player explores the same map: it's always built from this seed.
+  AF.WORLD_SEED = 20261125;
+
+  // ---------- Town: Rivet Hollow ----------
+  // x, y, w, h = footprint in town tiles (the town is 34×28). The door is the bottom-middle tile.
+  AF.TOWN_NAME = 'Rivet Hollow';
+  AF.BUILDINGS = {
+    home:     { name: 'Your House',          sign: 'HOME',     x: 2,  y: 3,  w: 5, h: 4, roof: '#d85040', blurb: 'Rest to restore your pilot, and change clothes.' },
+    archive:  { name: 'The Archive',         sign: 'ARCHIVE',  x: 8,  y: 2,  w: 6, h: 5, roof: '#7058b8', blurb: '' },
+    hall:     { name: 'Town Hall',           sign: 'TOWN HALL', x: 19, y: 2, w: 7, h: 5, roof: '#4878c8', blurb: '' },
+    cards:    { name: 'The Deckhouse',       sign: 'CARDS',    x: 28, y: 3,  w: 5, h: 4, roof: '#a050b8', blurb: 'Buy and sell cards and blueprints.' },
+    bank:     { name: 'Ironclad Bank',       sign: 'BANK',     x: 2,  y: 9,  w: 5, h: 4, roof: '#4a9a58', blurb: 'Store credits and materials safely.' },
+    salvage:  { name: 'Salvage Exchange',    sign: 'SALVAGE',  x: 8,  y: 9,  w: 5, h: 4, roof: '#c88a30', blurb: 'Buy and sell card components.' },
+    garage:   { name: 'Bolt & Gear Garage',  sign: 'GARAGE',   x: 19, y: 9,  w: 5, h: 4, roof: '#3868b8', blurb: 'Robot part upgrades, repairs and core paint.' },
+    diner:    { name: 'Sparkplug Diner',     sign: 'DINER',    x: 26, y: 9,  w: 5, h: 4, roof: '#e05848', blurb: 'Food, healing and battle buffs for your pilot.' },
+    forge:    { name: 'Rivet Forge',         sign: 'FORGE',    x: 3,  y: 19, w: 6, h: 5, roof: '#5a6878', blurb: 'Forge cards, upgrade cards, build your deck.' },
+    academy:  { name: 'Pilot Academy',       sign: 'ACADEMY',  x: 10, y: 20, w: 5, h: 4, roof: '#38a898', blurb: 'Permanent pilot skills.' },
+    boutique: { name: 'Gearwear Boutique',   sign: 'BOUTIQUE', x: 19, y: 20, w: 5, h: 4, roof: '#e070a8', blurb: 'Clothes, headwear and accessories.' },
+    cottage:  { name: "Pip's Cottage",       sign: '',         x: 26, y: 20, w: 4, h: 4, roof: '#c87838', blurb: '' },
+  };
+  // Buildings that open a panel. The others start a conversation instead.
+  AF.SHOPS = ['home', 'cards', 'bank', 'salvage', 'garage', 'diner', 'forge', 'academy', 'boutique'];
+
   AF.TIERS = { 1: ['scrapling', 'spitter'], 2: ['rustbiter', 'sniper', 'shellback'], 3: ['wraith', 'juggernaut'] };
 })();

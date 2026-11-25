@@ -3,29 +3,34 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#0c171c">
+  <meta name="theme-color" content="#5898f0">
   <meta name="description" content="ArcForge: an open-world card battler. Scavenge the wasteland, forge cards, and upgrade your robot.">
   <title>ArcForge</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-  <!-- Title screen -->
+  <!-- Title screen + save slots -->
   <section id="title" class="screen">
     <div class="title-inner">
-      <div id="title-bot" class="title-bot"></div>
-      <h1>ArcForge</h1>
-      <p class="tag">Scavenge the wasteland. Forge your deck. Build a better robot.</p>
-      <div class="title-btns">
-        <button class="btn primary big" id="continue" data-act="continue" hidden>Continue</button>
-        <button class="btn big" data-act="new">New game</button>
-        <button class="btn ghost" data-act="title-help">How to play</button>
+      <div class="title-brand">
+        <div id="title-bot" class="title-bot"></div>
+        <h1>ArcForge</h1>
+        <p class="tag">Scavenge the wasteland. Forge your deck. Build a better robot.</p>
       </div>
-      <p class="credit">A getdataforge.com game · v0.1</p>
+      <div class="title-slots frame">
+        <h2>Choose a pilot</h2>
+        <div id="slots" class="slots"></div>
+        <div class="row center"><button class="btn ghost" data-act="title-help">How to play</button></div>
+        <p class="credit">A getdataforge.com game · v0.3</p>
+      </div>
     </div>
   </section>
+
+  <!-- Character creator / wardrobe -->
+  <section id="creator" class="screen" hidden><div class="cr"></div></section>
 
   <!-- World -->
   <section id="game" class="screen" hidden>
@@ -33,7 +38,9 @@
     <header class="hud">
       <div class="hud-l">
         <div id="hp" class="bar me"><i></i><span></span></div>
+        <div id="vit" class="bar vit"><i></i><span></span></div>
         <div id="where" class="where"></div>
+        <div id="tracker" class="tracker" hidden></div>
       </div>
       <div class="hud-r">
         <button class="btn" id="workshop-btn" data-act="workshop">Robot & deck</button>
@@ -41,8 +48,8 @@
         <button class="btn ghost" data-act="menu">Menu</button>
       </div>
       <div id="hudres" class="resbar"></div>
+      <div class="hud-row"><button class="btn sm" id="ration-btn" data-act="ration">Eat ration</button><div id="hudbuffs" class="buffs"></div></div>
     </header>
-    <button id="forge-cta" class="btn primary forge-cta" data-act="forge-cta" hidden>Open Workshop</button>
     <div class="dpad" aria-label="Move">
       <button data-dir="0,-1" class="up" aria-label="Up"></button>
       <button data-dir="-1,0" class="lf" aria-label="Left"></button>
@@ -50,6 +57,7 @@
       <button data-dir="0,1" class="dn" aria-label="Down"></button>
     </div>
     <div id="toast" role="status" aria-live="polite"></div>
+    <div id="dialog" class="dialog" hidden></div>
   </section>
 
   <!-- Battle -->
@@ -62,6 +70,10 @@
   <script src="js/data.js"></script>
   <script src="js/state.js"></script>
   <script src="js/art.js"></script>
+  <script src="js/pixel.js"></script>
+  <script src="js/pilot.js"></script>
+  <script src="js/town.js"></script>
+  <script src="js/quests.js"></script>
   <script src="js/world.js"></script>
   <script src="js/battle.js"></script>
   <script src="js/ui.js"></script>
