@@ -165,7 +165,7 @@
   const terr = (mp, x, y) => (x < 0 || y < 0 || x >= W || y >= H) ? null : CH[mp.t[y * W + x]];
   function enemyOK(mp, x, y, list, w) {
     const c = terr(mp, x, y);
-    return c && AF.TERRAIN[c].legs <= 2 && !mp.solid[y * W + x] && !(x >= TX - 2 && y >= TY - 2 && x < TX + TW + 2 && y < TY + TH + 2)
+    return c && AF.TERRAIN[c].legs <= 2 && !mp.solid[y * W + x] && !(mp.nodes && mp.nodes[x + ',' + y]) && !(mp.ruins && mp.ruins.includes(x + ',' + y)) && !(x >= TX - 2 && y >= TY - 2 && x < TX + TW + 2 && y < TY + TH + 2)
       && !list.some((e) => e.x === x && e.y === y) && !(w && w.rx === x && w.ry === y)
       && !(Math.abs(x - mp.lair.x) <= 2 && Math.abs(y - mp.lair.y) <= 2);
   }
@@ -197,17 +197,39 @@
   const npcAt = (x, y) => npcList().find((n) => n.x === x && n.y === y);
 
   // ---------- A turn: the pilot moves, the robot follows, the world reacts ----------
+  const DXY = { down: [0, 1], up: [0, -1], left: [-1, 0], right: [1, 0] };
+  // What's on a tile that blocks walking and can be interacted with.
+  function thingAt(state, x, y) {
+    const mp = map(), w = state.world, k = key(x, y);
+    if (mp.doors[k]) { const id = mp.doors[k]; return { kind: 'door', id, label: AF.SHOPS.includes(id) ? 'Enter' : 'Knock' }; }
+    const npc = npcAt(x, y); if (npc) return { kind: 'talk', npc: npc.id, label: 'Talk', tall: true };
+    if (mp.signs[k]) return { kind: 'sign', text: mp.signs[k], label: 'Read' };
+    if (mp.nodes[k]) { const ready = (w.ready[k] || 0) <= state.steps; return { kind: 'node', k, label: ready ? (mp.nodes[k] === 'scrap' ? 'Pick up' : 'Gather') : 'Depleted' }; }
+    if (mp.ruins.includes(k)) return { kind: 'ruin', k, label: w.opened[k] ? 'Searched' : 'Search' };
+    if (mp.deco[y * W + x] === 'fountain') return { kind: 'fountain', label: 'Look', tall: true };
+    return null;
+  }
+  // The thing directly in front of the pilot (used for the on-screen prompt).
+  function facing(state) {
+    const w = state.world, [dx, dy] = DXY[w.dir] || [0, 1], x = w.px + dx, y = w.py + dy;
+    const t = thingAt(state, x, y);
+    if (!t) return null;
+    if (t.kind === 'fountain') { // fountain is 2×2; put the prompt over its middle
+      const mp = map(); let fx = x, fy = y;
+      if (mp.deco[y * W + x - 1] === 'fountain' || mp.deco[(y - 1) * W + x - 1] === 'fountain') fx = x - 1;
+      return Object.assign(t, { x: fx + 0.5, y: fy });
+    }
+    return Object.assign(t, { x, y });
+  }
+  function face(state, dir) { state.world.dir = dir; }
+
+  // A turn: the pilot steps, the robot follows, the world reacts.
   function move(state, dx, dy) {
     const mp = map(), w = state.world, nx = w.px + dx, ny = w.py + dy, st = AF.stats(state.parts);
     w.dir = DIRS[dx + ',' + dy];
     const c = terr(mp, nx, ny);
     if (!c) return { type: 'blocked', text: 'The edge of the known world.' };
-    const k = key(nx, ny);
-    if (mp.doors[k]) return { type: 'door', id: mp.doors[k] };
-    const npc = npcAt(nx, ny);
-    if (npc) { npc.dir = { down: 'up', up: 'down', left: 'right', right: 'left' }[w.dir]; return { type: 'talk', npc: npc.id }; }
-    if (mp.signs[k]) return { type: 'sign', text: mp.signs[k] };
-    if (mp.solid[ny * W + nx]) return { type: 'bump', text: mp.deco[ny * W + nx] === 'fountain' ? 'The Arc Fountain hums with warm blue light.' : '' };
+    if (thingAt(state, nx, ny) || mp.solid[ny * W + nx]) return { type: 'bump' };
     if (!state.flags.robot && inTownXY(w.px, w.py) && !inTownXY(nx, ny)) return { type: 'talk', npc: 'rook' };
     const need = AF.TERRAIN[c].legs;
     if (st.legs < need)
@@ -220,7 +242,7 @@
     w.rdir = DIRS[Math.sign(w.px - w.rx) + ',' + Math.sign(w.py - w.ry)] || w.rdir;
     w.rx = w.px; w.ry = w.py; w.px = nx; w.py = ny; state.steps++;
     reveal(w);
-    const msgs = [], nowInTown = inTownXY(nx, ny);
+    const msgs = [], nowInTown = inTownXY(nx, ny), k = key(nx, ny);
     if (nowInTown && !wasInTown) msgs.push(`Back in ${AF.TOWN_NAME}.`);
 
     const p = state.pilot;
@@ -229,37 +251,6 @@
       if (p.vit === 0) msgs.push('Your pilot is exhausted: less energy in battle and smaller harvests. Eat something!');
       else if (p.vit === 5) msgs.push('Your pilot is getting hungry.');
     }
-    const node = mp.nodes[k];
-    if (node) {
-      const def = AF.NODES[node];
-      if ((w.ready[k] || 0) > state.steps) msgs.push(`${def.label} is depleted. It regrows in ${w.ready[k] - state.steps} steps.`);
-      else if (def.arms && state.parts.arms < def.arms) msgs.push(`${def.label}: too hard for Grabbers. Upgrade Arms to Drill Arms at the Garage.`);
-      else {
-        const r = AF.rng(state.seed + state.steps * 7);
-        let amt = AF.randInt(r, def.amount[0], def.amount[1]) + (st.gather - 1) + (AF.hasPerk(state, 'scavenger') ? 1 : 0);
-        if (p.vit <= 0) amt = Math.max(1, amt - 2);
-        AF.gain(state.res, { [def.res]: amt });
-        w.ready[k] = state.steps + def.respawn;
-        msgs.push(`Gathered ${amt} ${AF.RES[def.res].name}.`);
-        AF.sfx('gather');
-        AF.Quests.event(state, 'gather', { res: def.res, amt });
-      }
-    }
-    if (mp.ruins.includes(k) && !w.opened[k]) {
-      w.opened[k] = 1;
-      const locked = Object.keys(AF.CARDS).filter((id) => !state.known.includes(id));
-      const r = AF.rng(AF.WORLD_SEED + nx * 131 + ny * 977 + state.steps);
-      const cr = AF.randInt(r, 8, 20);
-      state.credits += cr;
-      if (locked.length) {
-        const id = locked[Math.floor(r() * locked.length)];
-        state.known.push(id);
-        msgs.push(`Ruin searched: blueprint for ${AF.CARDS[id].name} and ${cr} credits!`);
-      } else { AF.gain(state.res, { circuits: 2, copper: 4 }); msgs.push(`Ruin searched: 2 Circuits, 4 Copper and ${cr} credits.`); }
-      AF.sfx('forge');
-      AF.Quests.event(state, 'ruin', {});
-    }
-
     // enemies
     const r = AF.rng(state.seed ^ (state.steps * 2654435761));
     let ambush = null;
@@ -297,11 +288,51 @@
     return msgs.length ? { type: 'msg', text: msgs.join(' ') } : null;
   }
 
+  // Press the interact button: act on whatever is in front of the pilot.
+  function interact(state) {
+    const t = facing(state);
+    if (!t) return null;
+    const mp = map(), w = state.world, st = AF.stats(state.parts), p = state.pilot;
+    if (t.kind === 'door') return { type: 'door', id: t.id };
+    if (t.kind === 'talk') { const n = npcAt(t.x, t.y); n.dir = { down: 'up', up: 'down', left: 'right', right: 'left' }[w.dir]; return { type: 'talk', npc: t.npc }; }
+    if (t.kind === 'sign') return { type: 'sign', text: t.text };
+    if (t.kind === 'fountain') return { type: 'msg', text: 'The Arc Fountain hums with warm blue light.' };
+    if (t.kind === 'node') {
+      const k = t.k, def = AF.NODES[mp.nodes[k]];
+      if ((w.ready[k] || 0) > state.steps) return { type: 'msg', text: `${def.label} is depleted. It regrows in ${w.ready[k] - state.steps} steps.` };
+      if (def.arms && state.parts.arms < def.arms) return { type: 'msg', text: `${def.label}: too hard for Grabbers. Upgrade Arms to Drill Arms at the Garage.` };
+      const r = AF.rng(state.seed + state.steps * 7 + t.x);
+      let amt = AF.randInt(r, def.amount[0], def.amount[1]) + (st.gather - 1) + (AF.hasPerk(state, 'scavenger') ? 1 : 0);
+      if (p.vit <= 0) amt = Math.max(1, amt - 2);
+      AF.gain(state.res, { [def.res]: amt });
+      w.ready[k] = state.steps + def.respawn;
+      AF.sfx('gather');
+      AF.Render.burst(t.x + 0.5, t.y + 0.5, def.res, 12);
+      AF.Quests.event(state, 'gather', { res: def.res, amt });
+      return { type: 'msg', text: `+${amt} ${AF.RES[def.res].name}` };
+    }
+    if (t.kind === 'ruin') {
+      const k = t.k;
+      if (w.opened[k]) return { type: 'msg', text: 'You already searched this ruin.' };
+      w.opened[k] = 1;
+      const locked = Object.keys(AF.CARDS).filter((id) => !state.known.includes(id));
+      const r = AF.rng(AF.WORLD_SEED + t.x * 131 + t.y * 977 + state.steps);
+      const cr = AF.randInt(r, 8, 20);
+      state.credits += cr;
+      AF.sfx('forge'); AF.Render.burst(t.x + 0.5, t.y + 0.3, 'sparkle', 16);
+      AF.Quests.event(state, 'ruin', {});
+      if (locked.length) { const id = locked[Math.floor(r() * locked.length)]; state.known.push(id); return { type: 'msg', text: `Ruin searched: blueprint for ${AF.CARDS[id].name} and ${cr} credits!` }; }
+      AF.gain(state.res, { circuits: 2, copper: 4 });
+      return { type: 'msg', text: `Ruin searched: 2 Circuits, 4 Copper and ${cr} credits.` };
+    }
+    return null;
+  }
+
   function removeEnemy(state, id) { state.world.enemies = state.world.enemies.filter((e) => e.id !== id); }
   function sendHome(state) {
     const w = state.world, mp = map();
     w.px = mp.spawn[0]; w.py = mp.spawn[1]; w.rx = w.px + 1; w.ry = w.py; w.dir = 'down';
-    reveal(w); snap = null;
+    reveal(w); AF.Render.snap();
   }
   // Put the robot on a free tile next to the pilot.
   function placeRobot(state) {
@@ -323,99 +354,6 @@
   }
   function terrainHere(state) { return terr(map(), state.world.px, state.world.py); }
 
-  // ---------- Drawing ----------
-  let staticLayer = null;
-  function buildStatic() {
-    const mp = map(), P = AF.Pixel, C = P.COL;
-    const cv = P.canvas(W * TS, H * TS), g = cv.getContext('2d');
-    const R = (x, y, w, h, c) => P.R(g, x, y, w, h, c);
-    const hash = (x, y) => ((x * 73856093) ^ (y * 19349663)) >>> 0;
-    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
-      const c = CH[mp.t[y * W + x]], px = x * TS, py = y * TS;
-      g.drawImage(P.tile(c, hash(x, y) % 4), px, py);
-      const nb = (dx, dy) => terr(mp, x + dx, y + dy);
-      if (c === 'water') {
-        if (nb(0, -1) && nb(0, -1) !== 'water') { R(px, py, 16, 1, '#f0fbff'); R(px, py + 1, 16, 1, C.w2); }
-        if (nb(0, 1) && nb(0, 1) !== 'water') { R(px, py + 15, 16, 1, '#f0fbff'); R(px, py + 14, 16, 1, C.w2); }
-        if (nb(-1, 0) && nb(-1, 0) !== 'water') { R(px, py, 1, 16, '#f0fbff'); R(px + 1, py, 1, 16, C.w2); }
-        if (nb(1, 0) && nb(1, 0) !== 'water') { R(px + 15, py, 1, 16, '#f0fbff'); R(px + 14, py, 1, 16, C.w2); }
-      } else if (c === 'mountain') {
-        if (nb(0, 1) && nb(0, 1) !== 'mountain') { R(px, py + 10, 16, 6, C.m2); R(px, py + 10, 16, 1, C.m4); for (let i = 1; i < 16; i += 4) R(px + i, py + 11, 1, 5, C.m4); }
-        if (nb(0, -1) && nb(0, -1) !== 'mountain') R(px, py, 16, 2, C.m3);
-        if (nb(-1, 0) && nb(-1, 0) !== 'mountain') R(px, py, 1, 16, C.m4);
-        if (nb(1, 0) && nb(1, 0) !== 'mountain') R(px + 15, py, 1, 16, C.m4);
-      } else if (c === 'path') {
-        const edge = (n) => n && n !== 'path';
-        if (edge(nb(0, -1))) R(px, py, 16, 1, C.p2);
-        if (edge(nb(0, 1))) R(px, py + 15, 16, 1, C.p2);
-        if (edge(nb(-1, 0))) R(px, py, 1, 16, C.p2);
-        if (edge(nb(1, 0))) R(px + 15, py, 1, 16, C.p2);
-      } else if (c === 'forest' && nb(0, 1) !== 'forest') R(px, py + 15, 16, 1, C.t2);
-    }
-    // decorations and buildings
-    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
-      const d = mp.deco[y * W + x]; if (!d) continue;
-      if (d === 'fountain') g.drawImage(P.fountain(), x * TS - 1, y * TS - 1);
-      else g.drawImage(P.deco(d), x * TS - 1, y * TS - 1);
-    }
-    for (const b of mp.buildings) {
-      g.fillStyle = 'rgba(0,0,0,.22)'; g.fillRect(b.x * TS + 3, b.y * TS + 4, b.w * TS, b.h * TS);
-      g.drawImage(P.building(b.id), b.x * TS - 1, b.y * TS - 1);
-    }
-    // lair marker
-    const lx = mp.lair.x * TS, ly = mp.lair.y * TS;
-    R(lx - 16, ly - 16, 48, 48, 'rgba(60,20,30,.25)');
-    staticLayer = cv;
-  }
-
-  let snap = null, buf = null;
-  function draw(canvas, state, time) {
-    if (!staticLayer) buildStatic();
-    const mp = map(), w = state.world, P = AF.Pixel, g = canvas.getContext('2d');
-    const dpr = window.devicePixelRatio || 1, cw = canvas.clientWidth, chh = canvas.clientHeight;
-    if (canvas.width !== Math.round(cw * dpr) || canvas.height !== Math.round(chh * dpr)) { canvas.width = Math.round(cw * dpr); canvas.height = Math.round(chh * dpr); }
-    // zoom: whole-pixel scale so a screen shows roughly 15×11 tiles (more on big screens)
-    const Z = Math.max(2, Math.min(5, Math.floor(Math.min((cw * dpr) / (15 * TS), (chh * dpr) / (11 * TS)))));
-    const vw = Math.ceil(canvas.width / Z), vh = Math.ceil(canvas.height / Z);
-    if (!buf || buf.width !== vw || buf.height !== vh) buf = P.canvas(vw, vh);
-    const b = buf.getContext('2d'); b.imageSmoothingEnabled = false;
-    if (!snap || Math.abs(snap.px - w.px) > 3 || Math.abs(snap.py - w.py) > 3) snap = { px: w.px, py: w.py, rx: w.rx, ry: w.ry };
-    const ease = (a, t2) => { const d = t2 - a; return Math.abs(d) < 0.02 ? t2 : a + d * 0.28; };
-    snap.px = ease(snap.px, w.px); snap.py = ease(snap.py, w.py); snap.rx = ease(snap.rx, w.rx); snap.ry = ease(snap.ry, w.ry);
-    const camX = Math.round(snap.px * TS + 8 - vw / 2), camY = Math.round(snap.py * TS + 8 - vh / 2);
-    b.fillStyle = AF.Pixel.COL.w1; b.fillRect(0, 0, vw, vh);
-    const sx = Math.max(0, camX), sy = Math.max(0, camY), ex = Math.min(W * TS, camX + vw), ey = Math.min(H * TS, camY + vh);
-    if (ex > sx && ey > sy) b.drawImage(staticLayer, sx, sy, ex - sx, ey - sy, sx - camX, sy - camY, ex - sx, ey - sy);
-
-    // sprites, sorted by row so lower things draw in front
-    const sprites = [], tx0 = Math.floor(camX / TS) - 1, ty0 = Math.floor(camY / TS) - 1, tx1 = tx0 + vw / TS + 3, ty1 = ty0 + vh / TS + 3;
-    const inView = (x, y) => x >= tx0 && x <= tx1 && y >= ty0 && y <= ty1;
-    const at = (img, x, y, oy) => b.drawImage(img, Math.round(x * TS - camX - 1), Math.round(y * TS - camY - 1 - (oy || 0)));
-    for (const [k, n] of Object.entries(mp.nodes)) {
-      const [x, y] = k.split(',').map(Number); if (!inView(x, y)) continue;
-      const ready = (w.ready[k] || 0) <= state.steps;
-      sprites.push([y - 0.1, () => { b.globalAlpha = ready ? 1 : 0.35; at(P.node(n), x, y); b.globalAlpha = 1; }]);
-    }
-    for (const k of mp.ruins) { const [x, y] = k.split(',').map(Number); if (inView(x, y)) sprites.push([y - 0.1, () => at(P.ruin(!!w.opened[k]), x, y)]); }
-    const f2 = Math.floor(time / 400) % 2;
-    for (const e of w.enemies) {
-      if (!inView(e.x, e.y)) continue;
-      const spr = P.enemy(e.type, f2);
-      sprites.push([e.y, () => e.boss ? b.drawImage(spr, Math.round(e.x * TS - camX - 8), Math.round(e.y * TS - camY - 14)) : at(spr, e.x, e.y)]);
-    }
-    for (const n of npcList()) if (inView(n.x, n.y)) sprites.push([n.y, () => at(AF.pilotSprite(AF.NPCS[n.id].look, n.dir, 0), n.x, n.y, 8)]);
-    const moving = Math.abs(snap.px - w.px) + Math.abs(snap.py - w.py) > 0.03, wf = moving ? 1 + (Math.floor(time / 140) % 2) : 0;
-    if (state.flags.robot) {
-      const rm = Math.abs(snap.rx - w.rx) + Math.abs(snap.ry - w.ry) > 0.03;
-      sprites.push([snap.ry, () => at(P.robot(state.parts, AF.coreColor(state.look), w.rdir, rm ? Math.floor(time / 140) % 2 : Math.floor(time / 500) % 2), snap.rx, snap.ry, 1)]);
-    }
-    sprites.push([snap.py + 0.01, () => at(AF.pilotSprite(state.look, w.dir, wf), snap.px, snap.py, 8)]);
-    sprites.sort((a, c) => a[0] - c[0]).forEach((s) => s[1]());
-
-    g.setTransform(1, 0, 0, 1, 0, 0); g.imageSmoothingEnabled = false;
-    g.drawImage(buf, 0, 0, vw * Z, vh * Z);
-  }
-
   function drawMap(canvas, state) {
     const mp = map(), w = state.world, g = canvas.getContext('2d'), s = 3;
     canvas.width = W * s; canvas.height = H * s;
@@ -436,6 +374,6 @@
     return Math.round(((w.fog.split('1').length - 1) / (W * H)) * 100);
   }
 
-  AF.World = { map, init, placeRobot, move, draw, drawMap, removeEnemy, sendHome, inTown, describeHere, terrainHere, npcList,
+  AF.World = { map, init, placeRobot, move, interact, facing, face, drawMap, draw: (c, s, t) => AF.Render.draw(c, s, t), removeEnemy, sendHome, inTown, describeHere, terrainHere, npcList,
     terrainAt: (state, x, y) => terr(map(), x, y) };
 })();

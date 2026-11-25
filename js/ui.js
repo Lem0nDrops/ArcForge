@@ -172,10 +172,11 @@
     m.querySelector('.sheet').innerHTML = `
       <header class="ph"><h2>How to play</h2><button class="btn ghost x" data-act="close-menu">Close</button></header>
       <div class="pbody help">
-        <p><b>Explore.</b> Move with WASD / arrow keys, the on-screen pad, or tap the map. Your robot follows you. Step on resource nodes to gather and step on ruins to search them.</p>
-        <p><b>Talk and enter.</b> Walk into a person to talk, into a door to go inside, and into a sign to read it. Press Enter, Space or tap to continue a conversation.</p>
+        <p><b>Move.</b> Arrow keys or WASD, hold Shift to run. On touch screens use the pad (hold B to run), or drag on the map like a joystick. Your robot follows you.</p>
+        <p><b>Interact.</b> Face something and press E, Space, Enter or the A button: talk to people, enter doors, read signs, pick up and gather resources, search ruins. A prompt shows what you can do. Tapping right next to your pilot works too.</p>
+        <p><b>Shortcuts.</b> Q opens your deck and quests, M the map, R eats a ration.</p>
         <p><b>Town.</b> ${AF.TOWN_NAME} is safe from enemies. Your House (rest, wardrobe), the Rivet Forge (cards and deck), the Deckhouse (buy/sell cards), the Salvage Exchange (materials), the Garage (part upgrades, repairs, core paint), the Bank (safe storage), the Diner (food and buffs), the Pilot Academy (skills) and the Boutique (outfits).</p>
-        <p><b>Quests.</b> Follow the story from the quest tracker at the top of the screen. Pip by the Academy offers optional tutorial tasks.</p>
+        <p><b>Quests.</b> Follow the story from the quest tracker at the top-left. Pip by the Academy offers optional tutorial tasks.</p>
         <p><b>Your pilot</b> gets hungry in the wild. At zero vitality you're exhausted: −1 energy in battle and smaller harvests. Rest at home, eat at the Diner or carry Field Rations.</p>
         <p><b>Robot parts.</b> Arc Core = energy per turn. Frame = HP. Locomotion = terrain (Treads for rubble, Hover Jets for water, Spider Legs for mountains). Arms = hand size and gathering. Weapon and Shield boost your attack and defend cards.</p>
         <p><b>Fight.</b> Touch an enemy to battle. Spend energy to play cards. Distance matters: Close, Mid, Far. Watch the enemy's next move and step out of reach to dodge it. If your robot goes down, you lose a quarter of what you're carrying, so bank your valuables.</p>

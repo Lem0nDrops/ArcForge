@@ -114,6 +114,10 @@
   AF.payCost = function (s, cost) { Object.keys(cost).forEach((k) => { if (k === 'credits') s.credits -= cost[k]; else s.res[k] -= cost[k]; }); };
   AF.CREDIT_COLOR = '#ffd24a';
 
+  AF.shadeHex = function (c, amt) {
+    const n = parseInt(c.slice(1), 16), f = (v) => Math.max(0, Math.min(255, Math.round(v + amt)));
+    return '#' + [f((n >> 16) & 255), f((n >> 8) & 255), f(n & 255)].map((v) => v.toString(16).padStart(2, '0')).join('');
+  };
   AF.esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
   // Resource chips: "<chip> 5"

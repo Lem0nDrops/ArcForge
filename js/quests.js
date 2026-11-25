@@ -37,7 +37,7 @@
     t4: { title: 'Tune-Up', text: 'Upgrade any robot part at the Bolt & Gear Garage.', obj: { type: 'upgrade', n: 1 }, reward: { credits: 20 } },
     t5: { title: 'Fuel Up', text: 'Buy anything at the Sparkplug Diner.', obj: { type: 'food', n: 1 }, reward: { credits: 10 } },
     t6: { title: 'Safe Keeping', text: 'Deposit credits or materials at the Ironclad Bank.', obj: { type: 'deposit', n: 1 }, reward: { credits: 10 } },
-    t7: { title: 'Know Your Deck', text: 'Open your deck with the "Robot & deck" button (or press E).', obj: { type: 'deck', n: 1 }, reward: { credits: 5 } },
+    t7: { title: 'Know Your Deck', text: 'Open your deck with the "Robot & deck" button (or press Q).', obj: { type: 'deck', n: 1 }, reward: { credits: 5 } },
   };
 
   const Q = (AF.Quests = {});
@@ -139,7 +139,7 @@
     D.full = ln.text.replace(/\{name\}/g, name);
     D.shown = 0;
     $('#dialog').innerHTML = `<div class="dlg">${npc ? '<canvas class="dlg-face"></canvas>' : ''}<div class="dlg-body">${who ? `<b class="who">${AF.esc(who)}</b>` : ''}<p class="txt"></p></div><span class="more">▼</span></div><div class="choices"></div>`;
-    if (npc) { const c = $('#dialog .dlg-face'), spr = AF.pilotSprite(npc.look, 'down', 0); c.width = spr.width; c.height = 15; c.getContext('2d').drawImage(spr, 0, 0); }
+    if (npc) { const c = $('#dialog .dlg-face'); c.width = 128; c.height = 128; AF.drawPilotAt(c.getContext('2d'), 64, 250, 240, npc.look, 'down', 0, {}); }
     clearInterval(D.timer);
     D.timer = setInterval(() => {
       D.shown += 2;
@@ -176,6 +176,7 @@
       T('Rivet Hollow. A scrappy little town on the edge of the Shattered Wastes.'),
       T('Ten years ago the Titan Core, the great arc reactor beneath the old city, fell silent. Then the bots it once guided turned wild.'),
       T('Today, {name}, you finally become a pilot. Engineer Mara has been building a robot just for you.'),
+      T('Move with the arrow keys or WASD (hold Shift to run), or the pad on a touch screen. Face something and press E, Space or the A button to talk, read, enter, gather or search.'),
       T('Would you like tutorial tasks while you play? Pip will reward you for each one.'),
     ], { choices: [
       { label: 'Yes, show me', fn: () => { state.quests.tut = 'active'; AF.game.toast('Tutorial on. Check your tasks in Robot & deck → Quests.', 5000); after(); } },
@@ -200,7 +201,7 @@
           advance(state); AF.game.persist(); AF.game.refresh();
         } });
         return say([N('mara', pick([
-          'Bring me materials and I\'ll forge cards for you. Just walk into the Forge door.',
+          'Bring me materials and I\'ll forge cards for you. Step up to the Forge door and press the action button.',
           'Treads will get you over the rubble east of town. The Garage can fit them.',
           'If your robot takes a beating, the Garage fixes it up for a few credits.',
           'Upgraded cards hit harder. I can upgrade them inside the Forge for Scrap and a Circuit.',

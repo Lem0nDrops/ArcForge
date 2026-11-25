@@ -1,21 +1,23 @@
-/* ArcForge — boot, title & save slots, input, game loop. */
+/* ArcForge — boot, title & save slots, input, smooth movement, game loop. */
 (function () {
   const AF = (window.AF = window.AF || {});
   const $ = (s) => document.querySelector(s);
   try { AF.muted = localStorage.getItem('arcforge.muted') === '1'; } catch (e) {}
 
-  const game = (AF.game = { state: null, battle: null, lastStep: 0 });
+  const game = (AF.game = { state: null, battle: null });
+  const input = (AF.input = { held: [], run: false, touch: false, nextStep: 0 });
+  const WALK = 190, RUN = 115;
 
   game.persist = () => game.state && AF.save(game.state);
 
   game.start = function (state) {
     if (!state.world) state.world = AF.World.init();
-    game.state = state;
-    game.battle = null;
+    game.state = state; game.battle = null;
     ['#title', '#battle', '#result', '#creator'].forEach((s) => ($(s).hidden = true));
     $('#game').hidden = false;
+    AF.Render.snap();
     game.persist(); game.refresh();
-    if (!state.flags.intro) setTimeout(() => AF.Quests.intro(state), 400);
+    if (!state.flags.intro) setTimeout(() => AF.Quests.intro(state), 500);
   };
 
   game.toTitle = function () {
@@ -54,45 +56,56 @@
     $('#hudbuffs').innerHTML = buffs + (s.pilot.vit <= 0 ? '<span class="bad">Exhausted</span>' : '');
   };
 
-  // ---------- World movement ----------
-  game.step = function (dx, dy) {
-    if (!game.state || game.battle || AF.UI.isOpen() || !$('#menu').hidden || !$('#creator').hidden || AF.Dialog.open) return;
-    const now = performance.now();
-    if (now - game.lastStep < 95) return;
-    game.lastStep = now;
-    const ev = AF.World.move(game.state, dx, dy);
-    if (ev && (ev.type === 'blocked' || ev.type === 'bump')) { AF.sfx('bump'); if (ev.text) game.toast(ev.text); }
-    else if (ev && ev.type === 'door') { AF.sfx('card'); if (AF.SHOPS.includes(ev.id)) AF.UI.open(null, ev.id); else AF.Quests.door(game.state, ev.id); }
-    else if (ev && ev.type === 'talk') { AF.sfx('card'); AF.Quests.talk(game.state, ev.npc); }
-    else if (ev && ev.type === 'sign') { AF.sfx('card'); AF.Dialog.show([{ text: ev.text }]); }
-    else AF.sfx('step');
+  const canAct = () => game.state && !game.battle && !AF.UI.isOpen() && $('#menu').hidden && $('#creator').hidden && !AF.Dialog.open && !$('#game').hidden;
+
+  // ---------- Movement (one tile at a time, chained smoothly while a direction is held) ----------
+  const VEC = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
+  function step(dir, now) {
+    const [dx, dy] = VEC[dir], s = game.state;
+    const dur = input.run ? RUN : WALK;
+    AF.Render.stepDur = dur;
+    const ev = AF.World.move(s, dx, dy);
+    if (ev && (ev.type === 'bump' || ev.type === 'blocked')) {
+      if (ev.text && now - (input.lastBlockMsg || 0) > 1500) { game.toast(ev.text); input.lastBlockMsg = now; AF.sfx('bump'); }
+      input.nextStep = now + 120;
+      return;
+    }
+    input.nextStep = now + dur;
+    if (ev && ev.type === 'talk') { input.held = []; AF.Quests.talk(s, ev.npc); }
     if (ev && ev.type === 'msg') game.toast(ev.text);
-    if (ev && ev.type === 'battle') game.startBattle(ev.enemy, ev.ambush);
+    if (ev && ev.type === 'battle') { input.held = []; setTimeout(() => game.startBattle(ev.enemy, ev.ambush), Math.max(60, dur - 40)); }
+    game.persist(); game.refresh();
+  }
+
+  // ---------- Interact (E / Space / Enter / A button) ----------
+  game.interact = function () {
+    if (!canAct()) return;
+    const s = game.state, ev = AF.World.interact(s);
+    if (!ev) return;
+    AF.sfx('card');
+    if (ev.type === 'door') { if (AF.SHOPS.includes(ev.id)) AF.UI.open(null, ev.id); else AF.Quests.door(s, ev.id); }
+    else if (ev.type === 'talk') AF.Quests.talk(s, ev.npc);
+    else if (ev.type === 'sign') AF.Dialog.show([{ text: ev.text }]);
+    else if (ev.type === 'msg') game.toast(ev.text);
+    input.held = [];
     game.persist(); game.refresh();
   };
 
   // ---------- Battle ----------
   game.startBattle = function (enemyRef, ambush) {
+    if (game.battle) return;
     game.battle = new AF.Battle(game.state, enemyRef, { ambush });
     $('#battle').hidden = false;
-    AF.BattleUI.render($('#battle .bt'), game.battle);
-  };
-  function afterBattleAction() {
-    const b = game.battle;
-    AF.BattleUI.render($('#battle .bt'), b);
-    if (b.over && !b.done) {
-      b.done = true;
-      const out = b.finish();
+    $('#battle').classList.remove('enter'); void $('#battle').offsetWidth; $('#battle').classList.add('enter');
+    AF.BattleUI.start($('#battle .bt'), game.battle, (b, out) => {
       game.persist();
-      setTimeout(() => {
-        $('#result .sheet').innerHTML = AF.BattleUI.result(b, out);
-        $('#result').hidden = false;
-      }, 450);
-    }
-  }
+      $('#result .sheet').innerHTML = AF.BattleUI.result(b, out);
+      $('#result').hidden = false;
+    });
+  };
   function closeResult() {
     $('#result').hidden = true; $('#battle').hidden = true;
-    game.battle = null; game.refresh();
+    game.battle = null; AF.Render.snap(); game.refresh();
   }
 
   // ---------- Title & save slots ----------
@@ -105,7 +118,7 @@
       const lv = AF.PART_KEYS.reduce((a, k) => a + s.parts[k], 0);
       const when = s.saved ? new Date(s.saved).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : '';
       return `<div class="slot-card"><span class="slot-n">Slot ${n}</span>
-        <canvas class="slot-pic" data-pic="${n}" width="72" height="104"></canvas>
+        <canvas class="slot-pic" data-pic="${n}" width="144" height="208"></canvas>
         <b class="slot-name">${AF.esc(s.look.name)}</b>
         <span class="muted">${s.stats.wins} wins · parts ${lv}/30${s.won ? ' · Titan beaten' : ''}${when ? ' · ' + when : ''}</span>
         <div class="row" id="slot-row-${n}"><button class="btn primary" data-slot-play="${n}">Play</button>
@@ -113,76 +126,101 @@
     }).join('');
     slots.forEach((s, i) => {
       const c = document.querySelector(`[data-pic="${i + 1}"]`);
-      if (s && c) AF.drawPilot(c.getContext('2d'), 0, 0, 104, s.look, 0);
+      if (s && c) AF.drawPilot(c.getContext('2d'), 0, 4, 200, s.look, 0);
     });
   }
-
   function newPilot(n) {
     $('#title').hidden = true;
-    AF.Creator.open({ mode: 'new',
-      onDone: (look) => {
-        game.start(AF.newGame(look, n));
-
-      },
-      onCancel: () => { $('#title').hidden = false; renderSlots(); } });
+    AF.Creator.open({ mode: 'new', onDone: (look) => game.start(AF.newGame(look, n)), onCancel: () => { $('#title').hidden = false; renderSlots(); } });
   }
 
-  // ---------- Input ----------
-  const KEYS = { ArrowUp: [0, -1], ArrowDown: [0, 1], ArrowLeft: [-1, 0], ArrowRight: [1, 0], w: [0, -1], s: [0, 1], a: [-1, 0], d: [1, 0] };
+  // ---------- Keyboard ----------
+  const KEYDIR = { ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right', w: 'up', s: 'down', a: 'left', d: 'right', W: 'up', S: 'down', A: 'left', D: 'right' };
+  const ACT = ['e', 'E', ' ', 'Enter', 'z', 'Z'];
   document.addEventListener('keydown', (e) => {
+    input.touch = false;
     if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT') return;
+    if (e.key === 'Shift') input.run = true;
     if (AF.Dialog.open) {
       if (e.target.matches && e.target.matches('[data-choice]') && (e.key === 'Enter' || e.key === ' ')) return;
-      if (['Enter', ' ', 'e', 'E', 'z', 'Z'].includes(e.key)) { e.preventDefault(); AF.Dialog.advance(); }
+      if (ACT.includes(e.key)) { e.preventDefault(); if (!e.repeat) AF.Dialog.advance(); }
       return;
     }
-    if (e.key === 'Escape') {
-      if (!$('#menu').hidden) $('#menu').hidden = true; else if (AF.UI.isOpen()) AF.UI.close();
-      return;
-    }
+    if (e.key === 'Escape') { if (!$('#menu').hidden) $('#menu').hidden = true; else if (AF.UI.isOpen()) AF.UI.close(); return; }
     if (!$('#result').hidden && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); closeResult(); return; }
-    if (game.battle && !game.battle.over) {
-      if (/^[1-9]$/.test(e.key)) { if (game.battle.play(+e.key - 1)) afterBattleAction(); return; }
-      if (e.key === 'e' || e.key === 'E' || e.key === ' ') { e.preventDefault(); game.battle.endTurn(); afterBattleAction(); }
+    if (game.battle) {
+      if (/^[1-9]$/.test(e.key)) { AF.BattleUI.play(+e.key - 1); return; }
+      if (['e', 'E', ' '].includes(e.key) && !e.repeat) { e.preventDefault(); AF.BattleUI.endTurn(); }
       return;
     }
     if (!game.state || $('#game').hidden) return;
-    const k = KEYS[e.key] || KEYS[e.key.toLowerCase()];
-    if (k) { e.preventDefault(); game.step(k[0], k[1]); return; }
-    if ((e.key === 'e' || e.key === 'E') && !AF.UI.isOpen()) AF.UI.open('deck');
+    const dir = KEYDIR[e.key];
+    if (dir) { e.preventDefault(); if (!input.held.includes(dir)) input.held.push(dir); return; }
+    if (ACT.includes(e.key) && !e.repeat && !AF.UI.isOpen() && $('#menu').hidden) { e.preventDefault(); game.interact(); return; }
+    if ((e.key === 'q' || e.key === 'Q' || e.key === 'Tab') && !AF.UI.isOpen()) { e.preventDefault(); AF.UI.open('deck'); }
     if (e.key === 'm' || e.key === 'M') AF.UI.isOpen() ? AF.UI.close() : AF.UI.open('map');
     if (e.key === 'r' || e.key === 'R') { game.toast(AF.Town.eatRation(game.state)); game.persist(); game.refresh(); }
   });
+  document.addEventListener('keyup', (e) => {
+    if (e.key === 'Shift') input.run = false;
+    const dir = KEYDIR[e.key];
+    if (dir) input.held = input.held.filter((d) => d !== dir);
+  });
+  window.addEventListener('blur', () => { input.held = []; input.run = false; });
 
-  // D-pad: press and hold to keep walking.
-  let hold = 0;
+  // ---------- Touch: d-pad, A (interact) and B (hold to run) ----------
   document.querySelectorAll('[data-dir]').forEach((b) => {
-    const [dx, dy] = b.dataset.dir.split(',').map(Number);
-    const stop = () => { clearInterval(hold); hold = 0; };
-    b.addEventListener('pointerdown', (e) => { e.preventDefault(); stop(); game.lastStep = 0; game.step(dx, dy); hold = setInterval(() => game.step(dx, dy), 170); });
+    const dir = b.dataset.dir;
+    const stop = () => { input.held = input.held.filter((d) => d !== dir); };
+    b.addEventListener('pointerdown', (e) => { e.preventDefault(); input.touch = e.pointerType !== 'mouse'; if (!input.held.includes(dir)) input.held.push(dir); });
     ['pointerup', 'pointerleave', 'pointercancel'].forEach((ev) => b.addEventListener(ev, stop));
   });
+  $('#btn-a').addEventListener('pointerdown', (e) => { e.preventDefault(); input.touch = e.pointerType !== 'mouse'; if (AF.Dialog.open) AF.Dialog.advance(); else game.interact(); });
+  $('#btn-b').addEventListener('pointerdown', (e) => { e.preventDefault(); input.run = true; $('#btn-b').classList.add('on'); });
+  ['pointerup', 'pointerleave', 'pointercancel'].forEach((ev) => $('#btn-b').addEventListener(ev, () => { input.run = false; $('#btn-b').classList.remove('on'); }));
 
-  // Tap the map to step toward that spot.
-  $('#world').addEventListener('click', (e) => {
-    const r = e.currentTarget.getBoundingClientRect();
-    const dx = e.clientX - r.left - r.width / 2, dy = e.clientY - r.top - r.height / 2;
-    if (Math.abs(dx) < 18 && Math.abs(dy) < 18) return;
-    if (Math.abs(dx) > Math.abs(dy)) game.step(Math.sign(dx), 0); else game.step(0, Math.sign(dy));
+  // Drag on the map like a joystick; tap next to the pilot to interact.
+  let drag = null;
+  const world = $('#world');
+  const dirFrom = (dx, dy) => (Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up'));
+  world.addEventListener('pointerdown', (e) => {
+    if (!canAct()) return;
+    input.touch = e.pointerType !== 'mouse';
+    const r = world.getBoundingClientRect(), w = game.state.world;
+    const tile = AF.Render.screenToTile(world, e.clientX - r.left, e.clientY - r.top);
+    if (tile && Math.abs(tile.x - w.px) + Math.abs(tile.y - w.py) === 1) {
+      const dir = dirFrom(tile.x - w.px, tile.y - w.py);
+      const save = w.dir; w.dir = dir;
+      if (AF.World.facing(game.state)) { game.interact(); return; }
+      w.dir = save;
+    }
+    const me = AF.Render.tileToScreen(world, w.px + 0.5, w.py + 0.5);
+    drag = { id: e.pointerId, cx: me ? me.x + r.left : r.left + r.width / 2, cy: me ? me.y + r.top : r.top + r.height / 2 };
+    world.setPointerCapture(e.pointerId);
+    upd(e);
   });
+  const upd = (e) => {
+    if (!drag) return;
+    const dx = e.clientX - drag.cx, dy = e.clientY - drag.cy;
+    input.held = Math.hypot(dx, dy) < 18 ? [] : [dirFrom(dx, dy)];
+    input.run = Math.hypot(dx, dy) > 170;
+  };
+  world.addEventListener('pointermove', upd);
+  ['pointerup', 'pointercancel'].forEach((ev) => world.addEventListener(ev, () => { drag = null; input.held = []; input.run = false; }));
 
+  // ---------- Clicks ----------
   document.addEventListener('click', (e) => {
     const t = e.target;
     if (AF.Dialog.open) {
       const ch = t.closest('[data-choice]');
-      if (ch) AF.Dialog.choose(+ch.dataset.choice); else if (t.closest('#dialog') || t.closest('#world')) AF.Dialog.advance();
+      if (ch) AF.Dialog.choose(+ch.dataset.choice); else if (t.closest('#dialog')) AF.Dialog.advance();
       return;
     }
     if (!$('#creator').hidden && AF.Creator.handle(t)) return;
     if (!$('#menu').hidden && AF.UI.menuHandle(t)) return;
     if (AF.UI.isOpen() && AF.UI.handle(t)) return;
     const play = t.closest('[data-play]');
-    if (play && game.battle) { if (game.battle.play(+play.dataset.play)) afterBattleAction(); return; }
+    if (play && game.battle) { AF.BattleUI.play(+play.dataset.play); return; }
     const slot = t.closest('[data-slot-new],[data-slot-play],[data-slot-del],[data-slot-del-yes],[data-slot-del-no]');
     if (slot) {
       const d = slot.dataset;
@@ -197,7 +235,7 @@
     const act = t.closest('[data-act]');
     if (!act) return;
     switch (act.dataset.act) {
-      case 'end': if (game.battle) { game.battle.endTurn(); afterBattleAction(); } break;
+      case 'end': if (game.battle) AF.BattleUI.endTurn(); break;
       case 'close-result': closeResult(); break;
       case 'title-help': AF.UI.help(); break;
       case 'workshop': AF.UI.open('deck'); break;
@@ -207,19 +245,21 @@
     }
   });
   document.addEventListener('keydown', (e) => {
-    if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('[data-toggle],[data-play]')) { e.preventDefault(); e.target.click(); }
+    if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('[data-toggle]')) { e.preventDefault(); e.target.click(); }
   });
 
   // ---------- Loop ----------
-  function frame(t) {
-    if (game.state && !$('#game').hidden && $('#battle').hidden) AF.World.draw($('#world'), game.state, t);
+  function frame(now) {
+    if (game.state && !$('#game').hidden && $('#battle').hidden) {
+      if (canAct() && input.held.length && now >= input.nextStep) step(input.held[input.held.length - 1], now);
+      AF.World.draw($('#world'), game.state, now);
+    }
     requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);
 
   // ---------- Boot ----------
-  // Every script must be from the same version, or the game can't start.
-  const ready = AF.Pixel && AF.Quests && AF.Town && AF.Creator && AF.World && AF.World.init && AF.WORLD_SEED && AF.pilotSprite;
+  const ready = AF.Render && AF.Quests && AF.Town && AF.Creator && AF.World && AF.World.init && AF.WORLD_SEED && AF.drawPilotAt && AF.BattleUI;
   if (!ready) { $('#boot-error').hidden = false; return; }
   AF.migrateOldSave();
   try { renderSlots(); } catch (e) { $('#boot-error').hidden = false; console.error(e); }

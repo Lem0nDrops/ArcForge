@@ -1,6 +1,6 @@
 # ArcForge
 
-An open-world card battler with a handheld-era pixel look. Explore a wasteland, gather materials, forge cards, and upgrade your robot part by part, then take down the Titan Core.
+An open-world card battler with a bright, modern hand-painted look. Explore a wasteland, gather materials, forge cards, and upgrade your robot part by part, then take down the Titan Core.
 
 Plain HTML, CSS and JavaScript. No build step, no frameworks. It runs in any browser, on GitHub Pages, and as a desktop app.
 
@@ -9,7 +9,7 @@ Plain HTML, CSS and JavaScript. No build step, no frameworks. It runs in any bro
 - **Locally:** double-click `index.html`. That's it.
 - **Online:** host it on GitHub Pages (below).
 
-Controls: WASD / arrow keys, the on-screen pad, or tap the map. Walk into people to talk, into doors to enter, into signs to read. Enter / Space / tap continues dialogue. `E` opens your deck, `M` the map, `R` eats a ration. In battle: `1`–`9` play cards, `E` or Space ends your turn.
+Controls: WASD / arrow keys to walk (hold Shift to run). Face something and press E, Space or Enter to interact: talk, enter doors, read signs, gather resources, search ruins. `Q` opens your deck and quests, `M` the map, `R` eats a ration. On touch screens: the pad, A to interact, hold B to run, or drag on the map like a joystick. In battle: `1`–`9` play cards, `E` or Space ends your turn.
 
 ## Put it on GitHub Pages
 
@@ -18,7 +18,7 @@ Controls: WASD / arrow keys, the on-screen pad, or tap the map. Walk into people
 3. **Settings → Pages → Build and deployment**, then set Source to *Deploy from a branch*, choose `main` and `/ (root)`, and save.
 4. After a minute your game is live at `https://<your-username>.github.io/ArcForge/`.
 
-After uploading an update, give GitHub Pages a few minutes, then hard-refresh (Ctrl+Shift+R / Cmd+Shift+R). Every file link in `index.html` ends in `?v=0.3.1`. When you change files yourself, bump that number everywhere in `index.html` so players' browsers fetch the new files instead of cached old ones.
+After uploading an update, give GitHub Pages a few minutes, then hard-refresh (Ctrl+Shift+R / Cmd+Shift+R). Every file link in `index.html` ends in `?v=0.4.0`. When you change files yourself, bump that number everywhere in `index.html` so players' browsers fetch the new files instead of cached old ones.
 
 Saves are kept in each player's browser. The Menu has a **save code** you can copy to move a save between devices.
 
@@ -28,7 +28,9 @@ Saves are kept in each player's browser. The Menu has a **save code** you can co
 |---|---|
 | **Pilot** | You play a customizable pilot (male/female, skin, hair style and color, top, bottoms, headwear, accessory) and your robot follows you around. Pick your robot's core color too. The pilot gets hungry in the wild; at zero vitality you're exhausted (−1 energy in battle, smaller harvests). |
 | **Save slots** | 4 slots for different players, each with its own pilot, world and progress. Saves from v0.1 move into slot 1 automatically. |
-| **Art style** | Original pixel art painted in code (`js/pixel.js`): 16×16 tiles, outlined sprites, 4-direction walking, DS-style menus and a two-platform battle scene. |
+| **Art style** | Modern hand-painted look drawn in code at full screen resolution (`js/render.js`): smooth terrain with rounded edges, soft shadows, animated water, warm lights, particles, and a 4-direction shaded pilot with a walk cycle. |
+| **Movement & interaction** | Smooth, constant-speed walking with running. Nothing happens by bumping: you face something and press the action button, and a prompt shows what you can do. |
+| **Battles** | Fully animated: cards deal in and fly out, your robot lunges or fires bolts, hits flash and shake, damage numbers pop, shields glow, heals sparkle, enemies telegraph and act on their own turn, and defeated bots burst apart. |
 | **Shared world** | Every player gets the same 96×96 map, built from `AF.WORLD_SEED` in `js/data.js`. Saves only store what changes (position, harvested nodes, searched ruins, enemies, explored area). |
 | **Story & tutorial** | A 6-part story questline (Mara → Mayor Bram → Archivist Lune → the Titan Core) and 7 optional tutorial tasks from Pip, each with rewards. Talk to townsfolk by walking into them. Quest log is in Robot & deck → Quests. |
 | **Rivet Hollow** | A hand-built town with 12 buildings, 9 townsfolk, signs, a pond and a fountain square. Walk into a door to enter: **Your House** (rest, wardrobe), **Rivet Forge** (forge and upgrade cards, build your deck), **The Deckhouse** (buy/sell cards and blueprints, restocks every 120 steps), **Salvage Exchange** (buy/sell card components), **Bolt & Gear Garage** (part upgrades, repairs, core paint), **Ironclad Bank** (store credits and materials safely), **Sparkplug Diner** (meals, Field Rations, 3-battle buffs), **Pilot Academy** (7 permanent skills), **Gearwear Boutique** (premium outfits plus a wardrobe). |
@@ -47,12 +49,12 @@ css/style.css       all styling
 js/data.js          ★ content: resources, parts, cards, enemies, costs. Balance lives here.
 js/state.js         new game, save/load, save codes, sound effects
 js/art.js           robot and enemy drawings (SVG, built from part levels)
-js/pixel.js         ★ pixel art: tiles, buildings, decorations, bots, robot, pixel font
-js/pilot.js         pilot looks catalog, 4-direction pilot sprite, character creator / wardrobe
+js/render.js        ★ the world renderer: terrain, buildings, props, lights, particles, prompts
+js/pilot.js         pilot looks catalog, 4-direction shaded pilot with walk cycle, character creator
 js/town.js          Rivet Hollow shops: catalogs, prices, shop screens
 js/quests.js        ★ townsfolk, dialogue boxes, story quests, tutorial tasks
 js/world.js         shared map + hand-built town layout, movement, gathering, rendering
-js/battle.js        battle rules and battle screen
+js/battle.js        battle rules, animated battle screen and effects
 js/ui.js            Workshop (robot / forge / deck / map), menu, help
 js/main.js          boot, input, game loop
 electron-main.js    desktop wrapper (ignored by the web version)
@@ -82,7 +84,7 @@ Everything lives in `js/quests.js`. Add townsfolk to `AF.NPCS` (position in town
 The town is drawn in `buildMap` in `js/world.js` (paths, trees, pond, lamps, signs). Building positions and colours are in `AF.BUILDINGS` in `js/data.js`.
 
 ### Swap in real art
-Every tile and sprite comes from a function in `js/pixel.js` (or `AF.pilotSprite` in `js/pilot.js`) that returns a small canvas. Return a loaded PNG instead and the rest of the game won't notice. Battle sprites are pixelated versions of `AF.robotSVG` / `AF.enemySVG` in `js/art.js`.
+Props and buildings are painted once into cached images in `js/render.js` (`treeImg`, `buildingImg`, `nodeImg`, …). Swap any of them for a loaded PNG and the rest of the game won't notice. Robots and enemies come from `AF.robotSVG` / `AF.enemySVG` in `js/art.js`, and the pilot from `AF.drawPilotAt` in `js/pilot.js`.
 
 ## Road to Steam (and other stores)
 
@@ -100,4 +102,4 @@ Suggested path:
 1. **Now:** GitHub Pages. Share it and get feedback.
 2. **itch.io:** zip this folder and upload it as an HTML5 game. It's free and good for early testers.
 3. **Steam:** sign up for Steamworks and pay the Steam Direct fee ($100 per game, recouped once the game earns $1,000). Then upload the `npm run dist` output with SteamPipe. For achievements, the overlay and cloud saves, add [steamworks.js](https://www.npmjs.com/package/steamworks.js) to the Electron wrapper.
-4. **Before a paid release:** bundle the Pixelify Sans font locally (the desktop build falls back to system fonts when offline), add real art and music, a settings screen, controller support, and Steam Cloud saves.
+4. **Before a paid release:** bundle the Fredoka and Nunito fonts locally (the desktop build falls back to system fonts when offline), add real art and music, a settings screen, controller support, and Steam Cloud saves.

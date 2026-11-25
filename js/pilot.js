@@ -32,135 +32,164 @@
   AF.coreColor = (look) => L.core[(look && look.core) || 0][0];
   AF.isUnlocked = (state, slot, i) => !L[slot][i][1] || (state && state.unlocks && state.unlocks.includes(slot + ':' + i));
 
-  // ---------- Pixel sprite: 16×24, four directions, three walk frames ----------
-  // dir: 'down' | 'up' | 'left' | 'right'   frame: 0 = standing, 1/2 = steps
-  const sprCache = {};
-  AF.pilotSprite = function (look, dir, frame) {
-    const key = JSON.stringify(look) + dir + frame;
-    if (sprCache[key]) return sprCache[key];
-    if (dir === 'right') return (sprCache[key] = AF.Pixel.flip(AF.pilotSprite(look, 'left', frame)));
-    const P = AF.Pixel, c = P.canvas(18, 26), g = c.getContext('2d');
-    g.translate(1, 1);
-    const R = (x, y, w, h, col) => P.R(g, x, y, w, h, col);
-    const sk = L.skin[look.skin], skD = P.shade(sk, -30), hc = L.hairColor[look.hairColor], hcD = P.shade(hc, -35), hcL = P.shade(hc, 40);
-    const tc = L.color[look.topColor], tcD = P.shade(tc, -35), bc = L.color[look.bottomColor], bcD = P.shade(bc, -35);
+  // ---------- Vector pilot: shaded chibi, four directions, smooth walk cycle ----------
+  // cx = centre x, fy = feet y, H = full height (px). phase advances π per tile walked.
+  const mix = (c, amt) => AF.shadeHex(c, amt);
+  AF.drawPilotAt = function (g, cx, fy, H, look, dir, phase, opt) {
+    opt = opt || {};
+    g.save();
+    if (dir === 'right') { g.translate(cx, 0); g.scale(-1, 1); g.translate(-cx, 0); dir = 'left'; }
+    g.translate(cx, fy - H); g.scale(H, H);
+    g.lineJoin = 'round'; g.lineCap = 'round';
+    const OL = 'rgba(40,28,48,.55)'; g.strokeStyle = OL; g.lineWidth = 0.014;
+    const sk = L.skin[look.skin], hc = L.hairColor[look.hairColor], tc = L.color[look.topColor], bc = L.color[look.bottomColor];
     const f = look.body === 'f', top = L.top[look.top][0], hair = L.hair[look.hair][0], hat = L.hat[look.hat][0], acc = L.acc[look.acc][0];
-    const EYE = '#202028', SHOE = '#383040', suit = top === 'Flight suit', bottom = suit ? 'Pants' : L.bottom[look.bottom][0];
-    const legC = suit ? tc : bc, legD = suit ? tcD : bcD;
+    const suit = top === 'Flight suit', bottom = suit ? 'Pants' : L.bottom[look.bottom][0], legC = suit ? tc : bc;
     const tucked = ['Cap', 'Beanie', 'Hard hat', 'Bandana', 'Top hat', 'Wizard hat'].includes(hat);
     const style = tucked && ['Spiky', 'Mohawk', 'Bun', 'Curly'].includes(hair) ? 'Short' : hair;
+    const moving = !!opt.moving, s1 = Math.sin(phase || 0);
+    const bob = moving ? Math.abs(Math.cos(phase || 0)) * 0.025 : Math.sin((opt.t || 0) / 500) * 0.006;
     const side = dir === 'left', back = dir === 'up';
-    const lift = frame === 1 ? [1, 0] : frame === 2 ? [0, 1] : [0, 0];
-
-    // Behind the body (seen from the back or side)
-    if (back || side) {
-      if (acc === 'Cape') R(side ? 10 : 3, 13, side ? 3 : 10, 8, '#c03040');
-      if (acc === 'Backpack') R(side ? 10 : 4, 13, side ? 3 : 8, 6, '#8a5a30');
-      if (acc === 'Jetpack') { R(side ? 10 : 3, 13, side ? 3 : 4, 7, '#a0a8b0'); if (!side) R(9, 13, 4, 7, '#a0a8b0'); if (frame) R(side ? 11 : 4, 20, 2, 2, '#f8a030'); }
-    }
-    if (!side && (style === 'Long')) R(1, 7, 14, back ? 10 : 9, hc);
-    if (style === 'Twin tails') { if (!side) { R(0, 6, 2, 8, hc); R(14, 6, 2, 8, hc); } else R(11, 6, 2, 8, hc); }
-
-    // Legs & shoes
-    const legs = (x, w, up) => {
-      if (bottom === 'Pants') R(x, 19 - up, w, 4, legC);
-      else { R(x, 19 - up, w, 4, sk); if (bottom === 'Shorts') R(x, 19 - up, w, 2, legC); }
-      R(x, 23 - up, w, 1, SHOE);
-    };
-    if (side) { legs(frame === 1 ? 5 : 6, 3, lift[0]); legs(frame === 2 ? 9 : 8, 3, lift[1]); }
-    else { legs(5, 3, lift[0]); legs(8, 3, lift[1]); if (bottom === 'Pants') R(8, 19, 1, 3, legD); }
-    if (bottom === 'Skirt') { R(4, 17, 8, 3, legC); R(3, 19, 10, 1, legC); R(3, 19, 10, 1, legD); }
-
-    // Torso
-    const tx = side ? 5 : f ? 5 : 4, tw = side ? 6 : f ? 6 : 8;
-    const body = top === 'Lab coat' ? '#f4f6f8' : top === 'Armor vest' ? '#8890a0' : tc;
-    R(tx, 13, tw, top === 'Lab coat' ? 7 : 6, body); R(tx + tw - 1, 13, 1, 6, P.shade(body, -30));
-    if (f && !side) R(4, 13, 8, 2, body);
-    if (!back && !side) {
-      if (top === 'Jacket') { R(7, 13, 2, 5, '#f0f0f0'); R(7, 17, 2, 1, tcD); }
-      if (top === 'Hoodie') { R(5, 13, 6, 1, tcD); R(6, 16, 4, 2, tcD); }
-      if (top === 'Overalls') { R(5, 15, 6, 4, bc); R(5, 13, 1, 2, bc); R(10, 13, 1, 2, bc); }
-      if (top === 'Lab coat') { R(7, 13, 2, 3, tc); R(8, 16, 1, 4, '#c8d0d8'); }
-      if (top === 'Armor vest') { R(5, 14, 6, 1, '#606878'); R(5, 16, 6, 1, '#606878'); }
-      if (suit) { R(4, 17, 8, 1, '#f8d048'); R(9, 14, 2, 2, '#e8e8e8'); }
-      if (acc === 'Tool belt') { R(4, 18, 8, 1, '#7a5030'); R(10, 18, 2, 2, '#9aa3ad'); }
-      if (acc === 'Backpack') { R(5, 13, 1, 4, '#6a4020'); R(10, 13, 1, 4, '#6a4020'); }
-      if (acc === 'Jetpack') { R(2, 12, 2, 2, '#a0a8b0'); R(12, 12, 2, 2, '#a0a8b0'); }
-      if (acc === 'Cape') { R(2, 13, 1, 6, '#c03040'); R(13, 13, 1, 6, '#c03040'); }
-    }
-    if (back && top === 'Hoodie') R(5, 13, 6, 2, tcD);
-    // Arms
-    const sleeve = top === 'Armor vest' ? tc : body;
-    if (side) { const sw = frame === 1 ? -1 : frame === 2 ? 1 : 0; R(7 + sw, 14, 2, 3, sleeve); R(7 + sw, 17, 2, 1, sk); }
-    else {
-      const ax = f ? 3 : 2;
-      R(ax, 13, 2, 3, sleeve); R(16 - ax - 2, 13, 2, 3, sleeve);
-      R(ax, 16 + (frame === 1 ? 1 : 0), 2, 1, sk); R(16 - ax - 2, 16 + (frame === 2 ? 1 : 0), 2, 1, sk);
-    }
-
-    // Head
-    if (back) { R(3, 3, 10, 10, hc); R(2, 5, 12, 6, hc); R(3, 12, 10, 1, hcD); R(2, 8, 1, 2, sk); R(13, 8, 1, 2, sk); }
-    else if (side) {
-      R(2, 4, 9, 9, sk); R(1, 8, 1, 2, sk); R(4, 8, 1, 2, EYE); R(3, 11, 2, 1, '#c0605a');
-      R(5, 2, 8, 4, hc); R(8, 4, 5, 8, hc); R(2, 3, 5, 2, hc); R(8, 11, 4, 1, hcD); R(9, 8, 1, 2, sk);
-      if (f) R(4, 7, 1, 1, EYE);
-    } else {
-      R(3, 4, 10, 8, sk); R(4, 12, 8, 1, sk); R(2, 7, 1, 2, sk); R(13, 7, 1, 2, sk); R(3, 11, 10, 1, skD);
-      R(5, 8, 1, 2, EYE); R(10, 8, 1, 2, EYE); R(7, 11, 2, 1, '#c0605a'); R(4, 10, 1, 1, '#f0a0a0'); R(11, 10, 1, 1, '#f0a0a0');
-      if (f) { R(4, 8, 1, 1, EYE); R(11, 8, 1, 1, EYE); }
-    }
-    // Hair (front/side)
-    if (!back) {
-      const cap = () => {
-        if (side) return;
-        R(3, 2, 10, 3, hc); R(2, 3, 12, 3, hc); R(5, 2, 3, 1, hcL);
-        R(3, 5, 2, 1, hc); R(6, 5, 1, 1, hc); R(9, 5, 2, 1, hc); R(12, 5, 1, 1, hc); R(2, 6, 1, 2, hc); R(13, 6, 1, 2, hc);
-      };
-      switch (style) {
-        case 'Buzz': if (!side) { R(3, 3, 10, 2, hc); R(2, 4, 1, 2, hc); R(13, 4, 1, 2, hc); } break;
-        case 'Spiky': cap(); R(3, 1, 2, 1, hc); R(6, 0, 2, 2, hc); R(10, 1, 2, 1, hc); if (side) { R(6, 0, 2, 2, hc); R(10, 1, 2, 1, hc); } break;
-        case 'Curly': if (!side) { R(1, 2, 14, 4, hc); R(2, 1, 4, 1, hc); R(7, 1, 3, 1, hc); R(11, 1, 3, 1, hc); R(1, 6, 2, 4, hc); R(13, 6, 2, 4, hc); } else { R(4, 1, 10, 4, hc); R(10, 5, 4, 6, hc); } break;
-        case 'Bob': cap(); if (!side) { R(2, 6, 2, 6, hc); R(12, 6, 2, 6, hc); } break;
-        case 'Long': cap(); if (!side) { R(2, 6, 2, 8, hc); R(12, 6, 2, 8, hc); } else R(9, 6, 4, 9, hc); break;
-        case 'Ponytail': cap(); if (side) R(12, 5, 3, 6, hc); else R(13, 4, 2, 5, hc); break;
-        case 'Bun': cap(); R(6, 0, 4, 2, hc); break;
-        case 'Mohawk': if (!side) { R(3, 4, 10, 1, hcD); } R(7, 0, 2, 4, hc); break;
-        default: cap();
-      }
-    } else {
-      if (style === 'Ponytail') R(7, 11, 2, 5, hc);
-      if (style === 'Bun') R(6, 1, 4, 2, hc);
-      if (style === 'Spiky') { R(4, 1, 2, 2, hc); R(7, 0, 2, 3, hc); R(10, 1, 2, 2, hc); }
-      if (style === 'Mohawk') R(7, 0, 2, 4, hc);
-    }
-    // Headwear
     const core = AF.coreColor(look);
-    switch (hat) {
-      case 'Cap': R(3, 1, 10, 4, tc); R(4, 1, 4, 1, P.shade(tc, 40)); if (dir === 'down') R(3, 5, 10, 1, tcD); if (side) R(0, 4, 4, 1, tcD); if (back) R(4, 4, 8, 1, tcD); break;
-      case 'Beanie': R(3, 1, 10, 4, '#d04040'); R(2, 4, 12, 2, '#f0f0f0'); R(7, 0, 2, 1, '#f0f0f0'); break;
-      case 'Goggles': R(2, 5, 12, 1, '#404048'); if (dir === 'down') { R(4, 4, 3, 3, '#60e0f0'); R(9, 4, 3, 3, '#60e0f0'); R(4, 4, 1, 1, '#ffffff'); } if (side) R(2, 4, 3, 3, '#60e0f0'); break;
-      case 'Hard hat': R(3, 1, 10, 4, '#f8c830'); R(2, 4, 12, 2, '#e0a820'); R(7, 1, 2, 4, '#e0a820'); if (side) R(0, 5, 3, 1, '#e0a820'); break;
-      case 'Bandana': R(2, 2, 12, 4, '#c03838'); R(4, 3, 1, 1, '#fff'); R(8, 2, 1, 1, '#fff'); R(11, 4, 1, 1, '#fff'); if (back) R(7, 6, 2, 3, '#c03838'); break;
-      case 'Headphones': R(3, 1, 10, 1, '#303038'); if (side) R(8, 6, 3, 4, '#e06098'); else { R(1, 6, 2, 4, '#e06098'); R(13, 6, 2, 4, '#e06098'); } break;
-      case 'Antenna band': R(3, 4, 10, 1, '#a0a8b0'); R(4, 1, 1, 3, '#a0a8b0'); R(11, 1, 1, 3, '#a0a8b0'); R(4, 0, 1, 1, core); R(11, 0, 1, 1, core); break;
-      case 'Top hat': R(4, -1, 8, 5, '#282830'); R(4, 2, 8, 1, '#c03838'); R(2, 4, 12, 1, '#282830'); break;
-      case 'Wizard hat': R(7, -1, 2, 1, '#6048b0'); R(6, 0, 4, 1, '#6048b0'); R(5, 1, 6, 2, '#6048b0'); R(4, 3, 8, 1, '#6048b0'); R(2, 4, 12, 2, '#6048b0'); R(7, 2, 1, 1, '#f8d048'); break;
-      case 'Crown': R(4, 1, 8, 2, '#f8d040'); R(4, -1, 1, 2, '#f8d040'); R(7, -1, 2, 2, '#f8d040'); R(11, -1, 1, 2, '#f8d040'); R(7, 1, 2, 1, '#e04050'); break;
+    const P = () => g.beginPath();
+    const fillS = (c, stroke) => { g.fillStyle = c; g.fill(); if (stroke !== false) g.stroke(); };
+    const rr = (x, y, w, h, r, c, stroke) => { P(); g.roundRect(x, y, w, h, r); fillS(c, stroke); };
+    const el = (x, y, rx, ry, c, stroke) => { P(); g.ellipse(x, y, rx, ry, 0, 0, 7); fillS(c, stroke); };
+    const grad = (c, y0, y1) => { const gr = g.createLinearGradient(0, y0, 0, y1); gr.addColorStop(0, mix(c, 28)); gr.addColorStop(1, mix(c, -22)); return gr; };
+
+    // shadow
+    g.fillStyle = 'rgba(20,30,40,.22)'; P(); g.ellipse(0, 0.985, side ? 0.17 : 0.2, 0.04, 0, 0, 7); g.fill();
+    g.translate(0, -bob);
+    const tw = side ? 0.22 : f ? 0.27 : 0.31;
+    const bodyCol = top === 'Lab coat' ? '#f3f5f7' : top === 'Armor vest' ? '#8a93a3' : tc;
+
+    // --- behind the body ---
+    if (acc === 'Cape') { P(); const sw = moving ? s1 * 0.03 : 0; if (side) { g.moveTo(0.02, 0.5); g.lineTo(0.2 + sw, 0.88); g.lineTo(0.04, 0.9); } else { g.moveTo(-0.15, 0.5); g.lineTo(0.15, 0.5); g.lineTo(0.22, 0.9); g.lineTo(-0.22, 0.9); } g.closePath(); fillS(back ? '#c83246' : '#a82838'); }
+    if (acc === 'Jetpack' && !back) { rr(side ? 0.08 : -0.2, 0.47, side ? 0.12 : 0.1, 0.26, 0.04, '#9aa4b0'); if (!side) rr(0.1, 0.47, 0.1, 0.26, 0.04, '#9aa4b0'); }
+    if (!side && style === 'Long') rr(-0.23, 0.25, 0.46, back ? 0.42 : 0.36, 0.12, hc);
+    if (!side && style === 'Bob') rr(-0.235, 0.25, 0.47, 0.25, 0.1, hc);
+    if (style === 'Twin tails') { if (side) el(0.17, 0.42, 0.06, 0.13, hc); else { el(-0.27, 0.42, 0.06, 0.13, hc); el(0.27, 0.42, 0.06, 0.13, hc); } }
+    if (back && style === 'Ponytail') { P(); g.moveTo(-0.05, 0.28); g.quadraticCurveTo(0.08, 0.5, 0, 0.62); g.quadraticCurveTo(-0.08, 0.5, -0.05, 0.28); fillS(hc); }
+
+    // --- legs ---
+    const leg = (x, lift, far) => {
+      const y0 = 0.72, len = 0.23 - lift, c = far ? mix(legC, -25) : legC;
+      if (bottom === 'Pants') rr(x - 0.045, y0, 0.09, len, 0.04, grad(c, y0, y0 + len));
+      else { rr(x - 0.04, y0, 0.08, len, 0.04, far ? mix(sk, -20) : sk); if (bottom === 'Shorts') rr(x - 0.05, y0, 0.1, 0.09, 0.03, c); }
+      el(x + (side ? -0.02 : 0), y0 + len, side ? 0.065 : 0.055, 0.035, '#3a3346');
+    };
+    if (side) { const sw = moving ? s1 * 0.07 : 0; leg(-sw, moving ? Math.max(0, -s1) * 0.03 : 0, true); leg(sw, moving ? Math.max(0, s1) * 0.03 : 0); }
+    else { leg(-0.065, moving ? Math.max(0, s1) * 0.04 : 0); leg(0.065, moving ? Math.max(0, -s1) * 0.04 : 0); }
+    if (bottom === 'Skirt') { P(); g.moveTo(-tw / 2, 0.66); g.lineTo(tw / 2, 0.66); g.lineTo(tw / 2 + 0.06, 0.82); g.lineTo(-tw / 2 - 0.06, 0.82); g.closePath(); fillS(grad(legC, 0.66, 0.82)); }
+
+    // --- far arm (side view) ---
+    const arm = (sx, ang, far) => {
+      g.save(); g.translate(sx, 0.51); g.rotate(ang);
+      rr(-0.04, 0, 0.08, 0.16, 0.04, far ? mix(top === 'Armor vest' ? tc : bodyCol, -25) : (top === 'Armor vest' ? tc : bodyCol));
+      el(0, 0.19, 0.042, 0.042, far ? mix(sk, -20) : sk);
+      g.restore();
+    };
+    if (side) arm(0.02, moving ? -s1 * 0.6 : 0.1, true);
+
+    // --- torso ---
+    const th = top === 'Lab coat' ? 0.33 : 0.27;
+    rr(-tw / 2, 0.47, tw, th, 0.08, grad(bodyCol, 0.47, 0.47 + th));
+    if (!back && !side) {
+      if (top === 'Jacket') { P(); g.moveTo(-0.05, 0.48); g.lineTo(0.05, 0.48); g.lineTo(0, 0.62); g.closePath(); fillS('#f4f4f4', false); P(); g.moveTo(0, 0.6); g.lineTo(0, 0.73); g.stroke(); }
+      if (top === 'Hoodie') { rr(-0.08, 0.62, 0.16, 0.07, 0.03, mix(tc, -20), false); P(); g.moveTo(-0.04, 0.49); g.lineTo(-0.04, 0.56); g.moveTo(0.04, 0.49); g.lineTo(0.04, 0.56); g.strokeStyle = '#fff'; g.stroke(); g.strokeStyle = OL; }
+      if (top === 'Overalls') { rr(-0.1, 0.58, 0.2, 0.17, 0.04, grad(bc, 0.58, 0.75)); rr(-0.1, 0.47, 0.04, 0.12, 0.02, bc, false); rr(0.06, 0.47, 0.04, 0.12, 0.02, bc, false); el(-0.08, 0.6, 0.012, 0.012, '#f8d048', false); el(0.08, 0.6, 0.012, 0.012, '#f8d048', false); }
+      if (top === 'Lab coat') { P(); g.moveTo(-0.05, 0.48); g.lineTo(0.05, 0.48); g.lineTo(0, 0.58); g.closePath(); fillS(tc, false); P(); g.moveTo(0, 0.58); g.lineTo(0, 0.79); g.stroke(); }
+      if (top === 'Armor vest') { rr(-0.11, 0.5, 0.22, 0.08, 0.02, '#a2abb9'); rr(-0.11, 0.6, 0.22, 0.08, 0.02, '#a2abb9'); }
+      if (suit) { rr(-tw / 2, 0.66, tw, 0.03, 0.01, '#f8d048', false); rr(0.04, 0.52, 0.06, 0.05, 0.01, '#e8e8e8', false); }
+      if (acc === 'Tool belt') { rr(-tw / 2, 0.69, tw, 0.04, 0.01, '#7a5030'); rr(0.06, 0.7, 0.05, 0.06, 0.01, '#9aa3ad'); }
+      if (acc === 'Backpack') { P(); g.moveTo(-0.09, 0.48); g.lineTo(-0.09, 0.64); g.moveTo(0.09, 0.48); g.lineTo(0.09, 0.64); g.lineWidth = 0.025; g.strokeStyle = '#6a4020'; g.stroke(); g.lineWidth = 0.014; g.strokeStyle = OL; }
+      if (acc === 'Jetpack') { el(-0.17, 0.48, 0.04, 0.03, '#b6bec8'); el(0.17, 0.48, 0.04, 0.03, '#b6bec8'); }
     }
+    if (back) {
+      if (top === 'Hoodie') rr(-0.1, 0.47, 0.2, 0.07, 0.04, mix(tc, -20), false);
+      if (acc === 'Backpack') rr(-0.12, 0.49, 0.24, 0.22, 0.05, grad('#8a5a30', 0.49, 0.71));
+      if (acc === 'Jetpack') { rr(-0.16, 0.48, 0.13, 0.26, 0.04, '#9aa4b0'); rr(0.03, 0.48, 0.13, 0.26, 0.04, '#9aa4b0'); if (moving) { el(-0.095, 0.79, 0.03, 0.05, '#ffb040', false); el(0.095, 0.79, 0.03, 0.05, '#ffb040', false); } }
+      if (acc === 'Cape') rr(-0.15, 0.48, 0.3, 0.38, 0.05, '#c83246');
+    }
+    if (side) {
+      if (acc === 'Backpack') rr(0.09, 0.49, 0.1, 0.2, 0.04, grad('#8a5a30', 0.49, 0.69));
+      if (acc === 'Jetpack') rr(0.1, 0.48, 0.1, 0.26, 0.04, '#9aa4b0');
+      if (acc === 'Tool belt') rr(-tw / 2, 0.69, tw, 0.04, 0.01, '#7a5030');
+    }
+    // --- arms ---
+    if (side) arm(-0.02, moving ? s1 * 0.6 : -0.05);
+    else { const a = moving ? s1 * 0.45 : 0.06; arm(-tw / 2 - 0.02, a + 0.08); arm(tw / 2 + 0.02, -a - 0.08); }
+    if (acc === 'Scarf' && !back) { rr(side ? -0.11 : -0.15, 0.45, side ? 0.22 : 0.3, 0.06, 0.03, '#e8862e'); if (!side) rr(0.04, 0.48, 0.06, 0.14, 0.03, '#e8862e'); }
+
+    // --- head ---
+    const hx = side ? -0.02 : 0, hy = 0.29, hr = 0.215;
+    rr(hx - 0.04, 0.42, 0.08, 0.07, 0.02, mix(sk, -18), false);
+    if (!side) { el(-0.205, 0.32, 0.035, 0.05, sk); el(0.205, 0.32, 0.035, 0.05, sk); }
+    P(); g.arc(hx, hy, hr, 0, 7); const hg = g.createRadialGradient(hx - 0.06, hy - 0.06, 0.02, hx, hy, hr); hg.addColorStop(0, mix(sk, 22)); hg.addColorStop(1, mix(sk, -12)); fillS(hg);
+    // face
+    const blink = opt.blink;
+    const eye = (x, y) => {
+      if (blink) { P(); g.moveTo(x - 0.025, y); g.lineTo(x + 0.025, y); g.lineWidth = 0.016; g.strokeStyle = '#2a2230'; g.stroke(); g.lineWidth = 0.014; g.strokeStyle = OL; return; }
+      el(x, y, 0.027, 0.04, '#2a2230', false); el(x + 0.008, y - 0.014, 0.01, 0.012, '#ffffff', false);
+    };
     if (!back) {
-      if (acc === 'Glasses') { if (side) R(3, 7, 3, 1, '#202028'); else { R(4, 7, 3, 1, '#202028'); R(9, 7, 3, 1, '#202028'); R(7, 8, 2, 1, '#202028'); } }
-      if (acc === 'Scarf') { R(side ? 5 : 4, 12, side ? 6 : 8, 2, '#e08830'); if (!side) R(9, 14, 2, 3, '#e08830'); else R(10, 13, 2, 3, '#e08830'); }
+      if (side) {
+        eye(-0.11, 0.31); el(-0.145, 0.375, 0.025, 0.014, 'rgba(255,130,130,.45)', false);
+        P(); g.arc(-0.16, 0.395, 0.02, 0.3, Math.PI - 0.3); g.stroke();
+        el(0.06, 0.32, 0.03, 0.045, sk);
+        if (f) { P(); g.moveTo(-0.13, 0.29); g.lineTo(-0.155, 0.275); g.stroke(); }
+      } else {
+        eye(-0.075, 0.31); eye(0.075, 0.31);
+        el(-0.125, 0.37, 0.03, 0.017, 'rgba(255,130,130,.45)', false); el(0.125, 0.37, 0.03, 0.017, 'rgba(255,130,130,.45)', false);
+        P(); g.arc(0, 0.38, 0.03, 0.35, Math.PI - 0.35); g.stroke();
+        if (f && !blink) { P(); g.moveTo(-0.1, 0.29); g.lineTo(-0.118, 0.275); g.moveTo(0.1, 0.29); g.lineTo(0.118, 0.275); g.stroke(); }
+      }
     }
-    P.outline(c, '#282030');
-    return (sprCache[key] = c);
+    // --- hair ---
+    g.fillStyle = hc;
+    const hairG = () => { const gr = g.createLinearGradient(0, hy - hr, 0, hy + 0.1); gr.addColorStop(0, mix(hc, 30)); gr.addColorStop(1, mix(hc, -15)); return gr; };
+    const cap = (thin) => {
+      P();
+      if (back) { g.arc(hx, hy, hr + 0.005, Math.PI * 0.85, Math.PI * 2.15); g.lineTo(hx + hr * 0.75, hy + 0.15); g.quadraticCurveTo(hx, hy + 0.2, hx - hr * 0.75, hy + 0.15); }
+      else if (side) { g.arc(hx, hy, hr + 0.006, Math.PI * 1.02, Math.PI * 2.4); g.quadraticCurveTo(hx + 0.08, hy + 0.05, hx + 0.02, hy - 0.04); g.quadraticCurveTo(hx - 0.08, hy - 0.1, hx - hr, hy - 0.01); }
+      else { g.moveTo(-hr, hy + 0.05); g.arc(hx, hy, hr + 0.005, Math.PI, 0); g.lineTo(hr, hy + 0.05); const d = thin ? -0.06 : 0;
+        g.quadraticCurveTo(0.16, hy - 0.06 + d, 0.08, hy - 0.03 + d); g.quadraticCurveTo(0.01, hy - 0.12 + d, -0.06, hy - 0.03 + d); g.quadraticCurveTo(-0.15, hy - 0.07 + d, -hr, hy + 0.05); }
+      g.closePath(); fillS(hairG());
+    };
+    switch (style) {
+      case 'Buzz': g.globalAlpha = 0.85; cap(true); g.globalAlpha = 1; break;
+      case 'Spiky': cap(); if (!back || true) { P(); for (let i = -2; i <= 2; i++) { const x = hx + i * 0.075; g.moveTo(x - 0.05, hy - 0.15); g.lineTo(x, hy - 0.29 + Math.abs(i) * 0.03); g.lineTo(x + 0.05, hy - 0.15); } fillS(hairG()); } break;
+      case 'Curly': cap(); for (let i = 0; i < 7; i++) { const a = Math.PI * (1.05 + i * 0.15); el(hx + Math.cos(a) * hr * 0.92, hy + Math.sin(a) * hr * 0.92, 0.065, 0.065, hc); } break;
+      case 'Bob': cap(); if (!back && !side) { rr(-0.245, 0.27, 0.08, 0.22, 0.04, hc); rr(0.165, 0.27, 0.08, 0.22, 0.04, hc); } if (side) rr(0.02, 0.27, 0.17, 0.2, 0.06, hc); break;
+      case 'Long': cap(); if (!back && !side) { rr(-0.25, 0.27, 0.08, 0.32, 0.04, hc); rr(0.17, 0.27, 0.08, 0.32, 0.04, hc); } if (side) rr(0.0, 0.27, 0.19, 0.35, 0.08, hc); break;
+      case 'Ponytail': cap(); if (side) { P(); g.moveTo(0.17, 0.24); g.quadraticCurveTo(0.33, 0.33, 0.24, 0.5); g.quadraticCurveTo(0.19, 0.38, 0.14, 0.3); fillS(hc); } else if (!back) el(0.22, 0.33, 0.04, 0.09, hc); break;
+      case 'Bun': cap(); el(hx, hy - 0.23, 0.075, 0.07, hc); break;
+      case 'Mohawk': g.globalAlpha = 0.7; cap(true); g.globalAlpha = 1; rr(hx - 0.035, hy - 0.32, 0.07, 0.24, 0.03, hairG()); break;
+      default: cap();
+    }
+    // --- headwear ---
+    const dome = (c, y, r) => { P(); g.arc(hx, y, r, Math.PI, 0); g.closePath(); fillS(grad(c, y - r, y)); };
+    switch (hat) {
+      case 'Cap': dome(tc, hy - 0.01, 0.222); if (!back) { P(); if (side) g.ellipse(hx - 0.2, hy - 0.01, 0.12, 0.035, 0, 0, 7); else g.ellipse(0, hy - 0.005, 0.2, 0.05, 0, 0, Math.PI); fillS(mix(tc, -25)); } el(hx, hy - 0.225, 0.02, 0.012, mix(tc, 30), false); break;
+      case 'Beanie': dome('#d24444', hy - 0.02, 0.225); rr(hx - 0.23, hy - 0.06, 0.46, 0.07, 0.03, '#f2f2f2'); el(hx, hy - 0.26, 0.05, 0.05, '#f2f2f2'); break;
+      case 'Goggles': rr(hx - 0.22, hy - 0.1, 0.44, 0.04, 0.02, '#3a3a44'); if (!back) { const lx = side ? [-0.14] : [-0.08, 0.08]; lx.forEach((x) => { el(hx + x, hy - 0.08, 0.06, 0.05, '#58d8ec'); el(hx + x - 0.015, hy - 0.095, 0.015, 0.012, '#ffffff', false); }); } break;
+      case 'Hard hat': dome('#f8c834', hy - 0.02, 0.232); rr(hx - 0.26 - (side ? 0.04 : 0), hy - 0.04, 0.52, 0.05, 0.02, '#dfa422'); rr(hx - 0.02, hy - 0.24, 0.04, 0.2, 0.02, '#dfa422', false); break;
+      case 'Bandana': dome('#c43a3a', hy - 0.005, 0.222); [[-0.1, -0.1], [0.05, -0.16], [0.12, -0.06]].forEach(([x, y]) => el(hx + x, hy + y, 0.012, 0.012, '#fff', false)); el(hx + 0.2, hy + 0.0, 0.05, 0.03, '#c43a3a'); break;
+      case 'Headphones': P(); g.arc(hx, hy, 0.235, Math.PI * 1.05, Math.PI * 1.95); g.lineWidth = 0.035; g.strokeStyle = '#30303a'; g.stroke(); g.lineWidth = 0.014; g.strokeStyle = OL;
+        if (side) rr(hx + 0.02, hy - 0.02, 0.07, 0.12, 0.03, '#e46aa0'); else { rr(hx - 0.27, hy - 0.04, 0.07, 0.13, 0.03, '#e46aa0'); rr(hx + 0.2, hy - 0.04, 0.07, 0.13, 0.03, '#e46aa0'); } break;
+      case 'Antenna band': rr(hx - 0.21, hy - 0.11, 0.42, 0.03, 0.01, '#a8b0ba'); P(); g.moveTo(hx - 0.1, hy - 0.11); g.lineTo(hx - 0.14, hy - 0.3); g.moveTo(hx + 0.1, hy - 0.11); g.lineTo(hx + 0.14, hy - 0.3); g.stroke(); el(hx - 0.14, hy - 0.31, 0.03, 0.03, core); el(hx + 0.14, hy - 0.31, 0.03, 0.03, core); break;
+      case 'Top hat': el(hx, hy - 0.13, 0.25, 0.045, '#26262e'); rr(hx - 0.14, hy - 0.42, 0.28, 0.3, 0.03, grad('#2e2e38', hy - 0.42, hy - 0.12)); rr(hx - 0.14, hy - 0.2, 0.28, 0.05, 0, '#c43a3a', false); break;
+      case 'Wizard hat': el(hx, hy - 0.12, 0.27, 0.05, '#5a44b0'); P(); g.moveTo(hx - 0.17, hy - 0.13); g.quadraticCurveTo(hx, hy - 0.4, hx + 0.12, hy - 0.5); g.quadraticCurveTo(hx + 0.08, hy - 0.3, hx + 0.17, hy - 0.13); g.closePath(); fillS(grad('#6a54c8', hy - 0.5, hy - 0.12)); el(hx + 0.02, hy - 0.25, 0.022, 0.022, '#f8d048', false); break;
+      case 'Crown': P(); g.moveTo(hx - 0.15, hy - 0.12); g.lineTo(hx - 0.15, hy - 0.3); g.lineTo(hx - 0.075, hy - 0.2); g.lineTo(hx, hy - 0.33); g.lineTo(hx + 0.075, hy - 0.2); g.lineTo(hx + 0.15, hy - 0.3); g.lineTo(hx + 0.15, hy - 0.12); g.closePath(); fillS(grad('#ffd84a', hy - 0.33, hy - 0.12)); el(hx, hy - 0.16, 0.022, 0.022, '#e04858', false); break;
+    }
+    if (acc === 'Glasses' && !back) { g.lineWidth = 0.016; g.strokeStyle = '#2a2230'; P(); if (side) g.roundRect(-0.16, 0.28, 0.08, 0.06, 0.02); else { g.roundRect(-0.12, 0.28, 0.09, 0.065, 0.02); g.roundRect(0.03, 0.28, 0.09, 0.065, 0.02); g.moveTo(-0.03, 0.305); g.lineTo(0.03, 0.305); } g.stroke(); g.lineWidth = 0.014; g.strokeStyle = OL; }
+    g.restore();
   };
 
-  // Draws the pilot (standing, facing down) scaled to height s, for menus and slots.
+  // Menu/slot helper: pilot standing in a box of height s whose top-left is (x, y).
   AF.drawPilot = function (g, x, y, s, look, t, dir) {
-    const frame = t ? (Math.floor(t / 180) % 4 === 1 ? 1 : Math.floor(t / 180) % 4 === 3 ? 2 : 0) : 0;
-    const spr = AF.pilotSprite(look, dir || 'down', dir ? frame : 0), k = s / spr.height;
-    g.imageSmoothingEnabled = false;
-    g.drawImage(spr, Math.round(x + (s - spr.width * k) / 2), Math.round(y), Math.round(spr.width * k), Math.round(spr.height * k));
+    const moving = !!dir && !!t;
+    AF.drawPilotAt(g, x + s * 0.35, y + s * 0.99, s * 0.97, look, dir || 'down', moving ? t / 180 : 0, { moving, t, blink: t ? (t % 3400) < 140 : false });
   };
 
   // ---------- Character creator ----------
@@ -183,9 +212,9 @@
     const dpr = window.devicePixelRatio || 1, w = cv.clientWidth, h = cv.clientHeight;
     if (cv.width !== Math.round(w * dpr)) { cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr); }
     const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, w, h);
-    const dirs = ['down', 'left', 'up', 'right'], dir = dirs[Math.floor(t / 1600) % 4];
-    const sh = Math.max(26, Math.floor(h * 0.72 / 26) * 26);
-    AF.drawPilot(g, (w - sh) / 2, h - sh - 6, sh, C.look, t, dir);
+    const dirs = ['down', 'left', 'up', 'right'], dir = dirs[Math.floor(t / 1800) % 4];
+    const sh = Math.min(h * 0.72, w * 1.15);
+    AF.drawPilotAt(g, w / 2, h - 18, sh, C.look, dir, t / 170, { moving: true, t, blink: (t % 3400) < 140 });
   };
 
   const sw = (field, list, isColor) => list.map((c, i) => {
