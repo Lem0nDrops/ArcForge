@@ -9,7 +9,7 @@
 
   AF.robotSVG = function (p, opts) {
     opts = opts || {};
-    const f = FRAME_COL[p.frame - 1], fd = FRAME_DARK[p.frame - 1], arc = ARC_COL[p.arc - 1];
+    const f = FRAME_COL[p.frame - 1], fd = FRAME_DARK[p.frame - 1], arc = opts.core || ARC_COL[p.arc - 1];
     let legs = '';
     switch (p.legs) {
       case 1: legs = `<circle cx="44" cy="98" r="10" fill="#222"/><circle cx="44" cy="98" r="4" fill="#777"/>

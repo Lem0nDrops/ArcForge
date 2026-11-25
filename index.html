@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/style.css?v=0.3.1">
 </head>
 <body>
   <!-- Title screen + save slots -->
@@ -23,8 +23,9 @@
       <div class="title-slots frame">
         <h2>Choose a pilot</h2>
         <div id="slots" class="slots"></div>
+        <p id="boot-error" class="note" hidden>Some game files didn't load or are out of date. Refresh the page (on a computer: Ctrl+Shift+R, or Cmd+Shift+R on a Mac). If you just uploaded an update, wait a few minutes for GitHub Pages to finish, then refresh.</p>
         <div class="row center"><button class="btn ghost" data-act="title-help">How to play</button></div>
-        <p class="credit">A getdataforge.com game · v0.3</p>
+        <p class="credit">A getdataforge.com game · v0.3.1</p>
       </div>
     </div>
   </section>
@@ -67,16 +68,16 @@
   <div id="menu" class="modal" hidden><div class="sheet narrow"></div></div>
   <div id="result" class="modal" hidden><div class="sheet narrow result"></div></div>
 
-  <script src="js/data.js"></script>
-  <script src="js/state.js"></script>
-  <script src="js/art.js"></script>
-  <script src="js/pixel.js"></script>
-  <script src="js/pilot.js"></script>
-  <script src="js/town.js"></script>
-  <script src="js/quests.js"></script>
-  <script src="js/world.js"></script>
-  <script src="js/battle.js"></script>
-  <script src="js/ui.js"></script>
-  <script src="js/main.js"></script>
+  <script src="js/data.js?v=0.3.1"></script>
+  <script src="js/state.js?v=0.3.1"></script>
+  <script src="js/art.js?v=0.3.1"></script>
+  <script src="js/pixel.js?v=0.3.1"></script>
+  <script src="js/pilot.js?v=0.3.1"></script>
+  <script src="js/town.js?v=0.3.1"></script>
+  <script src="js/quests.js?v=0.3.1"></script>
+  <script src="js/world.js?v=0.3.1"></script>
+  <script src="js/battle.js?v=0.3.1"></script>
+  <script src="js/ui.js?v=0.3.1"></script>
+  <script src="js/main.js?v=0.3.1"></script>
 </body>
 </html>

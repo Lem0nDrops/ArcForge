@@ -218,8 +218,13 @@
   requestAnimationFrame(frame);
 
   // ---------- Boot ----------
+  // Every script must be from the same version, or the game can't start.
+  const ready = AF.Pixel && AF.Quests && AF.Town && AF.Creator && AF.World && AF.World.init && AF.WORLD_SEED && AF.pilotSprite;
+  if (!ready) { $('#boot-error').hidden = false; return; }
   AF.migrateOldSave();
-  $('#title-bot').innerHTML = '<canvas class="spr" data-spr="robot"></canvas>';
-  AF.Pixel.paint($('#title-bot'), { parts: { arc: 3, frame: 3, legs: 2, arms: 2, weapon: 3, shield: 2 }, look: { core: 1 } });
-  renderSlots();
+  try { renderSlots(); } catch (e) { $('#boot-error').hidden = false; console.error(e); }
+  try {
+    $('#title-bot').innerHTML = '<canvas class="spr" data-spr="robot"></canvas>';
+    AF.Pixel.paint($('#title-bot'), { parts: { arc: 3, frame: 3, legs: 2, arms: 2, weapon: 3, shield: 2 }, look: { core: 1 } });
+  } catch (e) { console.error(e); }
 })();

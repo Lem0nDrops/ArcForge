@@ -18,6 +18,8 @@ Controls: WASD / arrow keys, the on-screen pad, or tap the map. Walk into people
 3. **Settings → Pages → Build and deployment**, then set Source to *Deploy from a branch*, choose `main` and `/ (root)`, and save.
 4. After a minute your game is live at `https://<your-username>.github.io/ArcForge/`.
 
+After uploading an update, give GitHub Pages a few minutes, then hard-refresh (Ctrl+Shift+R / Cmd+Shift+R). Every file link in `index.html` ends in `?v=0.3.1`. When you change files yourself, bump that number everywhere in `index.html` so players' browsers fetch the new files instead of cached old ones.
+
 Saves are kept in each player's browser. The Menu has a **save code** you can copy to move a save between devices.
 
 ## How the game works
