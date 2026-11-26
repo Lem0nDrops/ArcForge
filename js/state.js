@@ -40,7 +40,7 @@
     const parts = { arc: 1, frame: 1, legs: 1, arms: 1, weapon: 1, shield: 1 };
     const known = AF.knownFor(construct);
     return AF.upgradeSave({
-      version: 6, construct, slot: slot || 1, flags: { robot: false, intro: false }, quests: AF.Quests.fresh(), seed, steps: 0, parts,
+      version: 7, construct, slot: slot || 1, flags: { robot: false, intro: false }, quests: AF.Quests.fresh(), seed, steps: 0, parts,
       hp: Math.round(AF.stats(parts).maxHp * AF.CONSTRUCTS[construct].hpMul),
       res: { scrap: 6, copper: 2, silicon: 0, arcite: 0, circuits: 0 }, credits: 300, level: 1, xp: 0,
       owned: [], equip: AF.EMPTY_EQUIP(), presets: [null, null, null], starter: outfit || 'tinker', bot: AF.defaultBot(construct),
@@ -90,6 +90,8 @@
     }
     // v6: Constructs. Older saves pick one the next time they play (see AF.setConstruct).
     if (s.version < 6) { s.version = 6; s.construct = s.construct || null; (s.cards || []).forEach((c) => { if (c.id === 'bulwark') c.id = 'ironwall'; }); }
+    // v7: the world was redrawn (bigger map, Brasshaven, the Sunken Foundry). Old positions don't fit, so start fresh in Rivet Hollow.
+    if (s.version < 7) { s.version = 7; if (s.world && s.world.v !== 2) s.world = null; }
     s.cards = (s.cards || []).filter((c) => AF.CARDS[c.id]);
     s.bot = Object.assign(AF.defaultBot(s.construct), s.bot || {});
     s.flags = s.flags || { robot: false, intro: false };
@@ -112,7 +114,7 @@
       const raw = localStorage.getItem(slotKey(n));
       if (!raw) return null;
       const s = JSON.parse(raw);
-      return s && s.version >= 1 && s.version <= 6 ? AF.upgradeSave(Object.assign(s, { slot: n })) : null;
+      return s && s.version >= 1 && s.version <= 7 ? AF.upgradeSave(Object.assign(s, { slot: n })) : null;
     } catch (e) { return null; }
   };
   AF.deleteSlot = function (n) { try { localStorage.removeItem(slotKey(n)); } catch (e) {} };
@@ -132,7 +134,7 @@
   AF.importCode = function (code, slot) {
     try {
       const s = JSON.parse(decodeURIComponent(escape(atob(code.trim()))));
-      if (!s || !s.parts || !(s.version >= 1 && s.version <= 6)) return null;
+      if (!s || !s.parts || !(s.version >= 1 && s.version <= 7)) return null;
       s.slot = slot;
       return AF.upgradeSave(s);
     } catch (e) { return null; }

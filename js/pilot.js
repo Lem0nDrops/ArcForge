@@ -10,31 +10,43 @@
     eyeColor: ['#3a2a20', '#2a5ad8', '#2a9a5a', '#8a4ad8', '#d8402a', '#e0a020'],
     hair: ['Swoop', 'Spiky', 'Messy', 'Bob', 'Long', 'Ponytail', 'Twin tails', 'Bun', 'Mohawk', 'Curly'],
     eyes: ['Classic', 'Sparkle', 'Sleepy', 'Sharp', 'Dot'],
+    beard: ['None', 'Stubble', 'Mustache', 'Goatee', 'Short beard', 'Full beard'],
     core: [['#ffd75e', 'Solar'], ['#5ef2e1', 'Arc blue'], ['#ff6b5c', 'Ember'], ['#7ee08a', 'Toxic'], ['#c27bff', 'Void'], ['#7fb8ff', 'Glacier'], ['#ff9ad5', 'Bubblegum'], ['#ffffff', 'Starlight']],
   });
   AF.defaultLook = (body) => ({ name: '', body: body || 'f', skin: 1, hair: body === 'm' ? 0 : 5, hairColor: 2, eyes: 0, eyeColor: 0, core: 1 });
   AF.randomLook = function () {
     const p = (n) => Math.floor(Math.random() * n), body = Math.random() < 0.5 ? 'm' : 'f';
-    return { name: '', body, skin: p(L.skin.length), hair: p(L.hair.length), hairColor: p(L.hairColor.length), eyes: p(L.eyes.length), eyeColor: p(L.eyeColor.length), core: p(L.core.length) };
+    return { name: '', body, skin: p(L.skin.length), hair: p(L.hair.length), hairColor: p(L.hairColor.length), eyes: p(L.eyes.length), eyeColor: p(L.eyeColor.length), core: p(L.core.length), beard: body === 'm' && Math.random() < 0.6 ? p(L.beard.length) : 0 };
   };
   // NPC helper: base features + a list of worn item ids.
   AF.npcLook = (o, items) => { const out = {}; (items || []).forEach((id) => { const it = AF.ITEMS[id]; if (it && it.slot !== 'charm') out[it.slot] = id; }); return Object.assign({ name: '', body: 'm', skin: 1, hair: 0, hairColor: 1, eyes: 0, eyeColor: 0, core: 1 }, o, { outfit: out }); };
   AF.coreColor = (look) => L.core[(look && look.core) || 0][0];
   const mix = (c, a) => AF.shadeHex(c, a);
+  // Darker, earthier palette: pull every clothing colour toward a weathered brown and drop the brightness.
+  const MUTE = {};
+  AF.mute = function (c, k) {
+    if (!c || c[0] !== '#') return c;
+    k = k == null ? 0.32 : k;
+    const key = c + k; if (MUTE[key]) return MUTE[key];
+    const n = parseInt(c.slice(1), 16), r = (n >> 16) & 255, gg = (n >> 8) & 255, b = n & 255, l = 0.3 * r + 0.59 * gg + 0.11 * b;
+    const ch = (v, t) => Math.round(((v * (1 - k) + (l * 0.55 + t * 0.45) * k)) * 0.88);
+    const out = '#' + [ch(r, 112), ch(gg, 96), ch(b, 78)].map((v) => Math.max(0, Math.min(255, v)).toString(16).padStart(2, '0')).join('');
+    return (MUTE[key] = out);
+  };
 
   // ---------- Drawing ----------
   // cx = centre x, fy = feet y, H = height in px. phase advances π per tile walked.
   AF.drawPilotAt = function (g, cx, fy, H, look, dir, phase, opt) {
     opt = opt || {};
-    const out = look.outfit || {}, V = (k) => (out[k] && AF.ITEMS[out[k]] && AF.ITEMS[out[k]].vis) || null;
-    const hat = V('hat'), face = V('face'), top = V('top') || { s: 'tee', a: '#f2f2f2', b: '#dddddd' }, bot = V('bottom') || { s: 'shorts', a: '#8a8aa0', b: '#6a6a80' };
+    const out = look.outfit || {}, V = (k) => { const v = out[k] && AF.ITEMS[out[k]] && AF.ITEMS[out[k]].vis; return v ? { s: v.s, a: AF.mute(v.a), b: AF.mute(v.b) } : null; };
+    const hat = V('hat'), face = V('face'), top = V('top') || { s: 'tunic', a: AF.mute('#b8a888'), b: '#5a4028' }, bot = V('bottom') || { s: 'pants', a: AF.mute('#5a4a38'), b: '#3a2e22' };
     const shoes = V('shoes'), gloves = V('gloves'), cape = V('cape'), tool = V('tool');
     g.save();
     if (dir === 'right') { g.translate(cx, 0); g.scale(-1, 1); g.translate(-cx, 0); dir = 'left'; }
     g.translate(cx, fy - H); g.scale(H, H);
     g.lineJoin = 'round'; g.lineCap = 'round';
-    const OL = '#2a1a2a', LW = 0.02; g.strokeStyle = OL; g.lineWidth = LW;
-    const sk = L.skin[look.skin || 0], hc = L.hairColor[look.hairColor || 0], ec = L.eyeColor[look.eyeColor || 0];
+    const OL = '#1c1410', LW = 0.016; g.strokeStyle = OL; g.lineWidth = LW;
+    const sk = L.skin[look.skin || 0], hc = AF.mute(L.hairColor[look.hairColor || 0], 0.18), ec = L.eyeColor[look.eyeColor || 0];
     const f = look.body === 'f', side = dir === 'left', back = dir === 'up';
     const moving = !!opt.moving, s1 = Math.sin(phase || 0);
     const bob = moving ? Math.abs(Math.cos(phase || 0)) * 0.022 : Math.sin((opt.t || 0) / 520) * 0.006;
@@ -42,20 +54,22 @@
     const fs = (c, st) => { g.fillStyle = c; g.fill(); if (st !== false) g.stroke(); };
     const rr = (x, y, w, h, r, c, st) => { P(); g.roundRect(x, y, w, h, r); fs(c, st); };
     const el = (x, y, rx, ry, c, st) => { P(); g.ellipse(x, y, rx, ry, 0, 0, 7); fs(c, st); };
-    const vg = (c, y0, y1) => { const gr = g.createLinearGradient(0, y0, 0, y1); gr.addColorStop(0, mix(c, 24)); gr.addColorStop(1, mix(c, -18)); return gr; };
+    const vg = (c, y0, y1) => { const gr = g.createLinearGradient(0, y0, 0, y1); gr.addColorStop(0, mix(c, 14)); gr.addColorStop(1, mix(c, -30)); return gr; };
     const core = AF.coreColor(look);
 
     // shadow
-    g.fillStyle = 'rgba(20,16,30,.24)'; P(); g.ellipse(0, 0.985, side ? 0.16 : 0.19, 0.036, 0, 0, 7); g.fill();
+    g.fillStyle = 'rgba(10,8,6,.32)'; P(); g.ellipse(0, 0.985, side ? 0.14 : 0.17, 0.032, 0, 0, 7); g.fill();
     g.translate(0, -bob);
-    const tw = side ? 0.2 : f ? 0.24 : 0.27, T0 = 0.535, T1 = 0.77;
+    const tw = side ? 0.19 : f ? 0.23 : 0.27, T0 = 0.43, T1 = 0.685;
+    // The head is drawn in its own (smaller) space, anchored at the neck: realistic-ish proportions.
+    const HK = 0.7, headSpace = () => { g.save(); g.translate(0, T0 + 0.025); g.scale(HK, HK); g.translate(0, -0.555); };
 
     // ----- back layer: capes, wings, packs, long hair -----
     const capeSway = moving ? s1 * 0.03 : Math.sin((opt.t || 0) / 700) * 0.01;
     const drawBack = (front) => {
       if (!cape) return;
       const a = cape.a, b = cape.b;
-      if (cape.s === 'cape') {
+      if (cape.s === 'cape' || cape.s === 'cloak') {
         if (front) { if (back) { P(); g.moveTo(-0.15, T0); g.lineTo(0.15, T0); g.lineTo(0.2 + capeSway, 0.93); g.quadraticCurveTo(0, 0.96, -0.2 + capeSway, 0.93); g.closePath(); fs(vg(a, T0, 0.93)); rr(-0.15, T0 - 0.01, 0.3, 0.04, 0.02, b); } return; }
         P(); if (side) { g.moveTo(0.02, T0); g.lineTo(0.22 + capeSway, 0.92); g.lineTo(0.06, 0.9); } else { g.moveTo(-0.16, T0); g.lineTo(0.16, T0); g.lineTo(0.22, 0.9); g.lineTo(-0.22, 0.9); } g.closePath(); fs(mix(a, -25));
       } else if (cape.s === 'wings') {
@@ -76,17 +90,19 @@
     drawBack(false);
     const hairStyle = (() => {
       const h = L.hair[look.hair || 0];
-      const tucks = hat && ['beanie', 'chef', 'hardhat', 'miner', 'knight', 'bandana', 'aviator', 'tophat', 'wizard', 'cowboy', 'beret', 'visorcap', 'cap'].includes(hat.s);
+      const tucks = hat && ['beanie', 'chef', 'hardhat', 'miner', 'knight', 'bandana', 'aviator', 'tophat', 'wizard', 'cowboy', 'beret', 'visorcap', 'cap', 'hood', 'kettle'].includes(hat.s);
       return tucks && ['Spiky', 'Mohawk', 'Bun', 'Curly', 'Messy'].includes(h) ? 'Swoop' : h;
     })();
     const hx = side ? -0.02 : 0, hy = 0.285, hr = 0.255;
+    headSpace();
     if (!side && hairStyle === 'Long') rr(-0.27, hy - 0.04, 0.54, back ? 0.46 : 0.4, 0.14, vg(hc, hy, hy + 0.4));
     if (!side && hairStyle === 'Bob') rr(-0.275, hy - 0.02, 0.55, 0.27, 0.12, vg(hc, hy, hy + 0.27));
     if (hairStyle === 'Twin tails') { const tt = (x) => { P(); g.moveTo(x, hy + 0.02); g.quadraticCurveTo(x + Math.sign(x) * 0.12, hy + 0.2, x + Math.sign(x) * 0.04, hy + 0.36); g.quadraticCurveTo(x - Math.sign(x) * 0.02, hy + 0.2, x, hy + 0.02); fs(hc); }; if (side) tt(0.18); else { tt(-0.25); tt(0.25); } }
     if (back && hairStyle === 'Ponytail') { P(); g.moveTo(-0.05, hy + 0.05); g.quadraticCurveTo(0.1, hy + 0.28, 0, hy + 0.4); g.quadraticCurveTo(-0.1, hy + 0.28, -0.05, hy + 0.05); fs(hc); }
+    g.restore();
 
     // ----- legs, bottoms, shoes -----
-    const legY = T1 - 0.01, legLen = 0.2;
+    const legY = T1 - 0.01, legLen = 0.275;
     const leg = (x, lift, far) => {
       const c = (k) => (far ? mix(k, -22) : k), y1 = legY + legLen - lift;
       const bare = bot.s === 'shorts' || bot.s === 'skirt';
@@ -108,15 +124,17 @@
     if (bot.s === 'skirt') { P(); g.moveTo(-tw / 2 + 0.01, T1 - 0.04); g.lineTo(tw / 2 - 0.01, T1 - 0.04); g.lineTo(tw / 2 + 0.06, T1 + 0.08); g.quadraticCurveTo(0, T1 + 0.11, -tw / 2 - 0.06, T1 + 0.08); g.closePath(); fs(vg(bot.a, T1 - 0.04, T1 + 0.1)); P(); g.moveTo(-tw / 2 - 0.05, T1 + 0.07); g.quadraticCurveTo(0, T1 + 0.1, tw / 2 + 0.05, T1 + 0.07); g.strokeStyle = bot.b; g.stroke(); g.strokeStyle = OL; }
 
     // ----- arms (far arm first in side view) -----
-    const sleeveCol = ['vest', 'apron', 'overalls'].includes(top.s) ? top.b : top.s === 'armor' ? '#4a4e5a' : top.a;
+    const sleeveCol = ['vest', 'apron', 'overalls'].includes(top.s) ? top.b : top.s === 'jerkin' ? AF.mute('#a8987a') : top.s === 'armor' ? '#4a4e5a' : top.s === 'mail' ? mix(top.a, -10) : top.a;
     const drawTool = () => {
       if (!tool) return;
-      g.save(); g.translate(0, 0.18); g.rotate(-0.5);
+      g.save(); g.translate(0, 0.25); g.rotate(-0.5);
       const a = tool.a, b = tool.b;
       switch (tool.s) {
         case 'wrench': rr(-0.018, -0.2, 0.036, 0.22, 0.015, a); P(); g.arc(0, -0.22, 0.045, 0, 7); fs(a); el(0, -0.24, 0.02, 0.025, mix(a, 40), false); break;
         case 'hammer': rr(-0.016, -0.22, 0.032, 0.25, 0.012, b); rr(-0.07, -0.27, 0.14, 0.07, 0.015, vg(a, -0.27, -0.2)); break;
         case 'sword': rr(-0.02, -0.34, 0.04, 0.3, 0.02, vg(a, -0.34, -0.04)); rr(-0.06, -0.06, 0.12, 0.03, 0.01, b); rr(-0.014, -0.04, 0.028, 0.07, 0.01, '#6a4a2a'); break;
+        case 'tome': rr(-0.065, -0.06, 0.12, 0.1, 0.012, a); rr(-0.055, -0.052, 0.1, 0.012, 0.004, b, false); el(-0.005, -0.01, 0.015, 0.015, b, false); break;
+        case 'crossbow': rr(-0.015, -0.2, 0.03, 0.22, 0.01, a); P(); g.moveTo(-0.11, -0.13); g.quadraticCurveTo(0, -0.2, 0.11, -0.13); g.lineWidth = 0.025; g.strokeStyle = b; g.stroke(); g.strokeStyle = OL; g.lineWidth = LW; P(); g.moveTo(-0.11, -0.13); g.lineTo(0.11, -0.13); g.lineWidth = 0.006; g.stroke(); g.lineWidth = LW; break;
         case 'staff': rr(-0.015, -0.34, 0.03, 0.4, 0.015, a); el(0, -0.36, 0.05, 0.05, b); el(-0.015, -0.375, 0.015, 0.015, '#ffffff', false); break;
         case 'lantern': P(); g.moveTo(0, 0.0); g.lineTo(0, -0.04); g.stroke(); rr(-0.045, 0.0, 0.09, 0.1, 0.02, a); rr(-0.03, 0.015, 0.06, 0.07, 0.015, b, false); break;
         case 'spatula': rr(-0.014, -0.18, 0.028, 0.2, 0.01, '#6a4a2a'); rr(-0.045, -0.29, 0.09, 0.12, 0.02, vg(b, -0.29, -0.17)); break;
@@ -126,18 +144,20 @@
     const arm = (x, ang, far, withTool) => {
       g.save(); g.translate(x, T0 + 0.025); g.rotate(ang);
       const sc = far ? mix(sleeveCol, -22) : sleeveCol;
-      rr(-0.035, 0, 0.07, top.s === 'tee' || top.s === 'vest' || top.s === 'apron' || top.s === 'overalls' ? 0.075 : 0.13, 0.03, sc);
-      if (top.s === 'tee' || top.s === 'vest' || top.s === 'apron' || top.s === 'overalls') rr(-0.03, 0.06, 0.06, 0.08, 0.03, far ? mix(sk, -18) : sk);
+      const shortS = top.s === 'tee' || top.s === 'vest' || top.s === 'apron' || top.s === 'overalls' || top.s === 'jerkin';
+      rr(-0.035, 0, 0.07, shortS ? 0.1 : 0.19, 0.03, sc);
+      if (shortS) rr(-0.03, 0.085, 0.06, 0.12, 0.03, far ? mix(sk, -18) : sk);
       if (withTool) drawTool();
-      if (gloves) { if (gloves.s === 'gauntlets') { rr(-0.05, 0.11, 0.1, 0.05, 0.02, gloves.b, false); el(0, 0.17, 0.05, 0.05, far ? mix(gloves.a, -22) : gloves.a); } else el(0, 0.16, 0.042, 0.042, far ? mix(gloves.a, -22) : gloves.a); }
-      else el(0, 0.16, 0.038, 0.038, far ? mix(sk, -18) : sk);
+      if (gloves) { if (gloves.s === 'gauntlets') { rr(-0.05, 0.17, 0.1, 0.05, 0.02, gloves.b, false); el(0, 0.235, 0.045, 0.045, far ? mix(gloves.a, -22) : gloves.a); } else el(0, 0.225, 0.038, 0.038, far ? mix(gloves.a, -22) : gloves.a); }
+      else el(0, 0.225, 0.034, 0.034, far ? mix(sk, -18) : sk);
       g.restore();
     };
     if (side) arm(0.02, moving ? -s1 * 0.6 : 0.12, true, false);
 
     // ----- torso & top -----
-    const coatLong = top.s === 'coat' || top.s === 'dress';
-    const tb = coatLong ? 0.33 : T1 - T0 + 0.01;
+    const coatLong = top.s === 'coat' || top.s === 'dress' || top.s === 'tunic';
+    const tb = top.s === 'tunic' ? T1 - T0 + 0.07 : coatLong ? 0.33 : T1 - T0 + 0.01;
+    if (top.s === 'robe') { P(); g.moveTo(-tw / 2, T0 + 0.1); g.lineTo(tw / 2, T0 + 0.1); g.lineTo(tw / 2 + 0.05, 0.94); g.quadraticCurveTo(0, 0.96, -tw / 2 - 0.05, 0.94); g.closePath(); fs(vg(top.a, T0, 0.95)); if (!back && !side) { P(); g.moveTo(0, T1); g.lineTo(0, 0.94); g.strokeStyle = top.b; g.lineWidth = 0.02; g.stroke(); g.strokeStyle = OL; g.lineWidth = LW; } P(); g.moveTo(-tw / 2 - 0.045, 0.925); g.quadraticCurveTo(0, 0.95, tw / 2 + 0.045, 0.925); g.strokeStyle = top.b; g.lineWidth = 0.018; g.stroke(); g.strokeStyle = OL; g.lineWidth = LW; }
     if (top.s === 'dress') { P(); g.moveTo(-tw / 2, T0 + 0.12); g.lineTo(tw / 2, T0 + 0.12); g.lineTo(tw / 2 + 0.08, T0 + 0.32); g.quadraticCurveTo(0, T0 + 0.36, -tw / 2 - 0.08, T0 + 0.32); g.closePath(); fs(vg(top.a, T0, T0 + 0.34)); P(); g.moveTo(-tw / 2 - 0.07, T0 + 0.31); g.quadraticCurveTo(0, T0 + 0.35, tw / 2 + 0.07, T0 + 0.31); g.strokeStyle = top.b; g.lineWidth = 0.025; g.stroke(); g.strokeStyle = OL; g.lineWidth = LW; }
     const bodyCol = top.s === 'apron' || top.s === 'overalls' ? top.b : top.s === 'vest' ? top.b : top.a;
     rr(-tw / 2, T0, tw, top.s === 'dress' ? 0.14 : tb, 0.07, vg(top.s === 'armor' ? '#4a4e5a' : bodyCol, T0, T0 + tb));
@@ -152,22 +172,35 @@
         case 'coat': if (!side) { P(); g.moveTo(0, T0 + 0.02); g.lineTo(0, T0 + tb); g.stroke(); [0.06, 0.13, 0.2].forEach((y) => el(0.03, T0 + y, 0.01, 0.01, top.b, false)); rr(-tw / 2 - 0.005, T0 - 0.01, tw + 0.01, 0.04, 0.02, top.b); } break;
         case 'armor': rr(-tw / 2 + 0.02, T0 + 0.02, tw - 0.04, 0.16, 0.05, vg(top.a, T0, T0 + 0.18)); el(0, T0 + 0.09, 0.03, 0.03, top.b); el(-tw / 2 - 0.02, T0 + 0.03, 0.06, 0.045, vg(top.a, T0 - 0.02, T0 + 0.07)); el(tw / 2 + 0.02, T0 + 0.03, 0.06, 0.045, vg(top.a, T0 - 0.02, T0 + 0.07)); break;
         case 'dress': rr(-tw / 2, T0 + 0.1, tw, 0.035, 0.015, top.b, false); break;
+        case 'tunic': case 'jerkin': case 'mail': case 'robe': {
+          if (top.s === 'mail') { g.save(); P(); g.roundRect(-tw / 2, T0, tw, tb, 0.07); g.clip(); g.strokeStyle = mix(top.a, -35); g.lineWidth = 0.007; for (let y = T0 + 0.03; y < T0 + tb; y += 0.03) for (let x = -tw / 2; x < tw / 2; x += 0.035) { P(); g.arc(x + ((y * 100) % 2 ? 0.017 : 0), y, 0.016, 0.2, Math.PI - 0.2); g.stroke(); } g.restore(); g.strokeStyle = OL; g.lineWidth = LW; }
+          if (top.s === 'jerkin' && !side) { g.strokeStyle = mix(top.b, 20); g.lineWidth = 0.008; P(); for (let y = T0 + 0.03; y < T0 + 0.15; y += 0.035) { g.moveTo(-0.025, y); g.lineTo(0.025, y + 0.03); g.moveTo(0.025, y); g.lineTo(-0.025, y + 0.03); } g.stroke(); g.strokeStyle = OL; g.lineWidth = LW; }
+          if (top.s === 'tunic' && !side) { P(); g.moveTo(-0.04, T0 + 0.005); g.lineTo(0, T0 + 0.07); g.lineTo(0.04, T0 + 0.005); g.strokeStyle = mix(top.a, -45); g.stroke(); g.strokeStyle = OL; }
+          if (top.s === 'robe' && !side) { P(); g.moveTo(-0.05, T0); g.lineTo(0, T0 + 0.09); g.lineTo(0.05, T0); g.strokeStyle = top.b; g.lineWidth = 0.016; g.stroke(); g.strokeStyle = OL; g.lineWidth = LW; }
+          const by = T0 + 0.19; rr(-tw / 2 - 0.004, by, tw + 0.008, 0.032, 0.008, top.s === 'robe' ? top.b : AF.mute('#4a3020'));
+          if (!side) rr(-0.022, by - 0.004, 0.044, 0.04, 0.008, AF.mute('#c8a050'));
+          else rr(-tw / 2 + 0.01, by + 0.02, 0.05, 0.06, 0.012, AF.mute('#5a3a22'));
+          break;
+        }
       }
     } else {
       if (top.s === 'hoodie') rr(-0.1, T0 - 0.01, 0.2, 0.07, 0.035, mix(top.a, -18));
       if (top.s === 'armor') { el(-tw / 2 - 0.02, T0 + 0.03, 0.06, 0.045, top.a); el(tw / 2 + 0.02, T0 + 0.03, 0.06, 0.045, top.a); }
+      if (['tunic', 'jerkin', 'mail', 'robe'].includes(top.s)) rr(-tw / 2 - 0.004, T0 + 0.19, tw + 0.008, 0.032, 0.008, top.s === 'robe' ? top.b : AF.mute('#4a3020'));
     }
     drawBack(true);
+    if (cape && cape.s === 'cloak' && !back) { rr(-tw / 2 - 0.035, T0 - 0.03, tw + 0.07, 0.075, 0.035, vg(cape.a, T0 - 0.03, T0 + 0.05)); if (!side) el(0, T0 + 0.02, 0.022, 0.022, cape.b); }
     if (cape && cape.s === 'scarf' && !back) { rr(side ? -0.11 : -0.14, T0 - 0.025, side ? 0.22 : 0.28, 0.06, 0.03, cape.a); if (!side) rr(0.04, T0 + 0.01, 0.06, 0.14, 0.03, cape.b); }
     // near arms
     if (side) arm(-0.02, moving ? s1 * 0.6 : -0.08, false, true);
     else { const a = moving ? s1 * 0.45 : 0.06; arm(-tw / 2 - 0.015, a + 0.1, false, false); arm(tw / 2 + 0.015, -a - 0.1, false, !back); }
     if (back && tool) { g.save(); g.translate(-tw / 2 - 0.03, T0 + 0.12); drawTool(); g.restore(); }
 
-    // ----- head (big!) -----
+    // ----- head -----
+    headSpace();
     rr(hx - 0.04, 0.5, 0.08, 0.06, 0.02, mix(sk, -18), false);
     if (!side) { el(hx - hr + 0.01, hy + 0.04, 0.035, 0.05, sk); el(hx + hr - 0.01, hy + 0.04, 0.035, 0.05, sk); }
-    P(); g.ellipse(hx, hy, hr, hr * 0.94, 0, 0, 7);
+    P(); g.ellipse(hx, hy + 0.01, hr * 0.92, hr * 0.98, 0, 0, 7);
     const hg = g.createRadialGradient(hx - 0.07, hy - 0.06, 0.02, hx, hy, hr); hg.addColorStop(0, mix(sk, 18)); hg.addColorStop(1, mix(sk, -10)); fs(hg);
     // face
     const eyeStyle = L.eyes[look.eyes || 0];
@@ -177,7 +210,7 @@
         P(); g.moveTo(x - 0.035, y + 0.01); g.quadraticCurveTo(x, y + 0.03, x + 0.035, y + 0.01); g.lineWidth = 0.018; g.stroke(); g.lineWidth = LW; return;
       }
       if (eyeStyle === 'Dot') { el(x, y + 0.01, 0.022, 0.026, '#2a1a2a', false); el(x + 0.007, y + 0.002, 0.008, 0.008, '#fff', false); return; }
-      const big = eyeStyle === 'Sparkle', rx = big ? 0.042 : eyeStyle === 'Sharp' ? 0.034 : 0.037, ry = big ? 0.066 : eyeStyle === 'Sharp' ? 0.045 : 0.058;
+      const big = eyeStyle === 'Sparkle', rx = big ? 0.034 : eyeStyle === 'Sharp' ? 0.03 : 0.029, ry = big ? 0.048 : eyeStyle === 'Sharp' ? 0.034 : 0.04;
       el(x, y, rx, ry, '#2a1a2a', false);
       P(); g.ellipse(x, y + ry * 0.3, rx * 0.78, ry * 0.58, 0, 0, 7); fs(ec, false);
       el(x + rx * 0.3, y - ry * 0.4, rx * 0.42, ry * 0.28, '#ffffff', false);
@@ -188,14 +221,31 @@
     if (!back) {
       const ey = hy + 0.045;
       if (side) {
-        eye(-0.12, ey, -1); el(-0.15, ey + 0.08, 0.03, 0.017, 'rgba(255,120,140,.45)', false);
+        eye(-0.12, ey, -1); el(-0.15, ey + 0.08, 0.03, 0.017, 'rgba(200,90,80,.16)', false);
         P(); g.arc(-0.17, ey + 0.1, 0.018, 0.3, Math.PI - 0.3); g.stroke(); el(0.07, hy + 0.05, 0.035, 0.05, sk);
       } else {
         eye(-0.09, ey, -1); eye(0.09, ey, 1);
-        el(-0.145, ey + 0.075, 0.035, 0.018, 'rgba(255,120,140,.45)', false); el(0.145, ey + 0.075, 0.035, 0.018, 'rgba(255,120,140,.45)', false);
+        el(-0.145, ey + 0.075, 0.035, 0.018, 'rgba(200,90,80,.16)', false); el(0.145, ey + 0.075, 0.035, 0.018, 'rgba(200,90,80,.16)', false);
         P(); g.arc(0, ey + 0.085, 0.022, 0.4, Math.PI - 0.4); g.stroke();
       }
       if (eyeStyle !== 'Sharp' && !hat) { g.strokeStyle = mix(hc, -15); g.lineWidth = 0.016; P(); if (side) { g.moveTo(-0.15, ey - 0.08); g.lineTo(-0.09, ey - 0.085); } else { g.moveTo(-0.12, ey - 0.085); g.lineTo(-0.06, ey - 0.09); g.moveTo(0.06, ey - 0.09); g.lineTo(0.12, ey - 0.085); } g.stroke(); g.strokeStyle = OL; g.lineWidth = LW; }
+    }
+    // facial hair
+    const beard = L.beard[look.beard || 0];
+    if (beard !== 'None' && !back) {
+      const bc = mix(hc, -8), cx2 = side ? -0.05 : 0, half = side ? 0.16 : hr * 0.9, my = hy + 0.13;
+      g.save(); g.lineWidth = LW;
+      if (beard === 'Stubble') { P(); g.ellipse(cx2, hy + 0.14, half * 0.85, 0.11, 0, 0, Math.PI); g.fillStyle = bc; g.globalAlpha = 0.35; g.fill(); }
+      if (beard === 'Short beard' || beard === 'Full beard') {
+        const low = beard === 'Full beard' ? 0.2 : 0.1;
+        P(); g.moveTo(cx2 - half, hy + 0.0); g.quadraticCurveTo(cx2 - half * 0.95, hy + hr + low * 0.6, cx2, hy + hr + low);
+        g.quadraticCurveTo(cx2 + half * 0.95, hy + hr + low * 0.6, cx2 + half, hy + 0.0); g.lineTo(cx2 + half * 0.8, hy + 0.03);
+        g.quadraticCurveTo(cx2 + half * 0.55, my + 0.02, cx2 + 0.05, my - 0.005); g.quadraticCurveTo(cx2, my + 0.03, cx2 - 0.05, my - 0.005);
+        g.quadraticCurveTo(cx2 - half * 0.55, my + 0.02, cx2 - half * 0.8, hy + 0.03); g.closePath(); fs(vg(bc, hy, hy + hr + low));
+      }
+      if (beard === 'Goatee') { P(); g.moveTo(cx2 - 0.045, my + 0.03); g.quadraticCurveTo(cx2, my + 0.15, cx2 + 0.045, my + 0.03); g.quadraticCurveTo(cx2, my + 0.05, cx2 - 0.045, my + 0.03); fs(bc); }
+      if (beard !== 'Stubble') { P(); g.moveTo(cx2, my - 0.012); g.quadraticCurveTo(cx2 - 0.06, my - 0.03, cx2 - 0.085, my + 0.02); g.quadraticCurveTo(cx2 - 0.05, my + 0.0, cx2, my + 0.01); g.quadraticCurveTo(cx2 + 0.05, my + 0.0, cx2 + 0.085, my + 0.02); g.quadraticCurveTo(cx2 + 0.06, my - 0.03, cx2, my - 0.012); fs(bc); }
+      g.restore();
     }
     // face items
     if (face && !back) {
@@ -256,9 +306,20 @@
         case 'wizard': el(hx, hy - 0.1, hr + 0.1, 0.06, a); P(); g.moveTo(hx - hr * 0.75, hy - 0.11); g.quadraticCurveTo(hx, hy - 0.5, hx + 0.16, hy - 0.62); g.quadraticCurveTo(hx + 0.1, hy - 0.35, hx + hr * 0.75, hy - 0.11); g.closePath(); fs(vg(a, hy - 0.62, hy - 0.1)); el(hx + 0.02, hy - 0.3, 0.025, 0.025, b, false); el(hx - 0.07, hy - 0.18, 0.018, 0.018, b, false); break;
         case 'crown': P(); g.moveTo(hx - 0.16, hy - hr + 0.04); g.lineTo(hx - 0.17, hy - hr - 0.14); g.lineTo(hx - 0.08, hy - hr - 0.05); g.lineTo(hx, hy - hr - 0.18); g.lineTo(hx + 0.08, hy - hr - 0.05); g.lineTo(hx + 0.17, hy - hr - 0.14); g.lineTo(hx + 0.16, hy - hr + 0.04); g.closePath(); fs(vg(a, hy - hr - 0.18, hy - hr + 0.04)); el(hx, hy - hr - 0.02, 0.025, 0.025, b, false); break;
         case 'flowers': [-0.18, -0.09, 0, 0.09, 0.18].forEach((x, i) => { const y = hy - hr * 0.85 + Math.abs(x) * 0.5; el(hx + x, y, 0.045, 0.045, i % 2 ? '#ffd84a' : a); el(hx + x, y, 0.016, 0.016, '#ffffff', false); }); [-0.13, 0.04, 0.14].forEach((x) => el(hx + x, hy - hr * 0.78 + Math.abs(x) * 0.5, 0.03, 0.015, b, false)); break;
+        case 'hood': {
+          P(); g.ellipse(hx, hy - 0.005, hr + 0.05, hr + 0.045, 0, 0, 7);
+          if (!back) g.ellipse(hx + (side ? -0.08 : 0), hy + 0.06, hr * (side ? 0.62 : 0.74), hr * 0.78, 0, 0, 7, true);
+          g.fillStyle = vg(a, hy - hr, hy + hr); g.fill('evenodd'); g.stroke();
+          P(); g.moveTo(hx + (side ? 0.12 : -0.05), hy - hr - 0.03); g.quadraticCurveTo(hx + (side ? 0.3 : 0.05), hy - hr - 0.08, hx + (side ? 0.26 : 0.0), hy - hr + 0.08); fs(a);
+          rr(hx - hr * 1.05, hy + hr * 0.8, hr * 2.1, 0.09, 0.045, vg(a, hy + hr * 0.8, hy + hr + 0.1));
+          if (!side && !back) { P(); g.moveTo(hx - 0.07, hy + hr + 0.0); g.lineTo(hx, hy + hr + 0.06); g.lineTo(hx + 0.07, hy + hr); g.strokeStyle = b; g.lineWidth = 0.018; g.stroke(); g.strokeStyle = OL; g.lineWidth = LW; }
+          break;
+        }
+        case 'kettle': dome(a, hy - 0.03, hr + 0.02); P(); g.ellipse(hx, hy - 0.04, hr + 0.13, 0.055, 0, 0, 7); fs(vg(a, hy - 0.09, hy)); P(); g.moveTo(hx - hr, hy - 0.06); g.lineTo(hx + hr, hy - 0.06); g.strokeStyle = b; g.lineWidth = 0.014; g.stroke(); g.strokeStyle = OL; g.lineWidth = LW; el(hx, hy - hr - 0.01, 0.022, 0.016, b, false); break;
         case 'headphones': P(); g.ellipse(hx, hy, hr + 0.03, hr + 0.02, 0, Math.PI * 1.05, Math.PI * 1.95); g.lineWidth = 0.04; g.strokeStyle = b; g.stroke(); g.lineWidth = LW; g.strokeStyle = OL; if (side) rr(hx + 0.02, hy - 0.02, 0.08, 0.13, 0.035, a); else { rr(hx - hr - 0.05, hy - 0.03, 0.08, 0.14, 0.035, a); rr(hx + hr - 0.03, hy - 0.03, 0.08, 0.14, 0.035, a); } break;
       }
     }
+    g.restore();
     g.restore();
   };
 
@@ -310,6 +371,7 @@
         <section><h3>Body</h3><div class="opts"><button class="opt${lk.body === 'm' ? ' on' : ''}" data-look="body" data-v="m">Male</button><button class="opt${lk.body === 'f' ? ' on' : ''}" data-look="body" data-v="f">Female</button></div></section>
         <section><h3>Skin</h3><div class="swatches">${sw('skin', L.skin)}</div></section>
         <section><h3>Hair</h3><div class="opts">${opts('hair', L.hair)}</div><div class="swatches">${sw('hairColor', L.hairColor)}</div></section>
+        <section><h3>Facial hair</h3><div class="opts">${opts('beard', L.beard)}</div></section>
         <section><h3>Eyes</h3><div class="opts">${opts('eyes', L.eyes)}</div><div class="swatches">${sw('eyeColor', L.eyeColor)}</div></section>
         ${isNew ? `<section><h3>Starting outfit</h3><p class="hint">You'll collect many more outfits as you play. Everything you wear shows on your pilot.</p><div class="opts">${Object.entries(AF.STARTER_OUTFITS).map(([k, o]) => `<button class="opt${C.outfit === k ? ' on' : ''}" data-outfit="${k}">${o.name}</button>`).join('')}</div></section>
         <section id="cr-con" class="${C.warn && !C.con ? 'need' : ''}"><h3>Your automaton's Construct</h3>${C.warn && !C.con ? '<p class="warn">Pick one to start your adventure.</p>' : ''}<p class="hint">Engineer Mara will build this for you. It decides your automaton's strengths and your 30-card starting deck. This choice is permanent for this pilot.</p>${AF.constructPicker(C.con, AF.coreColor(lk))}</section>

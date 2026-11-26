@@ -97,7 +97,9 @@
     else if (ev.type === 'wardrobe') AF.UI.open('wardrobe');
     else if (ev.type === 'talk') AF.Quests.talk(s, ev.npc);
     else if (ev.type === 'sign') AF.Dialog.show([{ text: ev.text }]);
-    else if (ev.type === 'msg') game.toast(ev.text);
+    else if (ev.type === 'msg') game.toast(ev.text, ev.long ? 6000 : undefined);
+    else if (ev.type === 'dungeon') { input.held = []; fade(); setTimeout(() => { AF.World.enterDungeon(s); game.toast('The Sunken Foundry. The air smells of oil and old magic.', 3500); game.persist(); game.refresh(); }, 160); }
+    else if (ev.type === 'leave') { input.held = []; fade(); setTimeout(() => { AF.World.leaveDungeon(s); game.toast('Fresh air again. Brasshaven lies to the south.'); game.persist(); game.refresh(); }, 160); }
     input.held = [];
     game.persist(); game.refresh();
   };

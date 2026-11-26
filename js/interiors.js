@@ -1,4 +1,4 @@
-/* ArcForge — building interiors. Every building in Rivet Hollow has a room you can walk around in.
+/* Automata: ArcForge — building interiors. Every building in both towns has a room you can walk around in.
    Rooms are 11×8 tiles: a back wall (rows 0–1), floor (rows 2–6) and a door at the bottom middle. */
 (function () {
   const AF = (window.AF = window.AF || {});
@@ -40,6 +40,19 @@
     cottage: { floor: 'wood', wall: '#fff2d8', trim: '#c87838', counter: false,
       items: [{ k: 'bed', x: 8, y: 2, w: 2, h: 2, act: 'flavor', label: 'Look', text: "Pip's bed. There's an automaton plush on the pillow." }, { k: 'chest', x: 1, y: 2, act: 'flavor', label: 'Look', text: 'A toy chest full of bolts, springs and one very small wrench.' },
         { k: 'table', x: 4, y: 4, w: 2 }, { k: 'rug', x: 4, y: 5, w: 3, flat: true }, { k: 'plant', x: 1, y: 6 }] },
+    // ----- Brasshaven -----
+    guild: { floor: 'stone', wall: '#6a5a6a', trim: '#4a2a4a', counter: false, keeper: { name: 'Quartermaster Fenn', x: 5, y: 3, look: AF.npcLook({ skin: 2, hair: 1, hairColor: 1, eyes: 3, beard: 4 }, ['wanderer_hood', 'leather_jerkin', 'breeches', 'dust_boots', 'traveler_cloak']), line: 'Guildmaster Sable meets travellers out front. Make yourself at home, Wayfarer.', talk: true },
+      items: [{ k: 'map', x: 2, y: 2, w: 2, act: 'flavor', label: 'Study', text: 'The Guild map. Pins mark Rivet Hollow to the west, the Foundry to the north and, far to the south-east, a red ring labelled "TITAN".' }, { k: 'hearth', x: 8, y: 2, w: 2 }, { k: 'table', x: 4, y: 5, w: 3 }, { k: 'banner', x: 1, y: 2 }, { k: 'barrel', x: 9, y: 6 }, { k: 'rug', x: 4, y: 4, w: 3, flat: true }] },
+    inn: { floor: 'planks', wall: '#8a6a4a', trim: '#5a2a1e', keeper: { name: 'Innkeep Marta', look: AF.npcLook({ body: 'f', skin: 1, hair: 7, hairColor: 5, eyes: 0, eyeColor: 2 }, ['chef_apron', 'linen_tunic', 'frilly_skirt', 'clogs', 'spatula']), line: 'Stew\'s hot and the beds are soft. Sit, Wayfarer.' },
+      items: [{ k: 'hearth', x: 1, y: 2, w: 2 }, { k: 'dtable', x: 2, y: 5 }, { k: 'dtable', x: 8, y: 5 }, { k: 'barrel', x: 9, y: 2 }, { k: 'barrel', x: 8, y: 2 }] },
+    arcanum: { floor: 'carpet', carpet: '#4a3a7a', wall: '#4a4a6a', trim: '#2a2a4a', keeper: { name: 'Magister Quill', look: AF.npcLook({ skin: 0, hair: 4, hairColor: 9, eyes: 2, beard: 5 }, ['mage_hood', 'archmage_robe', 'slacks', 'loafers', 'tome']), line: 'Runes, blueprints, and cards that hum with old power.' },
+      items: [{ k: 'bookshelf', x: 1, y: 2, act: 'book', label: 'Read' }, { k: 'bookshelf', x: 2, y: 2, act: 'book', label: 'Read' }, { k: 'orb', x: 9, y: 2 }, { k: 'display', x: 2, y: 5 }, { k: 'display', x: 8, y: 5 }, { k: 'rug', x: 4, y: 5, w: 3, flat: true }] },
+    smithy: { floor: 'stone', wall: '#5a524a', trim: '#3a3430', keeper: { name: 'Smith Bryn', look: AF.npcLook({ body: 'f', skin: 3, hair: 5, hairColor: 5, eyes: 3, eyeColor: 0 }, ['welding_goggles', 'forge_apron', 'work_pants', 'steel_boots', 'power_gauntlets', 'forge_hammer']), line: 'Steam-forged parts, Brasshaven-tough. What needs fixing?' },
+      items: [{ k: 'anvil', x: 2, y: 5 }, { k: 'furnace', x: 9, y: 2 }, { k: 'pipes', x: 1, y: 2 }, { k: 'toolboard', x: 8, y: 2 }, { k: 'tires', x: 9, y: 5 }] },
+    vault: { floor: 'marble', wall: '#5a6a5a', trim: '#2a3a2a', keeper: { name: 'Banker Cogg', look: AF.npcLook({ skin: 4, hair: 0, hairColor: 9, eyes: 2, beard: 2 }, ['top_hat', 'monocle', 'padded_vest', 'slacks', 'loafers']), line: 'Ironclad Bank, Brasshaven branch. Same vault, same account.' },
+      items: [{ k: 'vault', x: 9, y: 2, act: 'shop', label: 'Vault' }, { k: 'bench', x: 1, y: 5, w: 2 }, { k: 'plant', x: 1, y: 2 }] },
+    tailor: { floor: 'carpet', carpet: '#6a2a4a', wall: '#7a5a6a', trim: '#4a1a2a', keeper: { name: 'Tailor Velvet', look: AF.npcLook({ body: 'f', skin: 0, hair: 9, hairColor: 0, eyes: 1, eyeColor: 3 }, ['beret', 'pastel_dress', 'ribbon_shoes', 'shadow_cloak']), line: 'Velvet, valves and very fine stitching. Do come in.' },
+      items: [{ k: 'rack', x: 1, y: 4 }, { k: 'rack', x: 1, y: 5 }, { k: 'rack', x: 9, y: 5 }, { k: 'mirror', x: 9, y: 2, act: 'wardrobe', label: 'Mirror' }, { k: 'wardrobe', x: 1, y: 2 }] },
   };
 
   const I = (AF.Interiors = { W: RW, H: RH, DOOR });

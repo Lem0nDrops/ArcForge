@@ -11,7 +11,7 @@
   };
 
   UI.open = function (tab, ctx) {
-    UI.ctx = ctx || null;
+    UI.bld = ctx || null; UI.ctx = ctx ? AF.shopOf(ctx) : null;
     if (tab) UI.tab = tab;
     else if (!UI.ctx || UI.ctx === 'forge') UI.tab = UI.ctx === 'forge' ? 'forge' : 'deck';
     $('#panel').hidden = false; UI.render();
@@ -24,7 +24,7 @@
     const shop = ctx && ctx !== 'forge';
     let head, body;
     if (shop) {
-      const b = AF.BUILDINGS[ctx];
+      const b = AF.BUILDINGS[UI.bld] || AF.BUILDINGS[ctx];
       head = `<h2>${b.name}</h2>`;
       body = `<p class="blurb">${b.blurb}</p>` + AF.Town.render(ctx, s);
     } else {
@@ -39,8 +39,9 @@
       if (UI.tab === 'forge') body = forgeTab(s, ctx === 'forge');
       if (UI.tab === 'deck') body = deckTab(s, ctx === 'forge');
       if (UI.tab === 'map') body = `<div class="maptab"><canvas id="bigmap"></canvas><div class="legend">
-        <span><i class="chip" style="--c:#fff"></i>You</span><span><i class="chip" style="--c:#e05848"></i>Buildings in ${AF.TOWN_NAME}</span>
-        <span><i class="chip" style="--c:#5ef2e1"></i>Unsearched ruin</span><span><i class="chip" style="--c:#ff3b5c"></i>Titan's lair</span>
+        <span><i class="chip" style="--c:#fff"></i>You</span>${AF.World.area(s) === 'foundry'
+          ? '<span><i class="chip" style="--c:#f2c45a"></i>Unopened strongbox</span><span><i class="chip" style="--c:#ff3b5c"></i>The Warden\'s hall</span>'
+          : '<span><i class="chip" style="--c:#b8743a"></i>Buildings (Rivet Hollow, Brasshaven)</span><span><i class="chip" style="--c:#3ad0ff"></i>Unsearched ruin</span><span><i class="chip" style="--c:#c27bff"></i>Sunken Foundry</span><span><i class="chip" style="--c:#ff3b5c"></i>Titan\'s lair</span>'}
         <p id="explored"></p></div></div>`;
       if (ctx !== 'forge' && UI.tab === 'forge') body = '<p class="note">Forging happens inside the Rivet Forge in town. You can browse recipes here.</p>' + body;
     }
@@ -48,7 +49,7 @@
       <header class="ph">${head}<button class="btn ghost x" data-act="close-panel" aria-label="Close">Close</button></header>
       <div class="resbar">${UI.resBar(s)}</div>
       <div class="pbody">${body}</div>`;
-    if (!shop && UI.tab === 'map') $('#explored').textContent = `${AF.World.drawMap($('#bigmap'), s)}% of the wasteland explored`;
+    if (!shop && UI.tab === 'map') $('#explored').textContent = `${AF.World.drawMap($('#bigmap'), s)}% of ${AF.World.area(s) === 'foundry' ? 'the Sunken Foundry' : 'the wilds'} explored`;
     if (shop) AF.Town.afterRender(ctx, s);
     if (!shop && UI.tab === 'pilot') AF.pilotTabAfter(s);
     if (!shop && UI.tab === 'wardrobe') AF.wardrobeAfter(s);

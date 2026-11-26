@@ -207,7 +207,7 @@
       s.stats.wins++;
       AF.World.removeEnemy(s, this.ref.id);
       AF.Quests.event(s, 'win', { tier: this.def.tier });
-      if (this.def.boss) { AF.Quests.event(s, 'boss', {}); s.won = true; out.boss = true; }
+      if (this.def.boss) { AF.Quests.event(s, 'boss', { type: this.ref.type }); if (this.ref.type === 'titan') s.won = true; out.boss = this.ref.type; }
       AF.sfx('win');
     } else {
       s.hp = this.st.maxHp;
@@ -244,7 +244,7 @@
 
   UI.start = function (root, b, onOver) {
     UI.root = root; UI.b = b; UI.onOver = onOver; UI.busy = true; UI.shown = new Set();
-    const scene = { forest: 'grass', grass: 'grass', lawn: 'grass', path: 'grass', sand: 'sand', water: 'sand', rubble: 'rubble', mountain: 'mountain' }[b.terrain] || 'grass';
+    const scene = { forest: 'forest', grass: 'grass', lawn: 'grass', path: 'grass', sand: 'sand', water: 'sand', rubble: 'rubble', mountain: 'mountain', dfloor: 'dungeon' }[b.terrain] || 'grass';
     root.innerHTML = `
       <div class="scene sc-${scene}">
         <div class="sky"></div>
@@ -418,8 +418,8 @@
     const lootRows = Object.entries(out.loot).map(([k, n]) =>
       `<span class="cost"><i class="chip" style="--c:${AF.RES[k].color}"></i>${n > 0 ? '+' : ''}${n} ${AF.RES[k].name}</span>`).join('');
     if (out.result === 'win') return `
-      <h2>${out.boss ? 'The Titan Core falls' : 'Victory!'}</h2>
-      <p>${out.boss ? 'The lair goes quiet. Head back to Rivet Hollow and tell Mayor Bram.' : `${AF.esc(b.def.name)} scrapped.`}</p>
+      <h2>${out.boss === 'titan' ? 'The Titan Core falls' : out.boss === 'warden' ? 'The Warden falls' : 'Victory!'}</h2>
+      <p>${out.boss === 'titan' ? 'The lair goes quiet. Head back to Rivet Hollow and tell Mayor Bram.' : out.boss === 'warden' ? 'Its seal breaks. The strongbox in the Warden\'s hall can be opened now.' : `${AF.esc(b.def.name)} scrapped.`}</p>
       <div class="loot"><span class="cost xpgain">+${out.xp} XP</span>${out.credits ? `<span class="cost">${AF.moneyHtml(out.credits)}</span>` : ''}${lootRows}</div>
       ${!out.credits && !lootRows && !out.gear ? '<p class="muted">No drops this time.</p>' : ''}
       ${out.gear ? `<p class="gear-drop" style="--rc:${AF.RARITY[AF.ITEMS[out.gear].rarity].color}">${AF.itemIcon(out.gear)}<span>${out.dup ? 'Duplicate' : 'New outfit piece!'} <b>${AF.esc(AF.ITEMS[out.gear].name)}</b><small>${out.dup ? `Already in your wardrobe, turned into ${AF.moneyText(out.dup)}` : AF.itemText(out.gear) + ' · added to your Wardrobe'}</small></span></p>` : ''}

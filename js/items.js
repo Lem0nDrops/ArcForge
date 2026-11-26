@@ -138,6 +138,21 @@
     forge_hammer: I('Forge Hammer', 'tool', 'uncommon', 900, { dmg: 1, hp: 3 }, 'hammer', '#8a8e98', '#9a6438', 'forge'),
     spark_staff: I('Spark Staff', 'tool', 'rare', 2800, { dmg: 1, xp: 0.08 }, 'staff', '#9a6438', '#c27bff'),
     arc_blade: I('Arc Blade', 'tool', 'epic', 0, { dmg: 3 }, 'sword', '#bfe8ff', '#5ef2e1', 'arc'),
+    // medieval wear
+    wanderer_hood: I("Wanderer's Hood", 'hat', 'common', 160, { luck: 0.04 }, 'hood', '#5a4a3a', '#3a2e24', 'wayfarer'),
+    mage_hood: I('Runeweaver Hood', 'hat', 'uncommon', 650, { xp: 0.06 }, 'hood', '#3a3a6a', '#c8a050'),
+    iron_helm: I('Iron Kettle Helm', 'hat', 'uncommon', 700, { hp: 5 }, 'kettle', '#7a7a82', '#4a4a52'),
+    linen_tunic: I('Linen Tunic', 'top', 'common', 0, {}, 'tunic', '#b8a888', '#5a4028', 'starter'),
+    leather_jerkin: I('Leather Jerkin', 'top', 'common', 280, { hp: 3, luck: 0.02 }, 'jerkin', '#6a4a2e', '#3a2a1a', 'wayfarer'),
+    mage_robe: I('Apprentice Robe', 'top', 'common', 0, { xp: 0.04 }, 'robe', '#3a3a5a', '#b8944a'),
+    chainmail: I('Riveted Chainmail', 'top', 'uncommon', 900, { hp: 7, block: 1 }, 'mail', '#8a8a92', '#5a4028'),
+    archmage_robe: I('Archmage Vestments', 'top', 'rare', 3000, { xp: 0.1, energy: 1 }, 'robe', '#4a2a5a', '#d8b050'),
+    breeches: I('Travel Breeches', 'bottom', 'common', 200, { speed: 0.03 }, 'pants', '#5a4a38', '#3a2e22', 'wayfarer'),
+    traveler_cloak: I("Traveller's Cloak", 'cape', 'common', 300, { hunger: 3 }, 'cloak', '#4a3a2a', '#8a6a3a', 'wayfarer'),
+    shadow_cloak: I('Shadowmantle', 'cape', 'rare', 2800, { luck: 0.08, speed: 0.06 }, 'cloak', '#26222e', '#6a5a8a'),
+    tome: I('Spellwright Tome', 'tool', 'common', 0, { xp: 0.03 }, 'tome', '#6a2a2a', '#d8b050'),
+    longsword: I('Steel Longsword', 'tool', 'uncommon', 1100, { dmg: 2 }, 'sword', '#c8ccd4', '#6a4a2a'),
+    gear_crossbow: I('Gearwork Crossbow', 'tool', 'rare', 2600, { dmg: 1, luck: 0.06 }, 'crossbow', '#6a4a2a', '#b8944a'),
     // charms (not visible)
     lunchbox: I('Lunchbox Charm', 'charm', 'common', 250, { vit: 6 }),
     lucky_bolt: I('Lucky Bolt Charm', 'charm', 'uncommon', 800, { luck: 0.12 }),
@@ -156,13 +171,14 @@
     scholar: { name: 'Archivist', b3: { xp: 0.1 }, b5: { hand: 1 } },
     chef: { name: 'Diner Crew', b3: { hunger: 8 }, b5: { vit: 10 } },
     arc: { name: 'Arcknight', b3: { dmg: 2 }, b5: { energy: 1 } },
+    wayfarer: { name: 'Wayfarer', b3: { speed: 0.1 }, b5: { luck: 0.1, hunger: 6 } },
   };
   AF.STARTER_OUTFITS = {
-    scavenger: { name: 'Scavenger', items: ['red_bandana', 'scrap_vest', 'cargo_pants', 'dust_boots'] },
+    scavenger: { name: 'Wayfarer', items: ['wanderer_hood', 'leather_jerkin', 'breeches', 'dust_boots', 'traveler_cloak'] },
     tinker: { name: 'Tinker', items: ['overalls_denim', 'basic_pants', 'basic_shoes', 'work_gloves', 'wrench'] },
-    dreamer: { name: 'Dreamer', items: ['beanie_blue', 'striped_sweater', 'pleated_skirt', 'basic_shoes'] },
+    dreamer: { name: 'Apprentice', items: ['mage_robe', 'basic_pants', 'basic_shoes', 'tome'] },
   };
-  AF.BASE_WARDROBE = ['basic_tee', 'basic_pants', 'basic_shoes', 'denim_shorts', 'pleated_skirt', 'wrench'];
+  AF.BASE_WARDROBE = ['linen_tunic', 'basic_tee', 'basic_pants', 'basic_shoes', 'denim_shorts', 'pleated_skirt', 'wrench'];
 
   const STAT_TEXT = {
     hp: (v) => `+${v} automaton HP`, block: (v) => `+${v} Block per defend card`, dmg: (v) => `+${v} damage per hit`, energy: (v) => `+${v} energy per turn`,
@@ -206,7 +222,7 @@
     }
     const p = pool(r); return p[Math.floor(Math.random() * p.length)];
   };
-  AF.STARTER_ONLY = ['overalls_denim', 'denim_shorts', 'pleated_skirt'];
+  AF.STARTER_ONLY = ['overalls_denim', 'denim_shorts', 'pleated_skirt', 'mage_robe', 'tome'];
 
   // ---------- Combined stats: automaton parts + pilot level + worn items + set bonuses ----------
   AF.fullStats = function (s) {

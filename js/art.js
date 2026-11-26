@@ -2,7 +2,7 @@
    The robot is built from its part levels, so every upgrade shows. Swap for PNGs any time. */
 (function () {
   const AF = (window.AF = window.AF || {});
-  const OL = 'stroke="#2a2030" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round"';
+  const OL = 'stroke="#16100c" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round"';
 
   const ARC_COL = ['#ffd75e', '#ffb03b', '#5ef2e1', '#7fb8ff', '#e2a6ff'];
   const sh = (c, a) => AF.shadeHex(c, a);
@@ -13,7 +13,7 @@
     opts = opts || {};
     const U = 'g' + (++uid);
     const B = Object.assign(AF.defaultBot ? AF.defaultBot() : {}, opts.bot || {});
-    const PAL = AF.BOT_PAINT || [['#f0905a']], fc = PAL[B.paint % PAL.length][0], fl = sh(fc, 45), tc = PAL[B.trim % PAL.length][0];
+    const PAL = AF.BOT_PAINT || [['#f0905a']], mu = (c) => (AF.mute ? AF.mute(c, 0.22) : c), fc = mu(PAL[B.paint % PAL.length][0]), fl = sh(fc, 30), tc = mu(PAL[B.trim % PAL.length][0]);
     const arc = opts.core || ARC_COL[p.arc - 1], OLc = '#2a2030';
     const grad = `<defs><linearGradient id="${U}p" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${fl}"/><stop offset="1" stop-color="${sh(fc, -18)}"/></linearGradient>
       <radialGradient id="${U}c"><stop offset="0" stop-color="#ffffff"/><stop offset=".35" stop-color="${arc}"/><stop offset="1" stop-color="${sh(arc, -30)}"/></radialGradient></defs>`;
@@ -78,7 +78,7 @@
     };
     const mouth = B.eyes === 'visor' || B.head === 'visor' ? '' : B.eyes === 'angry' ? `<path d="M56 46 h14" stroke="${arc}" stroke-width="2.6" stroke-linecap="round"/>` : `<path d="M57 44 q6 5 12 0" fill="none" stroke="${arc}" stroke-width="2.6" stroke-linecap="round"/>`;
     const eyes = B.head === 'visor' ? `<rect x="34" y="30" width="52" height="9" rx="4.5" fill="${arc}" opacity=".9"/><circle cx="${B.eyes === 'happy' ? 50 : 70}" cy="34.5" r="3" fill="#fff"/>` : (EY[B.eyes] || EY.round);
-    const cheeks = B.head === 'visor' ? '' : `<ellipse cx="42" cy="46" rx="4" ry="2.4" fill="#ff8aa8" opacity=".7"/><ellipse cx="82" cy="46" rx="4" ry="2.4" fill="#ff8aa8" opacity=".7"/>`;
+    const cheeks = B.head === 'visor' ? '' : `<ellipse cx="42" cy="46" rx="4" ry="2.4" fill="#ff8aa8" opacity=".3"/><ellipse cx="82" cy="46" rx="4" ry="2.4" fill="#ff8aa8" opacity=".3"/>`;
     const AN = {
       ball: `<path d="M60 12 V0" stroke="${OLc}" stroke-width="4"/><circle cx="60" cy="0" r="5.5" fill="${arc}" ${OL}/>`,
       bolt: `<path d="M60 12 V4" stroke="${OLc}" stroke-width="4"/><path d="M62 -8 l-8 10 h6 l-3 8 9-11 h-6 l3-7z" fill="${arc}" stroke="${OLc}" stroke-width="2"/>`,
@@ -110,7 +110,7 @@
   AF.botKey = (s) => JSON.stringify(s.parts) + AF.coreColor(s.look) + JSON.stringify(s.bot || {}) + s.construct;
 
   AF.enemySVG = function (type) {
-    const e = AF.ENEMIES[type], c = e.body;
+    const e = AF.ENEMIES[type], c = AF.mute ? AF.mute(e.body, 0.25) : e.body;
     const angry = (x, y, s) => `<ellipse cx="${x}" cy="${y}" rx="${5 * s}" ry="${6 * s}" fill="#ffffff" ${OL}/><circle cx="${x - 1 * s}" cy="${y + 1 * s}" r="${2.8 * s}" fill="#ff2a3a"/><path d="M${x - 7 * s} ${y - 9 * s} L${x + 6 * s} ${y - 5 * s}" stroke="#2a2030" stroke-width="${3.5 * s}" stroke-linecap="round"/>`;
     let s = '';
     switch (type) {
@@ -132,6 +132,25 @@
       case 'juggernaut': s = `<rect x="18" y="96" width="84" height="18" rx="9" fill="#2a2e3a" ${OL}/><rect x="16" y="26" width="88" height="72" rx="18" fill="${c}" ${OL}/>
         <circle cx="10" cy="70" r="14" fill="#8a96a8" ${OL}/><circle cx="110" cy="70" r="14" fill="#8a96a8" ${OL}/><rect x="32" y="40" width="56" height="18" rx="8" fill="#1e2440" ${OL}/>
         <rect x="38" y="44" width="16" height="10" rx="4" fill="#ff2a3a"/><rect x="66" y="44" width="16" height="10" rx="4" fill="#ff2a3a"/><path d="M42 80 h36" stroke="#2a2030" stroke-width="5" stroke-linecap="round"/>`; break;
+      case 'cogspider': s = `${[[30, 70, 6, 100], [36, 64, 14, 92], [90, 70, 114, 100], [84, 64, 106, 92], [40, 74, 22, 108], [80, 74, 98, 108]].map(([x1, y1, x2, y2]) => `<path d="M${x1} ${y1} Q${(x1 + x2) / 2} ${y1 - 26} ${x2} ${y2}" fill="none" stroke="#1a1410" stroke-width="7" stroke-linecap="round"/><path d="M${x1} ${y1} Q${(x1 + x2) / 2} ${y1 - 26} ${x2} ${y2}" fill="none" stroke="#8a6a32" stroke-width="3" stroke-linecap="round"/>`).join('')}
+        <g transform="translate(60 66)">${[0, 40, 80, 120, 160, 200, 240, 280, 320].map((a) => `<rect x="-4" y="-34" width="8" height="10" fill="${c}" ${OL} transform="rotate(${a})"/>`).join('')}<circle r="28" fill="${c}" ${OL}/><circle r="10" fill="#2a2018" ${OL}/></g>
+        <circle cx="50" cy="56" r="5" fill="#ff5a2a"/><circle cx="62" cy="52" r="4" fill="#ff5a2a"/><circle cx="72" cy="57" r="5" fill="#ff5a2a"/>`; break;
+      case 'gearghoul': s = `<path d="M30 112 Q24 70 38 46 Q60 22 82 46 Q96 70 90 112 l-10 -8 l-10 8 l-10 -8 l-10 8 l-10 -8 Z" fill="#2a2a2e" ${OL}/>
+        <path d="M36 50 Q60 12 84 50 Q74 64 60 64 Q46 64 36 50 Z" fill="${c}" ${OL}/>
+        <rect x="40" y="70" width="40" height="26" rx="6" fill="#3a3a34" ${OL}/>${[46, 56, 66].map((x) => `<rect x="${x}" y="74" width="7" height="18" rx="2" fill="#6a8a5a"/>`).join('')}
+        <path d="M20 60 Q8 74 16 92" fill="none" stroke="#5a5a52" stroke-width="8" stroke-linecap="round"/><path d="M100 60 Q112 74 104 92" fill="none" stroke="#5a5a52" stroke-width="8" stroke-linecap="round"/>
+        <circle cx="50" cy="46" r="5" fill="#9aff7a"/><circle cx="70" cy="46" r="5" fill="#9aff7a"/>`; break;
+      case 'runegolem': s = `<rect x="26" y="96" width="30" height="18" rx="5" fill="#3a3a42" ${OL}/><rect x="64" y="96" width="30" height="18" rx="5" fill="#3a3a42" ${OL}/>
+        <path d="M22 40 L40 22 H80 L98 40 L94 98 H26 Z" fill="${c}" ${OL}/><rect x="4" y="44" width="22" height="46" rx="8" fill="${c}" ${OL}/><rect x="94" y="44" width="22" height="46" rx="8" fill="${c}" ${OL}/>
+        <path d="M50 50 L60 40 L70 50 L60 76 Z M46 64 H74" fill="none" stroke="#7ae0ff" stroke-width="3.5" stroke-linejoin="round"/>
+        <rect x="42" y="26" width="36" height="10" rx="4" fill="#1a1a24"/><rect x="46" y="28" width="10" height="6" rx="2" fill="#7ae0ff"/><rect x="64" y="28" width="10" height="6" rx="2" fill="#7ae0ff"/>`; break;
+      case 'warden': s = `<rect x="22" y="100" width="76" height="16" rx="6" fill="#2a2420" ${OL}/>
+        <path d="M14 58 L30 30 H90 L106 58 L100 104 H20 Z" fill="${c}" ${OL}/>
+        <circle cx="60" cy="68" r="22" fill="#e0d4b0" ${OL}/>${[...Array(12)].map((_, i) => `<circle cx="${60 + Math.cos(i * Math.PI / 6) * 17}" cy="${68 + Math.sin(i * Math.PI / 6) * 17}" r="1.6" fill="#2a2018"/>`).join('')}
+        <path d="M60 68 L60 54 M60 68 L70 72" stroke="#2a2018" stroke-width="3" stroke-linecap="round"/>
+        <path d="M34 30 L40 6 L50 24 L60 2 L70 24 L80 6 L86 30 Z" fill="#a07a3a" ${OL}/><circle cx="60" cy="16" r="4" fill="#ff4a2a"/>
+        <rect x="0" y="50" width="18" height="46" rx="6" fill="#6a5028" ${OL}/><rect x="102" y="50" width="18" height="46" rx="6" fill="#6a5028" ${OL}/>
+        <rect x="40" y="36" width="12" height="8" rx="3" fill="#ff4a2a"/><rect x="68" y="36" width="12" height="8" rx="3" fill="#ff4a2a"/>`; break;
       default: s = `<circle cx="60" cy="60" r="54" fill="#3a1420" ${OL}/>${[0, 45, 90, 135, 180, 225, 270, 315].map((a) => `<rect x="55" y="0" width="10" height="18" rx="4" fill="#6a6e7a" ${OL} transform="rotate(${a} 60 60)"/>`).join('')}
         <circle cx="60" cy="60" r="42" fill="${c}" ${OL}/><circle cx="60" cy="66" r="18" fill="#ffcf5e" ${OL}/><circle cx="60" cy="66" r="8" fill="#ffffff"/>${angry(40, 40, 1.3)}${angry(80, 40, 1.3)}`;
     }

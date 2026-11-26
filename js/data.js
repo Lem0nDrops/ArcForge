@@ -73,14 +73,16 @@
   // ---------- Terrain ----------
   // legs = minimum Locomotion level needed to enter.
   AF.TERRAIN = {
-    water:    { name: 'Water',     legs: 3, color: '#5090e8' },
-    sand:     { name: 'Sand',      legs: 1, color: '#f0dc98' },
-    grass:    { name: 'Grassland', legs: 1, color: '#88d068' },
-    forest:   { name: 'Tall grass', legs: 1, color: '#58a840' },
-    rubble:   { name: 'Rubble',    legs: 2, color: '#b8a890' },
-    mountain: { name: 'Mountains', legs: 4, color: '#b8905a' },
-    path:     { name: 'Rivet Hollow', legs: 1, color: '#e8d8a0' },
-    lawn:     { name: 'Rivet Hollow', legs: 1, color: '#90d870' },
+    water:    { name: 'Deep water',   legs: 3, color: '#2e5468' },
+    sand:     { name: 'Dry flats',    legs: 1, color: '#a8966e' },
+    grass:    { name: 'Moorland',     legs: 1, color: '#5a7244' },
+    forest:   { name: 'Thicket',      legs: 1, color: '#3a5430' },
+    rubble:   { name: 'Scrapfields',  legs: 2, color: '#6e6456' },
+    mountain: { name: 'Crags',        legs: 4, color: '#5e564e' },
+    path:     { name: 'Old road',     legs: 1, color: '#8a7a62' },
+    lawn:     { name: 'Town',         legs: 1, color: '#66804c' },
+    dfloor:   { name: 'Foundry halls', legs: 1, color: '#4a4440' },
+    dwall:    { name: 'Wall',          legs: 9, color: '#1e1a1a' },
   };
   AF.TERRAIN_BY_LEGS = {
     1: 'grass, sand & forest', 2: '+ rubble', 3: '+ water', 4: '+ mountains', 5: 'everything, fast',
@@ -280,6 +282,22 @@
                 { a: 'overcharge', dmg: 4 }, { a: 'shoot', dmg: 10, hits: 2, r: 2 }, { a: 'drain', dmg: 18, r: 1 }],
       loot: { arcite: [8, 8], circuits: [6, 6] } },
   };
+  // ----- The Sunken Foundry (dungeon) -----
+  Object.assign(AF.ENEMIES, {
+    cogspider: { name: 'Cog Spider', tier: 2, hp: 40, start: 1, body: '#6a5a3a', dungeon: true,
+      pattern: [{ a: 'hit', dmg: 8, hits: 2, r: 0 }, { a: 'retreat' }, { a: 'shoot', dmg: 9, r: 1 }],
+      loot: { copper: [3, 5], circuits: [0, 1] } },
+    gearghoul: { name: 'Gear Ghoul', tier: 3, hp: 70, start: 1, body: '#5a6a58', dungeon: true,
+      pattern: [{ a: 'hit', dmg: 14, r: 0 }, { a: 'drain', dmg: 9, r: 1 }, { a: 'hit', dmg: 7, hits: 3, r: 0 }],
+      loot: { scrap: [8, 12], circuits: [1, 2] } },
+    runegolem: { name: 'Rune Golem', tier: 3, hp: 100, start: 2, body: '#5a5a6a', dungeon: true,
+      pattern: [{ a: 'block', block: 18 }, { a: 'shoot', dmg: 13, r: 2 }, { a: 'aim', dmg: 8 }, { a: 'hit', dmg: 22, r: 0 }],
+      loot: { arcite: [2, 4], silicon: [2, 4] } },
+    warden: { name: 'The Clockwork Warden', tier: 4, hp: 170, start: 1, boss: true, body: '#7a5a2a', dungeon: true,
+      pattern: [{ a: 'hit', dmg: 18, r: 0 }, { a: 'block', block: 20 }, { a: 'shoot', dmg: 9, hits: 2, r: 2 }, { a: 'overcharge', dmg: 3 }, { a: 'hit', dmg: 12, hits: 2, r: 0 }],
+      loot: { arcite: [5, 5], circuits: [4, 4], copper: [8, 8] } },
+  });
+  AF.DUNGEON_POOL = ['cogspider', 'cogspider', 'gearghoul', 'runegolem'];
   // Credits dropped per enemy tier [min, max]
   // Money dropped (in Bolts) and the chance that a bot drops money / each material at all.
   AF.CREDITS_BY_TIER = { 1: [40, 90], 2: [100, 180], 3: [220, 340], 4: [2500, 2500] };
@@ -306,8 +324,20 @@
     boutique: { name: 'Gearwear Boutique',   sign: 'BOUTIQUE', x: 19, y: 20, w: 5, h: 4, roof: '#e070a8', blurb: 'Clothes, headwear and accessories.' },
     cottage:  { name: "Pip's Cottage",       sign: '',         x: 26, y: 20, w: 4, h: 4, roof: '#c87838', blurb: '' },
   };
+  // ---------- Town 2: Brasshaven (26×22, east of Rivet Hollow) ----------
+  // shop: which shop screen the building uses.
+  Object.assign(AF.BUILDINGS, {
+    guild:   { town: 2, name: "Wayfarers' Guild",      sign: 'GUILD',    x: 2,  y: 2,  w: 6, h: 5, roof: '#5a3a5a', blurb: '' },
+    inn:     { town: 2, name: 'The Gilded Cog Inn',     sign: 'INN',      x: 9,  y: 2,  w: 6, h: 5, roof: '#8a3a2a', shop: 'diner', blurb: 'Hot food, a warm hearth and battle tonics.' },
+    arcanum: { town: 2, name: 'Arcanum Emporium',       sign: 'ARCANUM',  x: 18, y: 2,  w: 6, h: 5, roof: '#3a3a6a', shop: 'cards', blurb: 'Rune-etched cards and rare blueprints.' },
+    smithy:  { town: 2, name: 'Brass Anvil Smithy',     sign: 'SMITHY',   x: 2,  y: 13, w: 5, h: 4, roof: '#4a4a52', shop: 'garage', blurb: 'Part upgrades, repairs and core paint.' },
+    vault:   { town: 2, name: 'Ironclad Bank (Brasshaven)', sign: 'BANK', x: 7, y: 15, w: 4, h: 4, roof: '#3a5a42', shop: 'bank', blurb: 'Your account, from either town.' },
+    tailor:  { town: 2, name: 'Velvet & Valve Tailor',  sign: 'TAILOR',   x: 19, y: 13, w: 5, h: 4, roof: '#6a2a4a', shop: 'boutique', blurb: 'Fine clothes for travellers.' },
+  });
+  AF.TOWN_NAMES = { 1: 'Rivet Hollow', 2: 'Brasshaven' };
+  AF.shopOf = (id) => (AF.BUILDINGS[id] && AF.BUILDINGS[id].shop) || id;
   // Buildings that open a panel. The others start a conversation instead.
-  AF.SHOPS = ['home', 'cards', 'bank', 'salvage', 'garage', 'diner', 'forge', 'academy', 'boutique'];
+  AF.SHOPS = ['home', 'cards', 'bank', 'salvage', 'garage', 'diner', 'forge', 'academy', 'boutique', 'inn', 'arcanum', 'smithy', 'vault', 'tailor'];
 
   AF.TIERS = { 1: ['scrapling', 'spitter'], 2: ['rustbiter', 'sniper', 'shellback'], 3: ['wraith', 'juggernaut'] };
 })();

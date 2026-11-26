@@ -1,23 +1,31 @@
-/* ArcForge — townsfolk, dialogue boxes, the story questline and the optional tutorial. */
+/* Automata: ArcForge — townsfolk, dialogue boxes, the story questline and the optional tutorial. */
 (function () {
   const AF = (window.AF = window.AF || {});
   const $ = (s) => document.querySelector(s);
 
   // ---------- Townsfolk (x, y in town tiles) ----------
   AF.NPCS = {
-    mara: { name: 'Engineer Mara', x: 8, y: 24, dir: 'left', look: AF.npcLook({ body: 'f', skin: 2, hair: 6, hairColor: 5, eyes: 1, eyeColor: 1 }, ['welding_goggles', 'overalls_denim', 'work_pants', 'steel_boots', 'work_gloves', 'wrench']) },
+    mara: { name: 'Engineer Mara', x: 8, y: 24, dir: 'left', look: AF.npcLook({ body: 'f', skin: 2, hair: 6, hairColor: 5, eyes: 1, eyeColor: 1 }, ['welding_goggles', 'forge_apron', 'work_pants', 'steel_boots', 'work_gloves', 'forge_hammer']) },
     bram: { name: 'Mayor Bram', x: 24, y: 7, dir: 'down', look: AF.npcLook({ skin: 3, hair: 0, hairColor: 9, eyes: 2 }, ['top_hat', 'monocle', 'scholar_coat', 'slacks', 'loafers']) },
-    lune: { name: 'Archivist Lune', x: 13, y: 7, dir: 'down', look: AF.npcLook({ body: 'f', skin: 0, hair: 4, hairColor: 7, eyes: 0, eyeColor: 3 }, ['beret', 'glasses', 'scholar_coat', 'pleated_skirt', 'loafers', 'lantern']) },
-    pip: { name: 'Pip', x: 14, y: 24, dir: 'down', look: AF.npcLook({ skin: 1, hair: 2, hairColor: 3, eyes: 1, eyeColor: 5 }, ['aviator_cap', 'hoodie_orange', 'denim_shorts', 'sneakers', 'backpack']) },
-    rook: { name: 'Guard Rook', x: 18, y: 26, dir: 'left', look: AF.npcLook({ skin: 4, hair: 1, hairColor: 0, eyes: 3 }, ['arc_helm', 'arc_plate', 'arc_greaves', 'arc_sabatons', 'hero_cape', 'arc_blade']) },
+    lune: { name: 'Archivist Lune', x: 13, y: 7, dir: 'down', look: AF.npcLook({ body: 'f', skin: 0, hair: 4, hairColor: 7, eyes: 0, eyeColor: 3 }, ['mage_hood', 'glasses', 'mage_robe', 'slacks', 'loafers', 'tome']) },
+    pip: { name: 'Pip', x: 14, y: 24, dir: 'down', look: AF.npcLook({ skin: 1, hair: 2, hairColor: 3, eyes: 1, eyeColor: 5 }, ['wanderer_hood', 'linen_tunic', 'breeches', 'dust_boots', 'backpack']) },
+    rook: { name: 'Guard Rook', x: 18, y: 26, dir: 'left', look: AF.npcLook({ skin: 4, hair: 1, hairColor: 0, eyes: 3 }, ['iron_helm', 'chainmail', 'breeches', 'steel_boots', 'traveler_cloak', 'longsword']) },
     tess: { name: 'Tess', x: 9, y: 16, wander: true, look: AF.npcLook({ body: 'f', skin: 2, hair: 6, hairColor: 6, eyes: 1, eyeColor: 3 }, ['ribbon_bow', 'pastel_dress', 'ribbon_shoes']),
       lines: ["I'm gonna be a pilot too someday! My automaton will have a JETPACK.", 'Did you know the pond fish glow at night? Mara says it\'s arc runoff.', 'Gus says the Titan used to light up the whole sky.'] },
-    gus: { name: 'Old Gus', x: 24, y: 16, wander: true, look: AF.npcLook({ skin: 0, hair: 0, hairColor: 9, eyes: 2 }, ['cowboy_hat', 'padded_vest', 'cargo_pants', 'trail_boots']),
+    gus: { name: 'Old Gus', x: 24, y: 16, wander: true, look: AF.npcLook({ skin: 0, hair: 0, hairColor: 9, eyes: 2 }, ['cowboy_hat', 'leather_jerkin', 'breeches', 'trail_boots']),
       lines: ['Back in my day, the Arc Fountain could power the whole town.', 'Bots out there act on a pattern. Watch what they plan to do next, then stay out of reach.', 'Bank your credits, kid. The wilds take a cut if your automaton goes down.'] },
-    nell: { name: 'Nell', x: 29, y: 15, wander: true, look: AF.npcLook({ body: 'f', skin: 5, hair: 7, hairColor: 0, eyes: 0, eyeColor: 2 }, ['flower_crown', 'striped_sweater', 'frilly_skirt', 'clogs']),
+    nell: { name: 'Nell', x: 29, y: 15, wander: true, look: AF.npcLook({ body: 'f', skin: 5, hair: 7, hairColor: 0, eyes: 0, eyeColor: 2 }, ['flower_crown', 'chef_apron', 'frilly_skirt', 'clogs']),
       lines: ['The Diner\'s Focus Tea is the only thing keeping me awake.', 'Copper veins show up in the rubble east of here. You\'ll need Treads.', 'The Deckhouse restocks every so often. Check back!'] },
-    vik: { name: 'Vik', x: 12, y: 26, wander: true, look: AF.npcLook({ skin: 3, hair: 8, hairColor: 1, eyes: 3, eyeColor: 4 }, ['eyepatch', 'flight_jacket', 'flight_pants', 'dust_boots', 'patch_scarf']),
+    vik: { name: 'Vik', x: 12, y: 26, wander: true, look: AF.npcLook({ skin: 3, hair: 8, hairColor: 1, eyes: 3, eyeColor: 4 }, ['eyepatch', 'flight_jacket', 'flight_pants', 'dust_boots', 'traveler_cloak', 'gear_crossbow']),
       lines: ['Spark Spitters shoot from far away. Get a Rail Shot or close the gap fast!', 'Ruins have a little blue light while nobody\'s searched them yet.', 'I traded three Scrap for a sandwich once. Worth it.'] },
+    // Brasshaven (town 2)
+    sable: { town: 2, name: 'Guildmaster Sable', x: 5, y: 8, dir: 'down', look: AF.npcLook({ body: 'f', skin: 3, hair: 4, hairColor: 9, eyes: 3, eyeColor: 4 }, ['wanderer_hood', 'leather_jerkin', 'breeches', 'trail_boots', 'shadow_cloak', 'gear_crossbow']) },
+    corwin: { town: 2, name: 'Artificer Corwin', x: 21, y: 8, dir: 'down', look: AF.npcLook({ skin: 1, hair: 3, hairColor: 9, eyes: 2, beard: 5 }, ['monocle', 'lab_coat', 'slacks', 'loafers', 'power_gauntlets', 'spark_staff']) },
+    hollis: { town: 2, name: 'Gatewarden Hollis', x: 13, y: 20, dir: 'down', look: AF.npcLook({ skin: 4, hair: 1, hairColor: 0, eyes: 3, beard: 4 }, ['iron_helm', 'chainmail', 'breeches', 'steel_boots', 'hero_cape', 'longsword']) },
+    mira: { town: 2, name: 'Mira the Hedge-Witch', x: 8, y: 11, wander: true, look: AF.npcLook({ body: 'f', skin: 0, hair: 4, hairColor: 9, eyes: 2, eyeColor: 3 }, ['wizard_hat', 'archmage_robe', 'pleated_skirt', 'loafers', 'spark_staff']),
+      lines: ['The Foundry hums with old rune-work. Gears and spells, braided together. Nasty combination.', 'Crystals down there drink the dark. Touch one and you\'ll feel it.', 'Rune Golems guard themselves before they strike. Hit them when the shield drops.'] },
+    tobin: { town: 2, name: 'Tobin the Tinker', x: 18, y: 17, wander: true, look: AF.npcLook({ skin: 2, hair: 2, hairColor: 2, eyes: 0, beard: 1 }, ['leather_cap', 'forge_apron', 'work_pants', 'dust_boots', 'wrench']),
+      lines: ['Steam, springs and a little spellwork. That\'s how Brasshaven runs.', 'The Smithy here does the same upgrades as Rivet Hollow\'s Garage. Same prices, better tea.', 'Your account at the Ironclad Bank works here too. Handy, eh?'] },
   };
 
   // ---------- Quests ----------
@@ -26,8 +34,11 @@
     s2: { title: "The Mayor's Request", text: 'Mayor Bram is waiting outside Town Hall (north).', obj: { type: 'talk' }, next: 's3' },
     s3: { title: 'Static in the Fields', text: 'Defeat 3 rogue bots outside town, then report to Mayor Bram.', obj: { type: 'win', n: 3 }, turnIn: 'bram', reward: { credits: 400, rations: 2, xp: 80 }, next: 's4' },
     s4: { title: 'Echoes in the Ruins', text: 'Search 2 ruins in the wilds, then bring the data to Archivist Lune.', obj: { type: 'ruin', n: 2 }, turnIn: 'lune', reward: { credits: 300, blueprint: 1, xp: 100, item: 'scout_goggles' }, next: 's5' },
-    s5: { title: 'Over the Rubble', text: 'Upgrade to Treads at the Garage and defeat a tougher bot (yellow tag or higher). Report to Mayor Bram.', obj: { type: 'win', n: 1, minTier: 2 }, turnIn: 'bram', reward: { credits: 600, xp: 150, item: 'ranger_jacket' }, next: 's6' },
-    s6: { title: "The Titan's Call", text: "Climb to the Titan's lair in the far mountains (Spider Legs needed) and shut the Titan Core down. Then tell Mayor Bram.", obj: { type: 'boss', n: 1 }, turnIn: 'bram', reward: { credits: 5000, xp: 600 }, next: 'end' },
+    s5: { title: 'Over the Rubble', text: 'Upgrade to Treads at the Garage and defeat a tougher bot (yellow tag or higher). Report to Mayor Bram.', obj: { type: 'win', n: 1, minTier: 2 }, turnIn: 'bram', reward: { credits: 600, xp: 150, item: 'ranger_jacket' }, next: 'b1' },
+    b1: { title: 'The Brass Road', text: 'Follow the Brass Road east to Brasshaven and find Guildmaster Sable outside the Wayfarers\' Guild.', obj: { type: 'talk' }, next: 'b2' },
+    b2: { title: 'Into the Sunken Foundry', text: 'Enter the Sunken Foundry north of Brasshaven and open 2 of its old strongboxes. Report to Guildmaster Sable.', obj: { type: 'chest', n: 2 }, turnIn: 'sable', reward: { credits: 1500, xp: 300, item: 'iron_helm' }, next: 'b3' },
+    b3: { title: 'The Clockwork Warden', text: 'Defeat the Clockwork Warden in the Foundry\'s deepest hall, then return to Guildmaster Sable.', obj: { type: 'boss', boss: 'warden', n: 1 }, turnIn: 'sable', reward: { credits: 3000, xp: 500, item: 'shadow_cloak' }, next: 's6' },
+    s6: { title: "The Titan's Call", text: "Climb to the Titan's lair in the far mountains (Spider Legs needed) and shut the Titan Core down. Then tell Mayor Bram.", obj: { type: 'boss', boss: 'titan', n: 1 }, turnIn: 'bram', reward: { credits: 5000, xp: 600 }, next: 'end' },
   };
   AF.TUTORIAL = {
     t1: { title: 'First Harvest', text: 'Gather 5 Scrap from scrap piles outside town.', obj: { type: 'gather', res: 'scrap', n: 5 }, reward: { credits: 100, xp: 20, item: 'work_gloves' } },
@@ -46,6 +57,7 @@
     if (o.type !== type) return 0;
     if (type === 'gather') return o.res === data.res ? data.amt : 0;
     if (type === 'win') return !o.minTier || data.tier >= o.minTier ? 1 : 0;
+    if (type === 'boss') return !o.boss || o.boss === data.type ? 1 : 0;
     return 1;
   }
 
@@ -225,10 +237,11 @@
         if (s === 's4') return say([N('bram', 'Lune\'s waiting outside the Archive, north-west of the square.')]);
         if (s === 's5') return qs.ready ? say([
           N('bram', 'You beat one of the heavy bots? Rivet Hollow is lucky to have you.'),
-          N('bram', 'Lune\'s readings point to the Titan\'s lair, deep in the far mountains. Only Spider Legs can climb those cliffs.'),
-          N('bram', 'Get your automaton ready. When you are... shut that thing down.'),
+          N('bram', 'Lune\'s readings point to the Titan\'s lair, deep in the far mountains. But we don\'t know how to shut it down.'),
+          N('bram', 'The Wayfarers\' Guild in Brasshaven might. Take the Brass Road east, over the river, and ask for Guildmaster Sable.'),
         ], { onDone: () => { const got = turnIn(state); AF.game.toast(`Reward: ${got}.`, 4500); } })
           : say([N('bram', 'Fit your automaton with Treads at the Garage, then take on one of the tougher bots out past the rubble.')]);
+        if (s === 'b1' || s === 'b2' || s === 'b3') return say([N('bram', 'Any word from Brasshaven? The Brass Road starts at our east gate.')]);
         if (s === 's6') return qs.ready ? say([
           N('bram', 'The Titan Core... quiet at last? Look! The Arc Fountain is glowing brighter than ever!'),
           N('bram', 'You did it, {name}. Rivet Hollow will tell stories about you for years.'),
@@ -265,6 +278,28 @@
         const left = Object.entries(AF.TUTORIAL).filter(([k]) => !qs.tdone.includes(k));
         return say([N('pip', `${qs.tdone.length} of ${total} tasks done! Next up: ${left[0][1].title}. ${left[0][1].text}`)]);
       }
+      case 'sable':
+        if (s === 'b1') return say([
+          N('sable', 'You came all the way from Rivet Hollow? Then the Titan stirs again. I felt it in the gears of the Great Clock.'),
+          N('sable', 'The Titan was built in the Sunken Foundry, north of our walls. Its makers left their secrets there, and their guardians.'),
+          N('sable', 'Bring me proof the Foundry still holds its strongboxes. Open two, and mind the Cog Spiders.'),
+        ], { onDone: () => advance(state) });
+        if (s === 'b2') return qs.ready ? say([
+          N('sable', 'Foundry brass, and a seal I haven\'t seen in fifty years. So the Warden still walks.'),
+          N('sable', 'The Clockwork Warden holds the Titan\'s shutdown key. Beat it in the deepest hall and bring the key to me.'),
+        ], { onDone: () => { const got = turnIn(state); AF.game.toast(`Reward: ${got}.`, 4500); } })
+          : say([N('sable', `The Foundry entrance is just north of the city. ${2 - qs.prog} strongbox${2 - qs.prog === 1 ? '' : 'es'} to go.`)]);
+        if (s === 'b3') return qs.ready ? say([
+          N('sable', 'The Warden\'s key. With this, the Titan Core can be silenced for good.'),
+          N('sable', 'Its lair lies in the far mountains, south-east of here. Only Spider Legs will climb those cliffs. Go, Wayfarer.'),
+        ], { onDone: () => { const got = turnIn(state); AF.game.toast(`Reward: ${got}.`, 4500); } })
+          : say([N('sable', 'The Warden waits in the Foundry\'s eastern hall. Strengthen your automaton first. It hits like a falling bell.')]);
+        if (AF.QUESTS[s] && ['s1', 's2', 's3', 's4', 's5'].includes(s)) return say([N('sable', 'A traveller from the west? Welcome to Brasshaven. Our Guild takes all sorts.')]);
+        return say([N('sable', pick(['The Foundry\'s halls fill up again if you leave them long enough. Good hunting for a Wayfarer.', 'Every Wayfarer leaves a mark on the Guild map. Yours is getting crowded.']))]);
+      case 'corwin':
+        return say([N('corwin', pick(['Magic and machinery are the same thing, you know. Both are just very old instructions.', 'An Arc Core is a captured spell. Treat yours kindly.', 'The Arcanum sells the best blueprints in the west. Pricey, but worth it.']))]);
+      case 'hollis':
+        return say([N('hollis', pick(['Brasshaven\'s gates stay open to honest folk. The Foundry\'s, not so much.', 'North of the walls is the Foundry. East and south, the wilds get rough.', 'If you fall in the Foundry, your recovery beacon brings you home to Rivet Hollow.']))]);
       case 'rook':
         if (!state.flags.robot) return say([N('rook', 'Whoa, hold it! The wilds are crawling with rogue bots. Nobody leaves town without an automaton.'), N('rook', 'Go see Engineer Mara outside the Rivet Forge.')]);
         return say([N('rook', pick(['Stay sharp out there. The farther you go from town, the tougher the bots get.', 'Bots with red tags are the nastiest. Steer clear until your automaton is upgraded.', 'If your automaton goes down, the recovery beacon brings you home. You\'ll drop some loot, though.']))]);

@@ -552,3 +552,46 @@ h1 .logo { width: 100%; max-width: 500px; }
 .con { background: #fbf4e4; padding-top: 8px; }
 .con-pic { width: 100%; height: 118px; border-radius: 12px; padding: 6px; background: radial-gradient(ellipse at 50% 85%, rgba(58,208,255,.3), transparent 60%), linear-gradient(#263040, #121822); }
 @media (max-width: 760px) { .con-pic { width: 84px; height: 84px; } }
+
+/* ===== v0.8 "Ironbound" theme: darker, weathered, medieval steampunk ===== */
+:root { --ink: #22180f; --mute: #6a5640; --line: #a8916a; --soft: #d6c49e; --card: #e6d8b6; --display: 'Cinzel', Georgia, serif; --head: 'Cinzel', Georgia, serif; }
+html, body { background: radial-gradient(ellipse at 50% 20%, #1c1a1a, #08080a 70%); }
+#title { background: radial-gradient(ellipse at 50% 35%, rgba(200,140,60,.14), transparent 55%), radial-gradient(ellipse at 50% 110%, #2a1a0e, transparent 60%), linear-gradient(#141210, #070605); }
+.title-slots, .sheet, .dlg, .infobox, .msgbar, #creator .cr, #studio .cr {
+  background: linear-gradient(#ddcca6, #cbb68c);
+  box-shadow: 0 0 0 2px #2a1c10, 0 0 0 5px #7a5a2e, 0 0 0 8px #18120c, 0 0 0 9px #5a4020, 0 30px 80px rgba(0,0,0,.7); }
+.ph { background: linear-gradient(#2a2420, #16120f); border-bottom: 3px solid #7a5a2e; }
+.ph h2 { color: #d8b06a; text-shadow: 0 2px 0 #2a1a08; letter-spacing: .04em; }
+.tabs { background: #16120f; box-shadow: 0 0 0 2px #5a4020 inset; }
+.tab { color: #b8a078; font-family: var(--display); font-weight: 700; }
+.tab.on { color: #1a1206; background: linear-gradient(#d8b06a, #9a7034); box-shadow: 0 0 0 2px #3a2410; }
+.btn { background: linear-gradient(#e4d4b0, #c8b088); color: #22180f; box-shadow: 0 0 0 2px #5a4020 inset, 0 3px 0 #2a1c10; font-family: var(--display); font-weight: 700; }
+.btn.primary { background: linear-gradient(#d8b06a, #a87a38 55%, #7a5420); color: #1a0e04; box-shadow: 0 0 0 2px #3a2410 inset, 0 3px 0 #1a1006; text-shadow: 0 1px 0 rgba(255,230,180,.4); }
+.btn.ghost { background: transparent; box-shadow: none; }
+.opt { background: #d6c49e; color: #22180f; box-shadow: 0 0 0 2px #a8916a inset; }
+.opt.on { background: linear-gradient(#4a6a7a, #2a4250); color: #f2e6cc; box-shadow: 0 0 0 2px #142028, 0 0 10px rgba(90,170,200,.35); text-shadow: none; }
+.row-item, .part, .slot-card, .cr-opts section, .eq-slot, .setrow, .preset, .witem, .pt-card, .con, .con-passive, .con-badge { background: #e4d6b4; box-shadow: 0 0 0 2px #b8a47e inset; }
+.witem.locked { background: #c8b890; } .row-item.owned { background: #d6c8a4; }
+h3, .slot-name, .lvl b, .collect b, .cr h2, .bot-name, .con b, .title-slots h2 { color: #4a2e14; font-family: var(--display); }
+.hint, .muted { color: #6a5640; }
+.dlg .who { color: #7a4a1a; }
+.dlg-face { box-shadow: 0 0 0 3px #3a2410, 0 0 0 5px #a07a3a; background: radial-gradient(#5a5a6a, #2a2a34); }
+.hud-l > *, .hud .resbar, .hud-r .btn, .hud-row .btn { background: rgba(14,10,8,.84); color: #e8d8b4; box-shadow: 0 0 0 2px rgba(140,104,50,.8) inset, 0 4px 12px rgba(0,0,0,.5); }
+.lvlbar b { background: linear-gradient(#d8b06a, #9a7034); box-shadow: 0 0 0 2px #3a2410; color: #1a0e04; }
+.tracker b { color: #d8b06a; }
+.cr-stage, .bot-stage, .con-pic, .wd-pic, .bq-preview, .pt-pic { background: radial-gradient(ellipse at 50% 85%, rgba(200,150,80,.25), transparent 60%), linear-gradient(#2a2622, #121010) !important; }
+.tag { color: #c8a86a; }
+.credit { color: #8a7050; }
+.scene { box-shadow: 0 0 0 2px #2a1c10, 0 0 0 5px #7a5a2e; }
+.sc-grass { background: linear-gradient(#2a3040 0%, #5a5a64 40%, #4e6a3a 42%, #2a3a20 100%) !important; }
+.sc-forest { background: linear-gradient(#1e2a2a 0%, #3a4a44 40%, #34502c 42%, #16220f 100%) !important; }
+.sc-sand { background: linear-gradient(#3a3440 0%, #8a7060 40%, #8a7a58 42%, #4a3e2a 100%) !important; }
+.sc-rubble { background: linear-gradient(#2a2a32 0%, #5a5450 40%, #5f574b 42%, #2e2a24 100%) !important; }
+.sc-mountain { background: linear-gradient(#3a2a2a 0%, #7a5a4a 40%, #59524b 42%, #2a2420 100%) !important; }
+.sc-dungeon { background: radial-gradient(ellipse at 50% 70%, rgba(255,140,60,.18), transparent 55%), linear-gradient(#0c0a0a 0%, #2a2420 40%, #3a3430 42%, #141010 100%) !important; }
+.sky { opacity: .25; filter: grayscale(.6); }
+.sc-dungeon .sky { display: none; }
+.plat { background: radial-gradient(ellipse, rgba(0,0,0,.45), transparent 70%) !important; }
+.card { box-shadow: 0 0 0 2px #2a1c10, 0 4px 0 rgba(0,0,0,.35); }
+#toast { background: rgba(14,10,8,.92); color: #e8d8b4; box-shadow: 0 0 0 2px #7a5a2e; }
+#fade { background: #000; }

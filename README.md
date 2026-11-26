@@ -1,6 +1,6 @@
 # Automata: ArcForge
 
-An open-world card battler with a MapleStory-inspired chibi look and a forged-brass UI. Dress up your pilot and collect outfits, build and name your own automaton, explore a wasteland, forge cards, and take down the Titan Core.
+An open-world card battler set in a dark medieval-steampunk world with a little old magic. Dress up your pilot and collect outfits, build and name your own automaton, explore a wasteland, forge cards, and take down the Titan Core.
 
 Plain HTML, CSS and JavaScript. No build step, no frameworks. It runs in any browser, on GitHub Pages, and as a desktop app.
 
@@ -18,7 +18,7 @@ Controls: WASD / arrow keys to walk (hold Shift to run). Face something and pres
 3. **Settings → Pages → Build and deployment**, then set Source to *Deploy from a branch*, choose `main` and `/ (root)`, and save.
 4. After a minute your game is live at `https://<your-username>.github.io/ArcForge/`.
 
-After uploading an update, give GitHub Pages a few minutes, then hard-refresh (Ctrl+Shift+R / Cmd+Shift+R). Every file link in `index.html` ends in `?v=0.7.0`. When you change files yourself, bump that number everywhere in `index.html` so players' browsers fetch the new files instead of cached old ones.
+After uploading an update, give GitHub Pages a few minutes, then hard-refresh (Ctrl+Shift+R / Cmd+Shift+R). Every file link in `index.html` ends in `?v=0.8.0`. When you change files yourself, bump that number everywhere in `index.html` so players' browsers fetch the new files instead of cached old ones.
 
 Saves are kept in each player's browser. The Menu has a **save code** you can copy to move a save between devices.
 
@@ -28,6 +28,10 @@ Saves are kept in each player's browser. The Menu has a **save code** you can co
 |---|---|
 | **Pilot** | A big-headed chibi drawn entirely from what you wear (`js/pilot.js`). Pick body, skin, 10 hairstyles, hair color, 5 eye styles and eye color, plus a starter outfit (Scavenger, Tinker or Dreamer). Change hair and eyes later at the Boutique's Salon. The pilot gets hungry in the wild; at zero vitality you're exhausted. |
 | **Outfit collecting** | 84 pieces across 10 slots: hat, face, top, bottom, shoes, gloves, back, tool and 2 hidden charms (`js/items.js`). **Everything you wear shows on your pilot** in town, in the wild, in battle and in menus. Most pieces also give stats. The Wardrobe (`O`) is a collection book: owned vs. undiscovered, completion %, 3 saved outfit presets. 7 outfit sets (Wastelander, Forgehand, Skyrunner, Pastel Pop, Archivist, Diner Crew, Arcknight) give bonuses at 3 and 5 pieces. Duplicates turn into Bolts. |
+| **The world** | A 128×128 overworld built from one seed, so it's the same for every player (`js/world.js`). **Rivet Hollow**, a timber-frame village, sits in the south-west. The **Brass Road** runs east over the river to **Brasshaven**, a walled steam-and-spellwork city with a Great Clock, a Wayfarers' Guild, the Gilded Cog Inn, the Arcanum (cards), the Brass Anvil Smithy (upgrades), a branch of the Ironclad Bank and the Velvet & Valve Tailor. Every building has an interior. |
+| **The Sunken Foundry** | A hand-built dungeon north of Brasshaven: torch-lit halls, rune crystals, forge pits, 5 strongboxes and 4 new enemies (Cog Spider, Gear Ghoul, Rune Golem and the Clockwork Warden boss). It's dark: your automaton's core and your own light carry you through. The halls refill after a while; the Warden stays down. |
+| **Story** | A new chapter between the old quests 5 and 6: The Brass Road → Into the Sunken Foundry → The Clockwork Warden (Guildmaster Sable), then on to the Titan. |
+| **Look** | Darker, less cartoony: muted earthy colours, thinner ink lines, more grown-up proportions, facial hair, medieval outfits (hoods, jerkins, chainmail, robes, cloaks, longswords, crossbows, tomes), dusk lighting with lamps and window-glow, and an iron-and-parchment UI. |
 | **Constructs** | Chosen when you create a pilot (`AF.CONSTRUCTS` in `js/data.js`). **The Bulwark**: heavy frame, high HP, low speed; keeps half its Block between turns, strikes back for 3 when an attack is fully blocked, +2 Block on defend cards, cards with Thorns and "keep Block". **The Sprocket**: midweight, high speed, low HP; +1 card per turn, combo cards grow stronger with every card played that turn, every 3rd card draws 1. **The Arcwright**: lightweight, medium speed and HP; +1 damage at Mid and +3 at Far, takes +2 per hit at Close, Static Fields zap enemies that close in. Older saves pick a Construct the next time they're loaded. |
 | **Deck** | Exactly 30 cards. Each Construct starts with its own 30-card deck; 19 core cards work for everyone, plus 11 cards per Construct. New cards go to storage; swap them in from Party → Deck. |
 | **Automaton** | Your robot companion is now an *automaton* you name yourself (default Sprocket). The Automaton Studio (`js/automaton.js`) sets chassis, head, eyes, antenna, paint, trim, decal and core glow; more shapes unlock with pilot level. Garage part upgrades still change its wheels, arms, weapon, shield and plating. Open the studio from the Garage or Party → your automaton's tab. |
