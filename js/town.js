@@ -36,7 +36,7 @@
     { id: 'haggler', name: 'Haggler', price: 500, text: '15% off in every shop.' },
     { id: 'tactician', name: 'Tactician', price: 600, text: 'Draw 1 extra card on your first turn of each battle.' },
     { id: 'salvager', name: 'Salvage Expert', price: 600, text: '+25% money from battles.' },
-    { id: 'hunter', name: 'Blueprint Hunter', price: 700, text: 'Blueprints drop more often, even from small bots.' },
+    { id: 'hunter', name: 'Blueprint Hunter', price: 700, text: 'Tough bots and bounty targets carry blueprints more often, and mid-tier bots sometimes do too.' },
   ];
   T.PART_CREDITS = (lvl) => AF.UPGRADE_COST[lvl] ? AF.UPGRADE_COST[lvl].credits : 0;
 
@@ -105,7 +105,11 @@
         <div class="row">${btn('Buy 1', `data-mkt="buy:${k}:1"`, s.credits >= bp, true)}${btn('Buy 5', `data-mkt="buy:${k}:5"`, s.credits >= bp * 5, true)}
         ${btn('Sell 1', `data-mkt="sell:${k}:1"`, have >= 1)}${btn('Sell 5', `data-mkt="sell:${k}:5"`, have >= 5)}${btn('Sell all', `data-mkt="sell:${k}:all"`, have >= 1)}</div></div>`;
     }).join('');
-    return `<p class="hint">Card components for forging. Short a few Copper? Buy it here. Got too much Scrap? Sell it.</p><div class="list">${rows}</div>`;
+    const L = s.pilot.lures || {};
+    const lures = Object.entries(AF.LURES).map(([k, d]) => { const pr = price(s, d.price), have = L[k] || 0; return `<div class="row-item"><div><b>${d.name}</b><span class="muted">${d.text} You have ${have} (max ${d.max}). Use it out in the wild from the HUD or press L.</span></div>
+        <div class="row">${cr(pr, s.credits < pr)}${btn('Buy', `data-lure="${k}"`, s.credits >= pr && have < d.max, true)}</div></div>`; }).join('');
+    return `<p class="hint">Card components for forging. Short a few Copper? Buy it here. Got too much Scrap? Sell it.</p><div class="list">${rows}</div>
+      <h3>Lures</h3><p class="hint">Want a fight on your terms? A lure draws a bot out of hiding wherever you stand in the wild.</p><div class="list">${lures}</div>`;
   }
 
   // Boutique stock: 8 clothing pieces that rotate every 250 steps, plus charms that are always in.
@@ -201,11 +205,16 @@
 
   // ---------- Actions ----------
   T.handle = function (t, s) {
-    const el = t.closest('[data-buygear],[data-tryon],[data-buy-card],[data-buy-bp],[data-sell-card],[data-mkt],[data-repair],[data-core],[data-bank],[data-food],[data-perk],[data-unlock],[data-wardrobe],[data-rest]');
+    const el = t.closest('[data-buygear],[data-tryon],[data-buy-card],[data-buy-bp],[data-sell-card],[data-mkt],[data-repair],[data-core],[data-bank],[data-food],[data-perk],[data-unlock],[data-wardrobe],[data-rest],[data-lure]');
     if (!el || el.disabled) return !!el;
     const d = el.dataset, ok = (msg) => { AF.sfx('forge'); if (msg) AF.game.toast(msg); AF.game.persist(); AF.UI.render(); return true; };
     const spend = (n) => { if (s.credits < n) { AF.game.toast('Not enough money.'); return false; } s.credits -= n; return true; };
 
+    if (d.lure) {
+      const def = AF.LURES[d.lure], L = (s.pilot.lures = s.pilot.lures || {});
+      if ((L[d.lure] || 0) >= def.max || !spend(price(s, def.price))) return true;
+      L[d.lure] = (L[d.lure] || 0) + 1; return ok(`${def.name} packed.`);
+    }
     if (d.tryon) { T.tryOn = T.tryOn === d.tryon ? null : d.tryon; AF.sfx('card'); AF.UI.render(); return true; }
     if (d.buygear) {
       const it = AF.ITEMS[d.buygear];

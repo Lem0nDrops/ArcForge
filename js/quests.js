@@ -41,7 +41,7 @@
     s6: { title: "The Titan's Call", text: "Climb to the Titan's lair in the far mountains (Spider Legs needed) and shut the Titan Core down. Then tell Mayor Bram.", obj: { type: 'boss', boss: 'titan', n: 1 }, turnIn: 'bram', reward: { credits: 5000, xp: 600 }, next: 'end' },
   };
   AF.TUTORIAL = {
-    t1: { title: 'First Harvest', text: 'Gather 5 Scrap from scrap piles outside town.', obj: { type: 'gather', res: 'scrap', n: 5 }, reward: { credits: 100, xp: 20, item: 'work_gloves' } },
+    t1: { title: 'First Harvest', text: 'Rummage the scrap piles at the Hollow Junkyard, just outside town, for 5 Scrap.', obj: { type: 'gather', res: 'scrap', n: 5 }, reward: { credits: 100, xp: 20, item: 'work_gloves' } },
     t2: { title: 'First Fight', text: 'Win a battle against a rogue bot.', obj: { type: 'win', n: 1 }, reward: { credits: 100, rations: 1, xp: 20 } },
     t3: { title: 'Forged in Fire', text: 'Forge a new card at the Rivet Forge.', obj: { type: 'forge', n: 1 }, reward: { credits: 150, xp: 20 } },
     t4: { title: 'Tune-Up', text: 'Upgrade any automaton part at the Bolt & Gear Garage.', obj: { type: 'upgrade', n: 1 }, reward: { credits: 200, xp: 20, item: 'sneakers' } },

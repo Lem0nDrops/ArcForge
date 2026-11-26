@@ -28,12 +28,13 @@
       head = `<h2>${b.name}</h2>`;
       body = `<p class="blurb">${b.blurb}</p>` + AF.Town.render(ctx, s);
     } else {
-      const tabs = [['quests', 'Quests'], ['pilot', 'Pilot'], ['wardrobe', 'Wardrobe'], ['automaton', AF.esc(AF.botName(s))], ['deck', 'Deck'], ['forge', 'Forge'], ['map', 'Map']];
+      const tabs = [['quests', 'Quests'], ['pilot', 'Pilot'], ['wardrobe', 'Wardrobe'], ['automaton', AF.esc(AF.botName(s))], ['deck', 'Deck'], ['forge', 'Forge'], ['trophies', 'Trophies'], ['map', 'Map']];
       head = `<h2>${ctx === 'forge' ? 'Rivet Forge' : 'Party'}</h2>
         <nav class="tabs">${tabs.map(([k, n]) => `<button class="tab${UI.tab === k ? ' on' : ''}" data-tab="${k}">${n}</button>`).join('')}</nav>`;
       if (UI.tab === 'quests') body = AF.Quests.logHtml(s);
       if (UI.tab === 'pilot') body = AF.pilotTab(s);
       if (UI.tab === 'wardrobe') body = AF.wardrobeTab(s);
+      if (UI.tab === 'trophies') body = AF.trophiesTab(s);
       if (UI.tab === 'deck') AF.Quests.event(s, 'deck', {});
       if (UI.tab === 'automaton') body = UI.robotTab(s, false);
       if (UI.tab === 'forge') body = forgeTab(s, ctx === 'forge');
@@ -41,7 +42,7 @@
       if (UI.tab === 'map') body = `<div class="maptab"><canvas id="bigmap"></canvas><div class="legend">
         <span><i class="chip" style="--c:#fff"></i>You</span>${AF.World.area(s) === 'foundry'
           ? '<span><i class="chip" style="--c:#f2c45a"></i>Unopened strongbox</span><span><i class="chip" style="--c:#ff3b5c"></i>The Warden\'s hall</span>'
-          : '<span><i class="chip" style="--c:#b8743a"></i>Buildings (Rivet Hollow, Brasshaven)</span><span><i class="chip" style="--c:#3ad0ff"></i>Unsearched ruin</span><span><i class="chip" style="--c:#c27bff"></i>Sunken Foundry</span><span><i class="chip" style="--c:#ff3b5c"></i>Titan\'s lair</span>'}
+          : '<span><i class="chip" style="--c:#b8743a"></i>Buildings (Rivet Hollow, Brasshaven)</span><span><i class="chip" style="--c:#3ad0ff"></i>Unsearched ruin</span><span><i class="chip" style="--c:#c27bff"></i>Sunken Foundry</span><span><i class="chip" style="--c:#ff3b5c"></i>Titan\'s lair</span><span><i class="chip" style="--c:#a9b4bd"></i>Scrap · <i class="chip" style="--c:#e0894a"></i>Copper · <i class="chip" style="--c:#9fd8f0"></i>Silicon · <i class="chip" style="--c:#c27bff"></i>Arcite deposits</span><span><i class="chip" style="--c:#e8803a"></i>Disturbance (step in to fight)</span><span><i class="chip" style="--c:#f2c45a"></i>Bounty Board</span><span><i class="chip" style="--c:#ffd24a"></i>Bounty target</span>'}
         <p id="explored"></p></div></div>`;
       if (ctx !== 'forge' && UI.tab === 'forge') body = '<p class="note">Forging happens inside the Rivet Forge in town. You can browse recipes here.</p>' + body;
     }
@@ -129,6 +130,8 @@
   UI.handle = function (t) {
     const s = AF.game.state;
     if (UI.ctx && UI.ctx !== 'forge' && AF.Town.handle(t, s)) return true;
+    const cs = t.closest('[data-cstyle]');
+    if (cs) { AF.trophiesHandle(AF.game.state, cs); AF.game.persist(); const y = $('#panel .sheet') && $('#panel .sheet').scrollTop; UI.render(); if ($('#panel .sheet')) $('#panel .sheet').scrollTop = y; return true; }
     const el = t.closest('[data-tab],[data-up],[data-forge],[data-dsel],[data-sin],[data-cup],[data-act],[data-wear],[data-wfilter],[data-preset-save],[data-preset-wear]');
     if (!el) return false;
     if (el.dataset.wear || el.dataset.wfilter || el.dataset.presetSave || el.dataset.presetWear) { const y = $('#panel .pbody') && $('#panel .pbody').scrollTop; AF.wardrobeHandle(s, el); AF.game.persist(); AF.game.refresh(); UI.render(); if ($('#panel .pbody')) $('#panel .pbody').scrollTop = y; return true; }
@@ -156,7 +159,7 @@
     if (el.dataset.cup) {
       const c = s.cards.find((x) => x.uid === el.dataset.cup);
       if (!c || c.plus || UI.ctx !== 'forge' || !AF.canPay(s, AF.CARD_UPGRADE_COST)) return true;
-      AF.payCost(s, AF.CARD_UPGRADE_COST); c.plus = true;
+      AF.payCost(s, AF.CARD_UPGRADE_COST); c.plus = true; AF.bumpStat(s, 'upgraded');
       AF.sfx('forge'); AF.game.toast(`${AF.CARDS[c.id].name} upgraded.`);
       AF.game.persist(); UI.render(); return true;
     }
@@ -188,6 +191,7 @@
       <div class="pbody menu">
         <button class="btn" data-act="help">How to play</button>
         <button class="btn" data-act="sound">Sound: ${AF.muted ? 'off' : 'on'}</button>
+        ${AF.Sprites && AF.Sprites.hasArt() ? `<button class="btn" data-act="charart">Character art: ${AF.Sprites.use() ? 'sprites' : 'classic'}</button>` : ''}
         <button class="btn" data-act="to-title">Save and switch pilot</button>
         <h3>Save code</h3>
         <p class="hint">${AF.esc(AF.game.state.look.name)} autosaves to slot ${AF.game.state.slot}. Copy this code to move the save to another device.</p>
@@ -208,7 +212,11 @@
       <div class="pbody help">
         <p><b>Move.</b> Arrow keys or WASD, hold Shift to run. On touch screens use the pad (hold B to run), or drag on the map like a joystick. Your automaton follows you.</p>
         <p><b>Interact.</b> Face something and press E, Space, Enter or the A button: talk to people, enter doors, read signs, pick up and gather resources, search ruins. A prompt shows what you can do. Tapping right next to your pilot works too.</p>
-        <p><b>Shortcuts.</b> Q opens your deck and quests, M the map, R eats a ration.</p>
+        <p><b>Finding fights.</b> A few bots roam the wilds, but most battles are your choice: step into a glowing <b>disturbance</b> (rustling brush, swirling dust, sparking scrap), take a job from a town <b>Bounty Board</b>, or set out a <b>lure</b> from the Salvage Exchange. Bounty and lure fights always drop materials.</p>
+        <p><b>Gathering.</b> Resources come from named deposits (scrapyards, copper seams, silica beds, crystal grottos) shown on your map. Face a node and press the action button: <b>strike</b> ore when the needle hits the glowing seam (gold = perfect), or <b>rummage</b> a scrap pile by remembering which spots the scanner made glint. A flawless job finds something rare. Nodes take a long while to recover.</p>
+        <p><b>Blueprints</b> are rare: search ruins (marked on the map), hunt bounties and beat tough bots.</p>
+        <p><b>Card style.</b> Rarity gems show how rare a card is (it doesn't change its strength). Earn new frames, animated finishes and card backs from achievements in Party → Trophies.</p>
+        <p><b>Shortcuts.</b> Q opens your deck and quests, M the map, R eats a ration, L uses a lure.</p>
         <p><b>Town.</b> ${AF.TOWN_NAME} is safe from enemies. Your House (rest, wardrobe), the Rivet Forge (cards and deck), the Deckhouse (buy/sell cards), the Salvage Exchange (materials), the Garage (part upgrades, repairs, core paint), the Bank (safe storage), the Diner (food and buffs), the Pilot Academy (skills) and the Boutique (outfits).</p>
         <p><b>Quests.</b> Follow the story from the quest tracker at the top-left. Pip by the Academy offers optional tutorial tasks.</p>
         <p><b>Your pilot</b> gets hungry in the wild. At zero vitality you're exhausted: −1 energy in battle and smaller harvests. Rest at home, eat at the Diner or carry Field Rations.</p>
@@ -226,6 +234,7 @@
     if (act === 'close-menu') { $('#menu').hidden = true; return true; }
     if (act === 'help') { UI.help(); return true; }
     if (act === 'sound') { AF.muted = !AF.muted; try { localStorage.setItem('arcforge.muted', AF.muted ? '1' : '0'); } catch (e) {} UI.menu(); return true; }
+    if (act === 'charart') { AF.Sprites.setMode(AF.Sprites.use() ? 'classic' : 'sprites'); UI.menu(); AF.game.toast(AF.Sprites.use() ? 'Using sprite art.' : 'Using classic art.'); return true; }
     if (act === 'to-title') { $('#menu').hidden = true; AF.game.toTitle(); return true; }
     if (act === 'copy') {
       const ta = $('#savecode'); ta.select();

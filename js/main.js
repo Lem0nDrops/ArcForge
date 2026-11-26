@@ -54,6 +54,11 @@
     $('#lvl').title = `${s.xp} / ${need} XP`;
     $('#hudres').innerHTML = AF.UI.resBar(s);
     $('#ration-btn').textContent = `Eat ration (${s.pilot.rations})`;
+    const L = s.pilot.lures || {}, wild = !AF.World.inTown(s) && s.flags.robot;
+    $('#lure-btns').innerHTML = wild ? Object.entries(AF.LURES).filter(([k]) => L[k] > 0).map(([k, d]) => `<button class="btn sm lure" data-act="lure" data-kind="${k}" title="${AF.esc(d.text)}">${d.name} (${L[k]})</button>`).join('') : '';
+    const bh = AF.World.bountyHint(s);
+    if (bh) { $('#tracker').innerHTML += `<span class="bty-track">${bh}</span>`; $('#tracker').hidden = false; }
+    for (const a of AF.checkAchievements(s)) game.toast(`★ Achievement: ${a.name}! Unlocked: ${AF.unlockText(a.unlock)}.`, 4500);
     const buffs = Object.entries(s.pilot.buffs).map(([k, n]) => {
       const f = AF.Town.FOOD.buffs.find((x) => x.id === k);
       return f ? `<span>${f.name} · ${n}</span>` : '';
@@ -61,7 +66,7 @@
     $('#hudbuffs').innerHTML = buffs + (s.pilot.vit <= 0 ? '<span class="bad">Exhausted</span>' : '');
   };
 
-  const canAct = () => game.state && !game.battle && !AF.UI.isOpen() && $('#menu').hidden && $('#creator').hidden && !AF.Studio.isOpen() && !AF.Dialog.open && !$('#game').hidden;
+  const canAct = () => game.state && !game.battle && !AF.UI.isOpen() && $('#menu').hidden && !(AF.Mini && AF.Mini.isOpen()) && $('#creator').hidden && !AF.Studio.isOpen() && !AF.Dialog.open && !$('#game').hidden;
 
   // ---------- Movement (one tile at a time, chained smoothly while a direction is held) ----------
   const VEC = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
@@ -79,9 +84,39 @@
     if (ev && ev.type === 'exit') { input.held = []; fade(); }
     if (ev && ev.type === 'talk') { input.held = []; AF.Quests.talk(s, ev.npc); }
     if (ev && ev.type === 'msg') game.toast(ev.text);
-    if (ev && ev.type === 'battle') { input.held = []; setTimeout(() => game.startBattle(ev.enemy, ev.ambush), Math.max(60, dur - 40)); }
+    if (ev && ev.type === 'battle') { input.held = []; if (ev.text) game.toast(ev.text, 1800); setTimeout(() => game.startBattle(ev.enemy, ev.ambush), Math.max(60, dur - 40) + (ev.enemy.hot ? 350 : 0)); }
     game.persist(); game.refresh();
   }
+  // Use a lure from the HUD (or the L key).
+  game.useLure = function (kind) {
+    if (!canAct()) return;
+    const s = game.state, L = s.pilot.lures || {};
+    kind = kind || (L.lure ? 'lure' : L.arclure ? 'arclure' : 'lure');
+    const ev = AF.World.useLure(s, kind);
+    if (ev.type === 'battle') { input.held = []; game.toast(ev.text, 1500); AF.sfx('card'); setTimeout(() => game.startBattle(ev.enemy), 700); }
+    else game.toast(ev.text);
+    game.persist(); game.refresh();
+  };
+  // ---------- Bounty Board ----------
+  game.bountyBoard = function (town) {
+    game.btyTown = town;
+    const s = game.state, m = $('#menu'), offers = AF.World.bountyOffers(s, town), cur = s.world.bounty;
+    const next = AF.BOUNTY_EVERY - (s.steps % AF.BOUNTY_EVERY);
+    m.hidden = false;
+    m.querySelector('.sheet').innerHTML = `
+      <header class="ph"><h2>Bounty Board</h2><button class="btn ghost x" data-act="close-menu">Close</button></header>
+      <div class="pbody bounties">
+        <p class="hint">${AF.TOWN_NAMES[town]} pays well for troublesome bots. Take one job at a time: the target is marked on your map with a gold <b>!</b>. New jobs are posted in ${next} steps.</p>
+        ${cur ? `<div class="bty cur"><div><small>Current job</small><b>${AF.esc(AF.ENEMIES[cur.type].name)}</b><span>${AF.World.bountyHint(s).replace(/<b>Bounty<\/b> /, '')}</span><span class="muted">Reward: ${AF.moneyText(cur.credits)}, ${Object.entries(cur.res).map(([k, n]) => `${n} ${AF.RES[k].name}`).join(', ')}, ${cur.xp} XP</span></div><button class="btn" data-bty-drop="1">Drop job</button></div>` : ''}
+        <div class="bty-list">${offers.map((o) => {
+          const def = AF.ENEMIES[o.type];
+          return `<div class="bty"><span class="bty-pic"></span><div><small>Wanted · ${'★'.repeat(o.tier)}</small><b>${AF.esc(def.name)}</b><span class="muted">${o.tier === 1 ? 'A nuisance near town.' : o.tier === 2 ? 'Dangerous. Bring a tuned deck.' : 'Deadly. Only for seasoned pilots.'}</span>
+            <span class="bty-rw">${AF.moneyText(o.credits)} · ${Object.entries(o.res).map(([k, n]) => `${n} ${AF.RES[k].name}`).join(', ')} · ${o.xp} XP</span></div>
+            <button class="btn primary" data-bty-take="${o.i}" data-town="${town}" ${cur ? 'disabled' : ''}>Take job</button></div>`;
+        }).join('')}</div>
+      </div>`;
+    m.querySelectorAll('.bty-pic').forEach((el, i) => { el.innerHTML = AF.enemySVG(offers[i].type); });
+  };
 
   // ---------- Interact (E / Space / Enter / A button) ----------
   game.interact = function () {
@@ -97,6 +132,9 @@
     else if (ev.type === 'wardrobe') AF.UI.open('wardrobe');
     else if (ev.type === 'talk') AF.Quests.talk(s, ev.npc);
     else if (ev.type === 'sign') AF.Dialog.show([{ text: ev.text }]);
+    else if (ev.type === 'bounty') game.bountyBoard(ev.town);
+    else if (ev.type === 'gather') { input.held = []; AF.Mini.gather(s, ev); }
+    else if (ev.type === 'blueprint') { input.held = []; AF.Mini.reveal(ev.id, ev.text); }
     else if (ev.type === 'msg') game.toast(ev.text, ev.long ? 6000 : undefined);
     else if (ev.type === 'dungeon') { input.held = []; fade(); setTimeout(() => { AF.World.enterDungeon(s); game.toast('The Sunken Foundry. The air smells of oil and old magic.', 3500); game.persist(); game.refresh(); }, 160); }
     else if (ev.type === 'leave') { input.held = []; fade(); setTimeout(() => { AF.World.leaveDungeon(s); game.toast('Fresh air again. Brasshaven lies to the south.'); game.persist(); game.refresh(); }, 160); }
@@ -177,6 +215,7 @@
     if ((e.key === 'i' || e.key === 'I') && !AF.UI.isOpen()) AF.UI.open('pilot');
     if ((e.key === 'o' || e.key === 'O') && !AF.UI.isOpen()) AF.UI.open('wardrobe');
     if (e.key === 'm' || e.key === 'M') AF.UI.isOpen() ? AF.UI.close() : AF.UI.open('map');
+    if ((e.key === 'l' || e.key === 'L') && canAct()) { game.useLure(); return; }
     if (e.key === 'r' || e.key === 'R') { game.toast(AF.Town.eatRation(game.state)); game.persist(); game.refresh(); }
   });
   document.addEventListener('keyup', (e) => {
@@ -236,6 +275,13 @@
     }
     if (!$('#creator').hidden && AF.Creator.handle(t)) return;
     if (AF.Studio.isOpen()) { AF.Studio.handle(t); return; }
+    const bty = !$('#menu').hidden && t.closest('[data-bty-take],[data-bty-drop]');
+    if (bty) {
+      const s = game.state;
+      if (bty.dataset.btyTake) { game.toast(AF.World.acceptBounty(s, +bty.dataset.town, +bty.dataset.btyTake), 5000); $('#menu').hidden = true; }
+      else { game.toast(AF.World.dropBounty(s)); game.bountyBoard(game.btyTown || 1); }
+      game.persist(); game.refresh(); return;
+    }
     if (!$('#menu').hidden && AF.UI.menuHandle(t)) return;
     if (AF.UI.isOpen() && AF.UI.handle(t)) return;
     const play = t.closest('[data-play]');
@@ -263,6 +309,7 @@
       case 'map': AF.UI.open('map'); break;
       case 'menu': AF.UI.menu(); break;
       case 'ration': game.toast(AF.Town.eatRation(game.state)); game.persist(); game.refresh(); break;
+      case 'lure': game.useLure(act.dataset.kind); break;
     }
   });
   document.addEventListener('keydown', (e) => {

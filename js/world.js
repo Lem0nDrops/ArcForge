@@ -188,34 +188,62 @@
     // ----- Resource nodes and ruins -----
     const nodes = {}, ruins = [];
     const free = (x, y) => !nearTown(x, y, 2) && t[I(x, y)] !== 'p' && !deco[I(x, y)] && !solid[I(x, y)] && !nodes[key(x, y)] && !ruins.includes(key(x, y)) && !(Math.abs(x - lair.x) <= 2 && Math.abs(y - lair.y) <= 2) && !(Math.abs(x - cave[0]) <= 5 && y <= cave[1] + 2 && y >= cave[1] - 4);
-    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
-      if (!free(x, y)) continue;
-      const c = CH[t[I(x, y)]], roll = r(), d = Math.hypot(x - c1[0], y - c1[1]);
-      let n = null;
-      if ((c === 'grass' || c === 'forest') && roll < 0.011 && d > 22) n = 'scrap';
-      else if (c === 'rubble') n = roll < 0.025 ? 'copper' : roll < 0.035 ? 'scrap' : null;
-      else if (c === 'sand' && roll < 0.016) n = 'silicon';
-      else if (c === 'mountain' && roll < 0.025) n = 'arcite';
-      else if (c === 'forest' && roll < 0.004 && d > 26) n = 'arcite';
-      if (n) nodes[key(x, y)] = n;
+    // Deposits: resources gather in named sites that suit them (scrapyards on the scrap fields, copper where the
+    // rubble meets the crags, silica in the dunes, arcite crystals on the mountain edge), not sprinkled everywhere.
+    const deposits = [], nodeSite = {};
+    const near = (x, y, ch, rad) => { for (let dy = -rad; dy <= rad; dy++) for (let dx = -rad; dx <= rad; dx++) { const xx = x + dx, yy = y + dy; if (xx >= 0 && yy >= 0 && xx < W && yy < H && t[I(xx, yy)] === ch) return true; } return false; };   // ch is a map letter: r rubble, m mountain, g grass
+    const edgeOfMountain = (x, y) => CH[t[I(x, y)]] === 'mountain' && [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => { const c = CH[t[I(x + dx, y + dy)]]; return c && c !== 'mountain' && c !== 'water' && !solid[I(x + dx, y + dy)]; });
+    const SITE = {
+      scrap: { ok: (x, y, c) => (c === 'rubble' || (c === 'sand' && near(x, y, 'r', 3))), cell: (c) => c === 'rubble' || c === 'sand' || c === 'grass' },
+      copper: { ok: (x, y, c) => c === 'rubble' && near(x, y, 'm', 4), cell: (c) => c === 'rubble' },
+      silicon: { ok: (x, y, c) => c === 'sand' && !near(x, y, 'g', 2), cell: (c) => c === 'sand' },
+      arcite: { ok: (x, y) => edgeOfMountain(x, y), cell: (c, x, y) => edgeOfMountain(x, y) },
+    };
+    const siteName = (type, i) => {
+      const N = AF.DEPOSITS[type].names; return N[i % N.length];
+    };
+    const spaced = (x, y, gap) => deposits.every((d) => Math.hypot(d.x - x, d.y - y) >= gap);
+    const addSite = (type, x, y, n, name) => {
+      const site = { type, x, y, name, nodes: [] }, cand = [];
+      for (let dy = -3; dy <= 3; dy++) for (let dx = -3; dx <= 3; dx++) {
+        const xx = x + dx, yy = y + dy; if (xx < 1 || yy < 1 || xx >= W - 1 || yy >= H - 1) continue;
+        const c = CH[t[I(xx, yy)]];
+        if (dx * dx + dy * dy <= 10 && SITE[type].cell(c, xx, yy) && (type === 'arcite' || free(xx, yy)) && !nodes[key(xx, yy)]) cand.push([xx, yy, dx * dx + dy * dy]);
+      }
+      cand.sort((p1, p2) => p1[2] - p2[2] + (r() - 0.5) * 6);
+      for (const [xx, yy] of cand) {
+        if (site.nodes.length >= n) break;
+        if (site.nodes.some(([ax, ay]) => Math.abs(ax - xx) + Math.abs(ay - yy) < 2)) continue;
+        nodes[key(xx, yy)] = type; nodeSite[key(xx, yy)] = deposits.length; site.nodes.push([xx, yy]);
+      }
+      if (site.nodes.length >= 2) deposits.push(site); else site.nodes.forEach(([xx, yy]) => { delete nodes[key(xx, yy)]; delete nodeSite[key(xx, yy)]; });
+    };
+    // A small scrapyard just outside Rivet Hollow for your first jobs
+    for (let tries = 0; tries < 3000 && !deposits.length; tries++) {
+      const x = AF.randInt(r, T1.x - 10, T1.x + T1.w + 9), y = AF.randInt(r, T1.y - 10, T1.y + T1.h + 9), c = CH[t[I(x, y)]], d = Math.hypot(x - c1[0], y - c1[1]);
+      if (d > 14 && d < 22 && reach.has(key(x, y)) && (c === 'grass' || c === 'sand') && free(x, y)) addSite('scrap', x, y, 4, 'Hollow Junkyard');
     }
-    const starter = ['scrap', 'scrap', 'scrap', 'scrap', 'scrap', 'copper', 'copper', 'copper', 'silicon'];
+    for (const type of ['copper', 'silicon', 'scrap', 'arcite']) {
+      const D = AF.DEPOSITS[type];
+      for (let made = 0, tries = 0; made < D.sites && tries < 12000; tries++) {
+        const x = AF.randInt(r, 4, W - 5), y = AF.randInt(r, 4, H - 5), c = CH[t[I(x, y)]], d = Math.hypot(x - c1[0], y - c1[1]);
+        if (d < D.minDist || !SITE[type].ok(x, y, c) || !spaced(x, y, 11) || Math.hypot(x - c2[0], y - c2[1]) < 13) continue;
+        const before = deposits.length;
+        addSite(type, x, y, AF.randInt(r, D.per[0], D.per[1]), siteName(type, made));
+        if (deposits.length > before) made++;
+      }
+    }
     let guard = 0;
-    while (starter.length && guard++ < 4000) {
-      const x = AF.randInt(r, T1.x - 9, T1.x + T1.w + 8), y = AF.randInt(r, T1.y - 9, T1.y + T1.h + 8), c = CH[t[I(x, y)]];
-      if (reach.has(key(x, y)) && (c === 'grass' || c === 'sand' || c === 'forest') && free(x, y)) nodes[key(x, y)] = starter.pop();
-    }
-    guard = 0;
-    while (ruins.length < 34 && guard++ < 9000) {
+    while (ruins.length < AF.RUINS && guard++ < 9000) {
       const x = AF.randInt(r, 2, W - 3), y = AF.randInt(r, 2, H - 3);
-      if (t[I(x, y)] !== 'w' && Math.hypot(x - c1[0], y - c1[1]) > 20 && free(x, y)) ruins.push(key(x, y));
+      if (t[I(x, y)] !== 'w' && Math.hypot(x - c1[0], y - c1[1]) > 20 && free(x, y) && ruins.every((k) => { const [a2, b2] = k.split(',').map(Number); return Math.hypot(a2 - x, b2 - y) > 12; })) ruins.push(key(x, y));
     }
 
-    const mp = { area: 'over', w: W, h: H, t, solid, deco, signs, buildings, doors, nodes, ruins, lair, spawn, cave, bridges, reach: reach.size, I, c1, c2, vision: 6 };
+    const mp = { area: 'over', w: W, h: H, t, solid, deco, signs, buildings, doors, nodes, deposits, nodeSite, ruins, lair, spawn, cave, bridges, reach: reach.size, I, c1, c2, vision: 6 };
     // ----- Starting enemies (same for everyone) -----
     mp.enemies0 = [];
     let id = 1;
-    for (let i = 0; i < 130; i++) {
+    for (let i = 0; i < AF.ROAMERS; i++) {
       for (let tries = 0; tries < 300; tries++) {
         const x = AF.randInt(r, 1, W - 2), y = AF.randInt(r, 1, H - 2);
         if (!enemyOK(mp, x, y, mp.enemies0) || Math.hypot(x - c1[0], y - c1[1]) < 23) continue;
@@ -224,6 +252,27 @@
       }
     }
     mp.enemies0.push({ id: id++, type: 'titan', x: lair.x, y: lair.y, boss: true });
+    // ----- Disturbances: glowing spots you can choose to step into for a fight -----
+    mp.hotspots = {};
+    const hr = AF.rng(AF.WORLD_SEED * 31 + 7);
+    for (let n = 0, tries = 0; n < AF.HOTSPOTS && tries < 20000; tries++) {
+      const x = AF.randInt(hr, 2, W - 3), y = AF.randInt(hr, 2, H - 3), c = CH[t[I(x, y)]];
+      if (!['grass', 'forest', 'sand', 'rubble'].includes(c) || !free(x, y) || Math.hypot(x - c1[0], y - c1[1]) < 16 || Math.hypot(x - c2[0], y - c2[1]) < 14) continue;
+      if (Object.keys(mp.hotspots).some((k) => { const [a, b] = k.split(',').map(Number); return Math.abs(a - x) + Math.abs(b - y) < 7; })) continue;
+      mp.hotspots[key(x, y)] = c === 'sand' ? 'dust' : c === 'rubble' ? 'sparks' : 'rustle'; n++;
+    }
+    // ----- Bounty Boards in both town squares -----
+    mp.boards = {};
+    [[T1, 21, 18, 1], [T2, 10, 12, 2]].forEach(([T, lx, ly, town]) => {
+      for (let rad = 0; rad < 5; rad++) for (let dy = -rad; dy <= rad; dy++) for (let dx = -rad; dx <= rad; dx++) {
+        if (mp.boards.done === town) continue;
+        const x = T.x + lx + dx, y = T.y + ly + dy, ch = t[I(x, y)];
+        if ((ch === 'l' || ch === 'p') && !solid[I(x, y)] && !deco[I(x, y)] && !doors[key(x, y)] && !doors[key(x, y + 1)] && !signs[key(x, y)]) {
+          deco[I(x, y)] = 'bounty'; solid[I(x, y)] = 1; mp.boards[key(x, y)] = town; mp.boards.done = town;
+        }
+      }
+    });
+    delete mp.boards.done;
     return mp;
   }
 
@@ -354,13 +403,14 @@
     if (mp.doors[k]) { const id = mp.doors[k]; return { kind: 'door', id, label: AF.SHOPS.includes(id) || AF.INTERIORS[id] ? 'Enter' : 'Knock' }; }
     const npc = npcAt(state, x, y); if (npc) return { kind: 'talk', npc: npc.id, label: 'Talk', tall: true };
     if (mp.signs[k]) return { kind: 'sign', text: mp.signs[k], label: 'Read' };
-    if (mp.nodes[k]) { const ready = (w.ready[k] || 0) <= state.steps; return { kind: 'node', k, label: ready ? (mp.nodes[k] === 'scrap' ? 'Pick up' : 'Gather') : 'Depleted' }; }
+    if (mp.nodes[k]) { const ready = (w.ready[k] || 0) <= state.steps; return { kind: 'node', k, label: ready ? (mp.nodes[k] === 'scrap' ? 'Rummage' : 'Mine') : 'Picked clean' }; }
     if (mp.ruins.includes(k)) return { kind: 'ruin', k, label: w.opened[k] ? 'Searched' : 'Search' };
     if (d === 'cave' || (mp.area === 'over' && mp.cave && x === mp.cave[0] + 1 && y === mp.cave[1])) return { kind: 'dungeon', label: 'Enter', tall: true, x: mp.cave[0], y: mp.cave[1] };
     if (d === 'stairsup') return { kind: 'leave', label: 'Climb out' };
     if (d === 'chest') return { kind: 'chest', k, label: w.opened[k] ? 'Empty' : 'Open' };
     if (d === 'fountain' || d === 'clock') return { kind: 'fountain', label: 'Look', tall: true, big: d };
     if (d === 'crystal') return { kind: 'crystal', label: 'Touch' };
+    if (d === 'bounty') return { kind: 'bounty', label: 'Bounties', town: mp.boards[k] };
     return null;
   }
   function facing(state) {
@@ -386,7 +436,8 @@
     w.dir = DIRS[dx + ',' + dy];
     const c = terr(mp, nx, ny);
     if (!c) return { type: 'blocked', text: 'The edge of the known world.' };
-    if (thingAt(state, nx, ny) || mp.solid[ny * mp.w + nx]) return { type: 'bump' };
+    const th = thingAt(state, nx, ny);
+    if ((th && th.kind !== 'talk') || mp.solid[ny * mp.w + nx]) return { type: 'bump' };   // townsfolk never block: walk right through them
     if (c === 'dwall') return { type: 'bump' };
     if (!state.flags.robot && inTownXY(state, w.px, w.py) && !inTownXY(state, nx, ny)) return { type: 'talk', npc: 'rook' };
     const need = AF.TERRAIN[c].legs;
@@ -400,6 +451,14 @@
     w.rx = w.px; w.ry = w.py; w.px = nx; w.py = ny; state.steps++;
     reveal(w, mp);
     const msgs = [], nowT = inTownXY(state, nx, ny) && townAt(nx, ny);
+    const hk = key(nx, ny);
+    if (mp.hotspots && mp.hotspots[hk] && hotReady(state, hk)) {
+      const hr2 = AF.rng(state.seed ^ (state.steps * 977) ^ (nx * 31 + ny));
+      const pool = AF.TIERS[tierFor(mp, nx, ny, hr2)];
+      const kind = mp.hotspots[hk];
+      return { type: 'battle', enemy: { id: 'hot:' + hk, type: pool[Math.floor(hr2() * pool.length)], x: nx, y: ny, hot: hk },
+        text: kind === 'dust' ? 'The sand heaves. Something was buried here!' : kind === 'sparks' ? 'The scrap pile sparks and lurches to life!' : 'The brush rustles. Something leaps out!' };
+    }
     if (nowT && nowT !== wasT) {
       msgs.push(`${wasT ? '' : 'Welcome to '}${AF.TOWN_NAMES[nowT.id]}.`);
       if (nowT.id === 2) AF.Quests.event(state, 'town2', {});
@@ -415,10 +474,10 @@
     const r = AF.rng(state.seed ^ (state.steps * 2654435761));
     let ambush = null;
     for (const e of w.enemies) {
-      if (e.boss) continue;
+      if (e.boss || e.bounty) continue;
       const d = Math.abs(e.x - w.px) + Math.abs(e.y - w.py);
       let step = null;
-      if (d <= 6 && !nowT && r() < 0.55) {
+      if (d <= 4 && !nowT && r() < 0.4) {
         const sx = Math.sign(w.px - e.x), sy = Math.sign(w.py - e.y);
         step = Math.abs(w.px - e.x) >= Math.abs(w.py - e.y) ? [sx, 0] : [0, sy];
       } else if (r() < 0.25) step = [[1, 0], [-1, 0], [0, 1], [0, -1]][Math.floor(r() * 4)];
@@ -427,7 +486,7 @@
       if (tx === w.px && ty === w.py && !nowT) { ambush = e; continue; }
       if (enemyOK(mp, tx, ty, w.enemies, w)) { e.x = tx; e.y = ty; }
     }
-    if (mp.area === 'over' && state.steps % 40 === 0 && w.enemies.length < 120) {
+    if (mp.area === 'over' && state.steps % 60 === 0 && w.enemies.filter((e) => !e.boss && !e.bounty).length < AF.ROAMERS) {
       for (let tries = 0; tries < 200; tries++) {
         const x = AF.randInt(r, 1, mp.w - 2), y = AF.randInt(r, 1, mp.h - 2);
         if (Math.hypot(x - mp.c1[0], y - mp.c1[1]) < 24 || Math.abs(x - w.px) + Math.abs(y - w.py) < 10 || !enemyOK(mp, x, y, w.enemies, w)) continue;
@@ -475,6 +534,7 @@
     if (t.kind === 'fountain') return { type: 'msg', text: t.big === 'clock' ? 'Brass gears tick behind the clock face. Somewhere inside, steam hisses in time.' : 'The Arc Well hums with a cold blue light.' };
     if (t.kind === 'crystal') return { type: 'msg', text: 'The crystal thrums under your hand. Old magic, still awake.' };
     if (t.kind === 'dungeon') return { type: 'dungeon' };
+    if (t.kind === 'bounty') return { type: 'bounty', town: t.town };
     if (t.kind === 'leave') return { type: 'leave' };
     if (t.kind === 'chest') {
       if (w.opened[t.k]) return { type: 'msg', text: 'Empty. Someone (you) got here first.' };
@@ -484,17 +544,9 @@
     }
     if (t.kind === 'node') {
       const k = t.k, def = AF.NODES[mp.nodes[k]];
-      if ((w.ready[k] || 0) > state.steps) return { type: 'msg', text: `${def.label} is depleted. It regrows in ${w.ready[k] - state.steps} steps.` };
+      if ((w.ready[k] || 0) > state.steps) return { type: 'msg', text: `${def.label} is picked clean. It recovers in ${w.ready[k] - state.steps} steps.` };
       if (def.arms && state.parts.arms < def.arms) return { type: 'msg', text: `${def.label}: too hard for Grabbers. Upgrade Arms to Drill Arms at a Garage or Smithy.` };
-      const r = AF.rng(state.seed + state.steps * 7 + t.x);
-      let amt = AF.randInt(r, def.amount[0], def.amount[1]) + (st.gather - 1) + (AF.hasPerk(state, 'scavenger') ? 1 : 0);
-      if (p.vit <= 0) amt = Math.max(1, amt - 2);
-      AF.gain(state.res, { [def.res]: amt });
-      w.ready[k] = state.steps + def.respawn;
-      AF.sfx('gather');
-      AF.Render.burst(t.x + 0.5, t.y + 0.5, def.res, 12);
-      AF.Quests.event(state, 'gather', { res: def.res, amt });
-      return { type: 'msg', text: `+${amt} ${AF.RES[def.res].name}` };
+      return { type: 'gather', k, node: mp.nodes[k], x: t.x, y: t.y, site: siteOf(mp, k) };
     }
     if (t.kind === 'ruin') {
       const k = t.k;
@@ -506,7 +558,7 @@
       state.credits += cr;
       AF.sfx('forge'); AF.Render.burst(t.x + 0.5, t.y + 0.3, 'sparkle', 16);
       AF.Quests.event(state, 'ruin', {});
-      if (locked.length) { const id = locked[Math.floor(r() * locked.length)]; state.known.push(id); return { type: 'msg', text: `Ruin searched: blueprint for ${AF.CARDS[id].name} and ${AF.moneyText(cr)}!` }; }
+      if (locked.length) { const id = locked[Math.floor(r() * locked.length)]; state.known.push(id); return { type: 'blueprint', id, text: `You also find ${AF.moneyText(cr)} in the rubble.` }; }
       AF.gain(state.res, { circuits: 2, copper: 4 });
       return { type: 'msg', text: `Ruin searched: 2 Circuits, 4 Copper and ${AF.moneyText(cr)}.` };
     }
@@ -526,6 +578,94 @@
   }
 
   function removeEnemy(state, id) { state.world.enemies = state.world.enemies.filter((e) => e.id !== id); }
+
+  // ---------- Gathering (after the mini-game) ----------
+  function siteOf(mp, k) { const i = mp.nodeSite && mp.nodeSite[k]; return i != null && mp.deposits[i] ? mp.deposits[i].name : null; }
+  // result: { score (0..), flawless } from AF.Mini. Applies the haul and puts the node to rest.
+  function finishGather(state, k, result) {
+    const mp = map(state), w = state.world, type = mp.nodes[k], def = AF.NODES[type], st = AF.stats(state);
+    if (!def) return null;
+    let amt = Math.floor(result.score * def.mult + 1e-9);
+    if (result.score > 0) amt = Math.max(1, amt) + (st.gather - 1) + (AF.hasPerk(state, 'scavenger') ? 1 : 0);
+    if (state.pilot.vit <= 0 && amt > 1) amt--;
+    const got = {}; if (amt > 0) got[def.res] = amt;
+    for (const [res, n] of Object.entries(result.extra || {})) got[res] = (got[res] || 0) + n;
+    if (result.flawless) got[def.bonus] = (got[def.bonus] || 0) + 1;
+    AF.gain(state.res, got);
+    // A poor job still disturbs the node, but it recovers faster.
+    w.ready[k] = state.steps + Math.round(def.respawn * (result.score > 0 ? 1 : 0.35));
+    const [x, y] = k.split(',').map(Number);
+    if (Object.keys(got).length) { AF.sfx('gather'); AF.Render.burst(x + 0.5, y + 0.5, def.res, 14); AF.Quests.event(state, 'gather', { res: def.res, amt: got[def.res] || 0 }); AF.bumpStat(state, 'gathered'); if (result.flawless) AF.bumpStat(state, 'flawlessGather'); }
+    return got;
+  }
+
+  // ---------- Disturbances ----------
+  function hotReady(state, k) { const h = state.world.hot; return !h || !h[k] || h[k] <= state.steps; }
+  function clearHotspot(state, k, cool) { const w = state.world; w.hot = w.hot || {}; w.hot[k] = state.steps + (cool || AF.HOTSPOT_COOLDOWN); }
+
+  // ---------- Bounty Boards ----------
+  const DIR8 = (dx, dy) => { const a = Math.atan2(dy, dx) * 180 / Math.PI; return ['east', 'south-east', 'south', 'south-west', 'west', 'north-west', 'north', 'north-east'][((Math.round(a / 45) % 8) + 8) % 8]; };
+  function bountyOffers(state, town) {
+    const n = Math.floor((state.steps || 0) / AF.BOUNTY_EVERY);
+    const tiers = town === 2 ? [2, 2, 3] : [1, 1, 2];
+    return tiers.map((tier, i) => {
+      const r = AF.rng(Math.imul(AF.WORLD_SEED + town * 7919 + n * 104729 + i * 15485863, 2654435761) >>> 0); r(); r();
+      const pool = AF.TIERS[tier], type = pool[Math.floor(r() * pool.length)], [lo, hi] = AF.CREDITS_BY_TIER[tier];
+      const mat = ['scrap', 'copper', 'silicon', 'circuits', 'arcite'][Math.min(4, tier + Math.floor(r() * 2))];
+      return { i, town, tier, type, credits: Math.round(hi * (2.2 + r())), xp: AF.XP_BY_TIER[tier] * 2, res: { [mat]: 2 + Math.floor(r() * 3) }, seed: Math.floor(r() * 1e9) };
+    });
+  }
+  function acceptBounty(state, town, i) {
+    const w = state.world, mp = over(), o = bountyOffers(state, town)[i];
+    if (!o) return 'That bounty is gone.';
+    if (w.bounty) return 'You already have a bounty. Finish or drop it first.';
+    if ((w.area || 'over') !== 'over') return 'Head back to the overworld first.';
+    const T = town === 2 ? T2 : T1, cx = T.x + T.w / 2, cy = T.y + T.h / 2, legs = AF.stats(state).legs, r = AF.rng(o.seed);
+    for (let tries = 0; tries < 4000; tries++) {
+      const a = r() * Math.PI * 2, d = 16 + r() * 18, x = Math.round(cx + Math.cos(a) * d), y = Math.round(cy + Math.sin(a) * d);
+      const c = terr(mp, x, y);
+      if (!c || AF.TERRAIN[c].legs > legs || !enemyOK(mp, x, y, w.enemies, w) || (mp.hotspots && mp.hotspots[key(x, y)])) continue;
+      const id = w.nextId++;
+      w.enemies.push({ id, type: o.type, x, y, bounty: true });
+      w.bounty = { id, type: o.type, credits: o.credits, xp: o.xp, res: o.res, town, at: state.steps };
+      AF.sfx && AF.sfx('card');
+      return `Bounty accepted: ${AF.ENEMIES[o.type].name}, last seen to the ${DIR8(x - cx, y - cy)} of ${AF.TOWN_NAMES[town]}. It's marked on your map.`;
+    }
+    return 'No sign of that one today. Try another bounty.';
+  }
+  function dropBounty(state) {
+    const w = state.world; if (!w.bounty) return '';
+    const id = w.bounty.id;
+    w.enemies = w.enemies.filter((e) => e.id !== id);
+    if (w.store && w.store.over) w.store.over.enemies = w.store.over.enemies.filter((e) => e.id !== id);
+    w.bounty = null; return 'Bounty dropped.';
+  }
+  function completeBounty(state, ref) {
+    const w = state.world, b = w.bounty;
+    if (!b || b.id !== ref.id) return null;
+    state.credits += b.credits; AF.gain(state.res, b.res); const xp = AF.gainXP(state, b.xp);
+    AF.bumpStat(state, 'bounties'); w.bounty = null;
+    return `${AF.moneyText(b.credits)}, ${Object.entries(b.res).map(([k, n]) => `${n} ${AF.RES[k].name}`).join(', ')}, +${xp} XP`;
+  }
+  function bountyHint(state) {
+    const w = state.world, b = w.bounty; if (!b) return '';
+    const e = (w.area || 'over') === 'over' ? w.enemies.find((x) => x.id === b.id) : null;
+    if (!e) return `<b>Bounty</b> ${AF.esc(AF.ENEMIES[b.type].name)} · on the overworld`;
+    const dx = e.x - w.px, dy = e.y - w.py, d = Math.abs(dx) + Math.abs(dy);
+    return `<b>Bounty</b> ${AF.esc(AF.ENEMIES[b.type].name)} · ${d <= 2 ? 'right here!' : `${d} steps ${DIR8(dx, dy)}`}`;
+  }
+
+  // ---------- Lures ----------
+  function useLure(state, kind) {
+    const w = state.world, mp = map(state), L = state.pilot.lures || {};
+    if (!L[kind]) return { type: 'msg', text: `No ${AF.LURES[kind].name}s left. The Salvage Exchange sells them.` };
+    if (w.inside || inTown(state)) return { type: 'msg', text: 'Lures only work out in the wild.' };
+    if (!state.flags.robot) return { type: 'msg', text: 'You need an automaton before you go looking for trouble.' };
+    L[kind]--; state.pilot.lures = L;
+    const r = AF.rng(state.seed ^ (state.steps * 7331) ^ 99), base = mp.area === 'over' ? tierFor(mp, w.px, w.py, r) : 3;
+    const tier = Math.min(3, base + (AF.LURES[kind].tier || 0)), pool = mp.area === 'foundry' ? ['cogspider', 'gearghoul', 'runegolem'] : AF.TIERS[tier];
+    return { type: 'battle', enemy: { id: 'lure:' + state.steps, type: pool[Math.floor(r() * pool.length)], x: w.px, y: w.py, lure: kind }, text: `You set out the ${AF.LURES[kind].name}...` };
+  }
   function sendHome(state) {
     if ((state.world.area || 'over') !== 'over') switchArea(state, 'over');
     const w = state.world, mp = over();
@@ -548,7 +688,8 @@
     const ahead = mp.doors[key(w.px, w.py - 1)];
     if (ahead) return AF.BUILDINGS[ahead].name;
     const tn = townName(state); if (tn) return tn;
-    if (mp.nodes[k]) return AF.NODES[mp.nodes[k]].label;
+    if (mp.nodes[k]) return siteOf(mp, k) || AF.NODES[mp.nodes[k]].label;
+    if (mp.deposits) { const d = mp.deposits.find((dd) => Math.abs(dd.x - w.px) <= 4 && Math.abs(dd.y - w.py) <= 4); if (d) return d.name; }
     if (mp.ruins.includes(k)) return 'Searched ruin';
     if (mp.bridges[k]) return 'Old bridge';
     return AF.TERRAIN[terr(mp, w.px, w.py)].name;
@@ -573,11 +714,16 @@
     if (mp.chests) { g.fillStyle = '#f2c45a'; for (const k of Object.keys(mp.chests)) { if (w.opened[k]) continue; const [x, y] = k.split(',').map(Number); if (w.fog[y * mp.w + x] === '1') g.fillRect(x * s, y * s, s, s); } }
     if (mp.cave && w.fog[mp.cave[1] * mp.w + mp.cave[0]] === '1') { g.fillStyle = '#c27bff'; g.fillRect((mp.cave[0] - 1) * s, (mp.cave[1] - 1) * s, s * 4, s * 3); }
     if (w.fog[mp.lair.y * mp.w + mp.lair.x] === '1') { g.fillStyle = '#ff3b5c'; g.fillRect((mp.lair.x - 1) * s, (mp.lair.y - 1) * s, s * 3, s * 3); }
+    if (mp.nodes) for (const [k, n] of Object.entries(mp.nodes)) { const [x, y] = k.split(',').map(Number); if (w.fog[y * mp.w + x] !== '1') continue; g.fillStyle = (w.ready[k] || 0) > state.steps ? '#6a6458' : AF.RES[AF.NODES[n].res].color; g.fillRect(x * s, y * s, s, s); }
+    if (mp.hotspots) { g.fillStyle = '#e8803a'; for (const k of Object.keys(mp.hotspots)) { const [x, y] = k.split(',').map(Number); if (w.fog[y * mp.w + x] === '1' && hotReady(state, k)) g.fillRect(x * s, y * s, s, s); } }
+    if (mp.boards) { g.fillStyle = '#f2c45a'; for (const k of Object.keys(mp.boards)) { const [x, y] = k.split(',').map(Number); if (w.fog[y * mp.w + x] === '1') g.fillRect((x - 1) * s, (y - 1) * s, s * 3, s * 3); } }
+    const bt = w.bounty && mp.area === 'over' && w.enemies.find((e) => e.bounty);
+    if (bt) { g.fillStyle = '#ffd24a'; g.beginPath(); g.arc((bt.x + 0.5) * s, (bt.y + 0.5) * s, s * 2.4, 0, 7); g.fill(); g.strokeStyle = '#3a2008'; g.lineWidth = 1.5; g.stroke(); }
     g.fillStyle = '#ffffff'; g.fillRect((w.px - 1) * s, (w.py - 1) * s, s * 3, s * 3);
     g.strokeStyle = '#202830'; g.strokeRect((w.px - 1) * s + 0.5, (w.py - 1) * s + 0.5, s * 3 - 1, s * 3 - 1);
     return Math.round(((w.fog.split('1').length - 1) / (mp.w * mp.h)) * 100);
   }
 
-  AF.World = { map: () => map(), init, placeRobot, move, interact, facing, face, drawMap, draw: (c, s, t) => AF.Render.draw(c, s, t), removeEnemy, sendHome, inTown, describeHere, terrainHere, npcList,
+  AF.World = { finishGather, siteOf: (k) => siteOf(over(), k), clearHotspot, hotReady, bountyOffers, acceptBounty, dropBounty, completeBounty, bountyHint, useLure, map: () => map(), init, placeRobot, move, interact, facing, face, drawMap, draw: (c, s, t) => AF.Render.draw(c, s, t), removeEnemy, sendHome, inTown, describeHere, terrainHere, npcList,
     terrainAt: (state, x, y) => terr(state ? map(state) : map(), x, y), enterDungeon, leaveDungeon, townName, TOWNS, area: (s) => (s.world.area || 'over') };
 })();

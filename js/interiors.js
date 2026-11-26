@@ -65,7 +65,6 @@
     if (x === DOOR[0] && y === DOOR[1]) return false;
     if (x <= 0 || x >= RW - 1 || y <= 1 || y >= RH - 1) return true;
     if (r.counter !== false && y === 3 && x >= 3 && x <= 7) return true;
-    const kp = I.keeperPos(id); if (kp && kp[0] === x && kp[1] === y) return true;
     return !!itemAt(r, x, y, true);
   };
   function itemAt(r, x, y, solidOnly) {

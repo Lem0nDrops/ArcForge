@@ -23,7 +23,9 @@
     this.mods = { tired: state.pilot.vit <= 0, drawEach: buffs.tea ? 1 : 0, firstDraw: perk('tactician') ? 1 : 0, firstEnergy: buffs.soda ? 1 : 0 };
     if (buffs.hotsauce) this.p.tune += 2;
     if (buffs.oatmeal) this.p.fortify += 4;
-    this.say(opts.ambush ? `Ambush! ${def.name} jumped you.` : `A wild ${def.name} blocks the way!`);
+    this.hurt = false; this.turnPlays = 0; this.bestHit = 0; this.bestTurn = 0;
+    const lead = enemyRef.bounty ? `Bounty target: ${def.name}!` : enemyRef.hot ? `A ${def.name} bursts out of hiding!` : enemyRef.lure ? `Your lure draws out a ${def.name}!` : opts.ambush ? `Ambush! ${def.name} jumped you.` : `A wild ${def.name} blocks the way!`;
+    this.say(lead);
     this.startTurn();
   }
   const B = Battle.prototype;
@@ -42,7 +44,7 @@
     const m = this.mods, first = this.turn === 1;
     const kept = this.p.retain ? this.p.block : this.con === 'bulwark' ? Math.floor(this.p.block / 2) : 0;
     this.p.block = this.p.fortify + kept;
-    this.p.retain = false; this.p.thorns = 0; this.p.combo = 0;
+    this.p.retain = false; this.p.thorns = 0; this.p.combo = 0; this.turnPlays = 0;
     this.p.energy = Math.max(1, this.st.energy - (m.tired ? 1 : 0) + (first ? m.firstEnergy : 0));
     this.drawCards(this.st.hand + m.drawEach + (first ? m.firstDraw : 0));
   };
@@ -55,7 +57,7 @@
   };
   B.hitEnemy = function (n) { const soak = Math.min(this.e.block, n); this.e.block -= soak; this.e.hp -= n - soak; return { dealt: n - soak, soaked: soak }; };
   B.hitPlayer = function (n) {
-    const soak = Math.min(this.p.block, n); this.p.block -= soak; this.p.hp -= n - soak;
+    const soak = Math.min(this.p.block, n); this.p.block -= soak; this.p.hp -= n - soak; if (n - soak > 0) this.hurt = true;
     if (this.p.hp <= 0) { this.p.hp = 0; this.over = 'lose'; }
     return { dealt: n - soak, soaked: soak };
   };
@@ -78,7 +80,7 @@
       p.charge = 0;
       let total = 0;
       for (let h = 0; h < (d.hits || 1); h++) { const r = this.hitEnemy(base); ev.hits.push(r); total += r.dealt; }
-      parts.push(`${total} damage`);
+      parts.push(`${total} damage`); this.bestHit = Math.max(this.bestHit, total);
       AF.sfx('hit');
     }
     if (d.move === 'close' && d.kind === 'attack') { this.dist = 0; ev.movedAfter = true; }
@@ -89,7 +91,7 @@
     if (blk) { p.block += blk; ev.block = blk; parts.push(`+${blk} Block`); AF.sfx('block'); }
     if (d.heal) { const h = Math.min(d.heal, p.max - p.hp); p.hp += h; ev.heal = h; parts.push(`repaired ${h}`); AF.sfx('heal'); }
     if (d.energy) { p.energy += d.energy; ev.energy = d.energy; }
-    if (d.selfDmg) { const before = p.hp; p.hp = Math.max(1, p.hp - d.selfDmg); ev.selfDmg = before - p.hp; }
+    if (d.selfDmg) { const before = p.hp; p.hp = Math.max(1, p.hp - d.selfDmg); ev.selfDmg = before - p.hp; if (ev.selfDmg) this.hurt = true; }
     if (d.charge) { p.charge += d.charge; ev.charge = d.charge; }
     if (d.stun) { this.e.stun = d.stun; ev.stun = true; parts.push('enemy stunned'); }
     if (d.tune) { p.tune += d.tune; ev.tune = d.tune; }
@@ -100,7 +102,7 @@
     if (d.move) parts.push(`now ${AF.RANGE_NAMES[this.dist]}`);
     this.hand.splice(handIdx, 1);
     (d.exhaust ? this.gone : this.discard).push(inst);
-    p.combo++;
+    p.combo++; this.turnPlays++; this.bestTurn = Math.max(this.bestTurn, this.turnPlays);
     let draw = d.draw || 0;
     if (this.con === 'sprocket' && p.combo % 3 === 0) { draw++; ev.momentum = true; parts.push('momentum draw'); }
     if (draw) { this.drawCards(draw); ev.draw = draw; }
@@ -187,7 +189,7 @@
       // Drops are chances, not guarantees. Drop luck from gear raises every chance.
       const st = AF.stats(s), luck = st.luck, boss = !!this.def.boss;
       for (const [k, [lo, hi]] of Object.entries(this.def.loot)) {
-        if (!boss && Math.random() > AF.DROP.material + luck) continue;
+        if (!boss && !this.ref.lure && !this.ref.bounty && Math.random() > AF.DROP.material + luck) continue;
         const n = Math.max(1, lo + Math.floor(Math.random() * (hi - lo + 1))); out.loot[k] = n;
       }
       if (this.salvage) out.loot.scrap = (out.loot.scrap || 0) + this.salvage;
@@ -203,8 +205,16 @@
       }
       out.xp = AF.gainXP(s, AF.XP_BY_TIER[this.def.tier]);
       const locked = AF.lockedCards(s), hunter = AF.hasPerk(s, 'hunter');
-      if ((this.def.tier >= 2 || hunter) && locked.length && Math.random() < (hunter ? 0.5 : 0.3)) { out.blueprint = locked[Math.floor(Math.random() * locked.length)]; s.known.push(out.blueprint); }
+      // Blueprints are rare now: tough bots and bounty targets sometimes carry one (Hunter perk improves the odds).
+      const bpChance = this.ref.bounty ? AF.DROP.blueprint.bounty : this.def.tier >= 3 ? AF.DROP.blueprint[3] : hunter && this.def.tier >= 2 ? 0.05 : 0;
+      if (locked.length && Math.random() < bpChance * (hunter ? 1.6 : 1)) { out.blueprint = locked[Math.floor(Math.random() * locked.length)]; s.known.push(out.blueprint); }
       s.stats.wins++;
+      AF.maxStat(s, 'bestHit', this.bestHit); AF.maxStat(s, 'bestTurn', this.bestTurn);
+      if (!this.hurt) AF.bumpStat(s, 'flawless');
+      if (this.ref.hot) { AF.World.clearHotspot(s, this.ref.hot); AF.bumpStat(s, 'hotspots'); out.hot = true; }
+      if (this.ref.lure) AF.bumpStat(s, 'lures');
+      if (this.ref.bounty) out.bounty = AF.World.completeBounty(s, this.ref);
+      if (boss) { s.stats.bosses = s.stats.bosses || []; if (!s.stats.bosses.includes(this.ref.type)) s.stats.bosses.push(this.ref.type); }
       AF.World.removeEnemy(s, this.ref.id);
       AF.Quests.event(s, 'win', { tier: this.def.tier });
       if (this.def.boss) { AF.Quests.event(s, 'boss', { type: this.ref.type }); if (this.ref.type === 'titan') s.won = true; out.boss = this.ref.type; }
@@ -214,27 +224,16 @@
       for (const k of AF.RES_KEYS) { const lost = Math.floor(s.res[k] * 0.25); if (lost) { out.loot[k] = -lost; s.res[k] -= lost; } }
       out.credits = -Math.floor(s.credits * 0.25); s.credits += out.credits;
       s.pilot.vit = Math.max(0, s.pilot.vit - 6);
+      if (this.ref.hot) AF.World.clearHotspot(s, this.ref.hot, 80);
       AF.World.sendHome(s);
       AF.sfx('lose');
     }
+    out.ach = AF.checkAchievements(s);
     return out;
   };
   AF.Battle = Battle;
 
-  // ---------- Card face (shared with the workshop) ----------
-  const KIND = { attack: 'Attack', defend: 'Defend', move: 'Move', repair: 'Repair', tech: 'Tech' };
-  AF.cardHtml = function (d, o) {
-    o = o || {};
-    const range = d.kind === 'attack' ? `<span class="rng">${AF.rangeLabel(d.range)}</span>` : '';
-    return `<div class="card k-${d.kind}${o.disabled ? ' off' : ''}${o.selected ? ' sel' : ''}${d.name.endsWith('+') ? ' plus' : ''}${o.cls ? ' ' + o.cls : ''}" ${o.attrs || ''}>
-      <span class="cst">${d.cost}</span>
-      <b class="nm">${AF.esc(d.name)}</b>
-      <span class="kd">${KIND[d.kind]}${range ? ' · ' : ''}${range}</span>
-      <span class="tx">${AF.esc(AF.cardText(d, o.st, o.ctx))}</span>
-      ${o.reason ? `<span class="why">${AF.esc(o.reason)}</span>` : ''}
-      ${o.footer || ''}
-    </div>`;
-  };
+  // Card faces are drawn by AF.cardHtml in js/cards.js.
 
   // ---------- Animated battle screen ----------
   const UI = (AF.BattleUI = { busy: false });
@@ -243,10 +242,11 @@
   function anim(el, cls, ms) { if (!el) return wait(ms); el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls); return wait(ms).then(() => el.classList.remove(cls)); }
 
   UI.start = function (root, b, onOver) {
-    UI.root = root; UI.b = b; UI.onOver = onOver; UI.busy = true; UI.shown = new Set();
+    UI.root = root; UI.b = b; UI.onOver = onOver; UI.busy = true; UI.shown = new Set(); UI.intro = true; UI.lastDist = b.dist; UI.lastEnergy = null;
     const scene = { forest: 'forest', grass: 'grass', lawn: 'grass', path: 'grass', sand: 'sand', water: 'sand', rubble: 'rubble', mountain: 'mountain', dfloor: 'dungeon' }[b.terrain] || 'grass';
+    const back = AF.cardStyle(b.state).back, tag = b.ref.bounty ? 'Bounty target' : b.def.boss ? 'Boss battle' : b.ref.hot ? 'Disturbance' : b.ref.lure ? 'Lured out' : 'Wild encounter';
     root.innerHTML = `
-      <div class="scene sc-${scene}">
+      <div class="scene sc-${scene} intro">
         <div class="sky"></div>
         <div class="foe-wrap d${b.dist}"><div class="plat"></div><canvas class="spr foe-spr" data-spr="enemy:${b.ref.type}"></canvas></div>
         <div class="me-wrap"><div class="plat"></div><canvas class="spr pilot-spr" data-spr="pilot:up"></canvas><canvas class="spr bot-spr" data-spr="robot"></canvas></div>
@@ -254,15 +254,52 @@
         <div class="infobox me-box"></div>
         <canvas class="fx"></canvas>
         <div class="banner"></div>
+        <div class="bars"><i></i><i></i></div>
+        <div class="vs${b.def.boss ? ' boss' : ''}${b.ref.bounty ? ' bounty' : ''}"><div class="vs-l"><small>Your automaton</small><b>${AF.esc(AF.botName(b.state))}</b></div><div class="vs-x">VS</div><div class="vs-r"><small>${tag}</small><b>${AF.esc(b.def.name)}</b><em>${b.def.boss ? 'BOSS' : 'Lv ' + b.def.tier * 5}</em></div></div>
+        <div class="flash"></div>
       </div>
-      <div class="msgbar"><p></p><div class="range" aria-label="Distance"></div></div>
+      <div class="msgbar"><p></p><div class="dist" aria-label="Distance"></div></div>
       <div class="hand"></div>
-      <div class="bt-foot"><span class="piles"></span><button class="btn primary" data-act="end">End turn</button></div>`;
+      <div class="bt-foot">
+        <div class="energy" aria-label="Energy"><b>0</b><small>/0</small><span>Energy</span></div>
+        <div class="pile draw" title="Draw pile">${AF.cardBackHTML(back)}<b>0</b><span>Draw</span></div>
+        <div class="pile disc" title="Discard pile"><span class="pile-face"></span><b>0</b><span>Discard</span></div>
+        <span class="piles"></span>
+        <button class="btn primary" data-act="end">End turn</button>
+      </div>`;
     AF.Pixel.paint(root, b.state);
     FX.init($('.fx'), $('.scene'));
     UI.update();
-    (async () => { await UI.banner(b.def.boss ? 'Boss battle!' : 'Battle start'); UI.busy = false; UI.update(); })();
+    const skip = () => { UI.skipIntro = true; };
+    $('.scene').addEventListener('pointerdown', skip, { once: true });
+    UI.skipIntro = false;
+    (async () => {
+      const w = (ms) => (UI.skipIntro ? wait(Math.min(ms, 60)) : wait(ms));
+      AF.sfx && AF.sfx('card');
+      await w(650);                                   // bars close in, flash, both sides slide into place
+      $('.vs').classList.add('show'); await w(1250);  // VS splash
+      $('.vs').classList.add('out'); $('.scene').classList.remove('intro'); $('.scene').classList.add('ready');
+      await w(300);
+      UI.intro = false; UI.update();                  // deal the opening hand from the draw pile
+      await w(140 + UI.b.hand.length * 90);
+      await UI.banner(b.def.boss ? 'Boss battle!' : 'Your turn');
+      UI.busy = false; UI.update();
+    })();
   };
+
+  // Flying cards: each new card starts on the draw pile, face down, and flips over as it lands in the hand.
+  function dealFrom(cards) {
+    const pile = $('.pile.draw'); if (!pile || !cards.length) return;
+    const pr = pile.getBoundingClientRect();
+    cards.forEach((el, k) => {
+      const r = el.getBoundingClientRect();
+      el.style.setProperty('--fx', (pr.left + pr.width / 2 - (r.left + r.width / 2)) + 'px');
+      el.style.setProperty('--fy', (pr.top + pr.height / 2 - (r.top + r.height / 2)) + 'px');
+      el.style.setProperty('--d', k * 90 + 'ms');
+      el.classList.add('deal');
+      setTimeout(() => AF.sfx && AF.sfx('card'), k * 90 + 120);
+    });
+  }
 
   UI.update = function () {
     const b = UI.b, p = b.p, e = b.e, st = b.state, it = b.intentText();
@@ -276,20 +313,37 @@
     $('.me-box').innerHTML = `
       <div class="ib-top"><b>${AF.esc(AF.botName(st))}</b>${p.block ? `<span class="blk">Block ${p.block}</span>` : '<span></span>'}</div>
       <div class="hp"><em>HP</em><div class="hpbar${hpCls(p.hp, p.max)}"><i style="width:${pct(p.hp, p.max)}%"></i></div></div>
-      <div class="ib-sub"><span>${p.hp} / ${p.max}</span><span class="pips" aria-label="Energy ${p.energy}">${Array.from({ length: Math.max(p.energy, b.st.energy) }, (_, i) => `<i class="${i < p.energy ? 'full' : ''}"></i>`).join('')}</span></div>
+      <div class="ib-sub"><span>${p.hp} / ${p.max}</span></div>
       <div class="buffs">${p.charge ? `<span>Charge +${p.charge}</span>` : ''}${p.tune ? `<span>Tuned +${p.tune}</span>` : ''}${p.fortify ? `<span>Fortify ${p.fortify}</span>` : ''}${p.combo && b.con === 'sprocket' ? `<span class="combo">Combo ×${p.combo}</span>` : ''}${p.thorns ? `<span>Thorns ${p.thorns}</span>` : ''}${p.retain ? '<span>Holding Block</span>' : ''}${p.field ? `<span>Field ${p.field}</span>` : ''}${b.mods.tired ? '<span class="bad">Pilot exhausted</span>' : ''}${b.mods.drawEach ? '<span>Focus Tea</span>' : ''}</div>`;
     const fw = $('.foe-wrap'); fw.className = `foe-wrap d${b.dist}`;
     $('.foe-spr').classList.toggle('stun', !!e.stun);
     $('.msgbar p').textContent = b.log[0] || '';
-    $('.range').innerHTML = [0, 1, 2].map((i) => `<i class="${b.dist === i ? 'on' : ''}">${AF.RANGE_NAMES[i]}</i>`).join('');
-    let n = 0;
-    $('.hand').innerHTML = b.hand.map((inst, i) => {
-      const why = b.whyNot(inst), fresh = !UI.shown.has(inst.uid);
-      if (fresh) UI.shown.add(inst.uid);
-      return AF.cardHtml(AF.cardDef(inst), { st: b.st, ctx: { charge: p.charge, tune: p.tune, block: p.block, combo: p.combo, dist: b.dist }, disabled: !!why, reason: why,
-        cls: fresh ? 'deal' : '', attrs: `data-play="${i}" role="button" tabindex="0" style="--d:${fresh ? n++ * 70 : 0}ms"` });
-    }).join('');
-    $('.piles').innerHTML = `Energy <b>${p.energy}</b> · Draw ${b.pile.length} · Discard ${b.discard.length}${b.gone.length ? ` · Used ${b.gone.length}` : ''}`;
+    // Distance: a big three-stop track. The enemy marker sits on the current range.
+    const dist = $('.dist');
+    dist.innerHTML = `<span class="dl">Distance</span><div class="dtrack"><span class="dme" title="You"></span>${[0, 1, 2].map((i) => `<i class="${b.dist === i ? 'on' : ''}">${AF.RANGE_NAMES[i]}${b.dist === i ? '<span class="dfoe"></span>' : ''}</i>`).join('')}</div>`;
+    if (UI.lastDist !== b.dist) { anim(dist, 'pulse', 600); UI.lastDist = b.dist; }
+    // Energy orb
+    const en = $('.energy');
+    en.querySelector('b').textContent = p.energy; en.querySelector('small').textContent = '/' + b.st.energy;
+    en.classList.toggle('empty', p.energy === 0);
+    if (UI.lastEnergy != null && UI.lastEnergy !== p.energy) anim(en, p.energy > UI.lastEnergy ? 'gain' : 'spend', 450);
+    UI.lastEnergy = p.energy;
+    $('.pile.draw b').textContent = b.pile.length;
+    $('.pile.disc b').textContent = b.discard.length;
+    $('.pile.disc').classList.toggle('has', b.discard.length > 0);
+    $('.piles').textContent = b.gone.length ? `Used ${b.gone.length}` : '';
+    // Hand (held back during the intro so it can be dealt in)
+    const fresh = [];
+    if (UI.intro) $('.hand').innerHTML = '';
+    else {
+      $('.hand').innerHTML = b.hand.map((inst, i) => {
+        const why = b.whyNot(inst), isNew = !UI.shown.has(inst.uid);
+        if (isNew) { UI.shown.add(inst.uid); fresh.push(i); }
+        return AF.cardHtml(AF.cardDef(inst), { st: b.st, ctx: { charge: p.charge, tune: p.tune, block: p.block, combo: p.combo, dist: b.dist }, disabled: !!why, reason: why,
+          back: isNew, cls: isNew ? 'pre' : '', attrs: `data-play="${i}" role="button" tabindex="0"` });
+      }).join('');
+      if (fresh.length) { const els = UI.root.querySelectorAll('.hand .card'); dealFrom(fresh.map((i) => els[i])); }
+    }
     $('[data-act=end]').disabled = UI.busy || !!b.over;
   };
 
@@ -324,8 +378,9 @@
     const b = UI.b;
     if (UI.busy || b.over) return;
     UI.busy = true;
-    UI.root.querySelectorAll('.hand .card').forEach((c, i) => { c.style.setProperty('--d', i * 40 + 'ms'); c.classList.add('discard'); });
-    await wait(300);
+    const dp = $('.pile.disc').getBoundingClientRect();
+    UI.root.querySelectorAll('.hand .card').forEach((c, i) => { const r = c.getBoundingClientRect(); c.style.setProperty('--tx', (dp.left + dp.width / 2 - r.left - r.width / 2) + 'px'); c.style.setProperty('--ty', (dp.top + dp.height / 2 - r.top - r.height / 2) + 'px'); c.style.setProperty('--d', i * 50 + 'ms'); c.classList.add('discard'); });
+    await wait(380 + b.hand.length * 50);
     const ev = b.beginEnemyTurn();
     UI.update();
     await UI.banner(`${b.def.name}'s turn`);
@@ -424,14 +479,18 @@
       ${!out.credits && !lootRows && !out.gear ? '<p class="muted">No drops this time.</p>' : ''}
       ${out.gear ? `<p class="gear-drop" style="--rc:${AF.RARITY[AF.ITEMS[out.gear].rarity].color}">${AF.itemIcon(out.gear)}<span>${out.dup ? 'Duplicate' : 'New outfit piece!'} <b>${AF.esc(AF.ITEMS[out.gear].name)}</b><small>${out.dup ? `Already in your wardrobe, turned into ${AF.moneyText(out.dup)}` : AF.itemText(out.gear) + ' · added to your Wardrobe'}</small></span></p>` : ''}
       ${out.bagFull ? '<p class="muted">Gear dropped, but your bag is full.</p>' : ''}
-      ${out.blueprint ? `<p class="bp">Blueprint recovered: <b>${AF.esc(AF.CARDS[out.blueprint].name)}</b></p>` : ''}
+      ${out.blueprint ? AF.blueprintReveal(out.blueprint) : ''}
+      ${out.bounty ? `<p class="bounty-done">Bounty complete! <b>${out.bounty}</b></p>` : ''}
+      ${achHtml(out.ach)}
       <button class="btn primary" data-act="close-result">Continue</button>`;
     return `
       <h2>Automaton down</h2>
       <p>Your recovery beacon hauled you and your automaton back to ${AF.TOWN_NAME}. Some money and materials were lost on the way, and your pilot is worn out. Banked items are always safe.</p>
       <div class="loot">${out.credits ? `<span class="cost">${AF.moneyHtml(out.credits)}</span>` : ''}${lootRows || (out.credits ? '' : '<span class="muted">Nothing lost.</span>')}</div>
+      ${achHtml(out.ach)}
       <button class="btn primary" data-act="close-result">Back to town</button>`;
   };
+  const achHtml = (list) => (list && list.length ? `<div class="ach-pop">${list.map((a) => `<div class="ach got"><span class="ach-ic">★</span><div><small>Achievement unlocked</small><b>${AF.esc(a.name)}</b><p>Unlocked: ${AF.esc(AF.unlockText(a.unlock))}. Equip it in Party → Trophies.</p></div></div>`).join('')}</div>` : '');
 
   // ---------- Battle effects layer ----------
   const FX = (AF.BattleFX = { items: [], running: false });
