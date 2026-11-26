@@ -264,8 +264,29 @@
 
     // ================= HEAD =================
     const hxo = side ? -0.012 : 0;
-    const headP = side ? (() => { const p = new Path2D(); p.ellipse(hxo, HY, HW, HR, 0, 0, Math.PI * 2); p.moveTo(hxo - HW + 0.01, HY + HR * 0.05); p.ellipse(hxo - HW * 0.97, HY + HR * 0.12, HW * 0.13, HR * 0.11, 0, 0, Math.PI * 2); return p; })() : E(0, HY, HW, HR);
+    const headP = E(hxo, HY, side ? HW : HW, HR);
     add(8, headP, skin, { mat: 'skin', head: true });
+    // Side view: the nose is its own skin shape that overlaps the face, so the one ink outline wraps around it.
+    let C_nose = null;
+    const noseKind = L.nose[Math.max(0, Math.min(L.nose.length - 1, look.nose || 0))];
+    if (side) {
+      // Profile nose: a wedge that grows out of the face curve, from the bridge (eye level) to the tip and back under to the lip.
+      const edge = (y) => hxo - HW * Math.sqrt(Math.max(0, 1 - ((y - HY) / HR) ** 2));
+      const N = { Button: [0.02, 0.34, 'up'], Straight: [0.03, 0.37, 'line'], Broad: [0.03, 0.38, 'round'], Pointed: [0.044, 0.36, 'line'], Hooked: [0.038, 0.42, 'hook'] }[noseKind] || [0.025, 0.36, 'line'];
+      const out = N[0] * hk, yT = HY + HR * 0.08, yTip = HY + HR * N[1], yB = HY + HR * 0.47;
+      const xT = edge(yT), xB = edge(yB), tx = edge(yTip) - out;
+      const P = new Path2D();
+      P.moveTo(xT + 0.014, yT); P.lineTo(xT + 0.001, yT);
+      if (N[2] === 'up') P.quadraticCurveTo(xT - out * 0.15, yTip - 0.004, tx, yTip - 0.004);           // short, slightly scooped, tip turned up
+      else if (N[2] === 'hook') P.quadraticCurveTo(tx - out * 0.25, yT + (yTip - yT) * 0.35, tx, yTip);     // arched bridge, tip hangs down
+      else P.lineTo(tx + out * 0.05, yTip - 0.008);                                                          // straight bridge
+      if (N[2] === 'round') P.quadraticCurveTo(tx - out * 0.25, yTip + 0.012, tx + out * 0.45, yTip + 0.02);  // fleshy rounded tip
+      else P.quadraticCurveTo(tx - out * 0.08, yTip + 0.008, tx + out * 0.35, yTip + 0.012);
+      P.quadraticCurveTo(xB - 0.004, yTip + 0.016, xB + 0.001, yB); P.lineTo(xB + 0.014, yB); P.closePath();
+      add(8.3, P, skin, { mat: 'skin' }); // above beard and moustache, so they sit under the nose
+      C_nose = { tx, yTip, out };
+      det(8.31, () => curve(tx + out * 0.95, yTip + 0.004, tx + out * 1.15, yTip + 0.018, tx + out * 1.4, yTip + 0.01, 'rgba(80,36,24,.45)', lw(1)));
+    }
     const pick = (list, v) => list[Math.max(0, Math.min(list.length - 1, v || 0))];
     const earS = pick(L.ears, look.ears), browS = pick(L.brows, look.brows), noseS = pick(L.nose, look.nose), mouthS = pick(L.mouth, look.mouth), markS = pick(L.marks, look.marks);
     const lashes = look.lashes == null ? fem : !!look.lashes, lips = look.lips == null ? fem : !!look.lips;
@@ -276,7 +297,11 @@
       return POLY([[ex - d * HW * 0.02, HY - HR * 0.08], [ex + d * (HW * 0.1 + len), HY - HR * 0.08 - up], [ex + d * HW * 0.1, HY + HR * 0.22], [ex - d * HW * 0.04, HY + HR * 0.3]]);
     };
     if (!side) [-1, 1].forEach((d) => add(7.9, earPath(d, d * HW * 0.98), skin, { mat: 'skin' }));
-    else add(8.02, earS === 'Round' ? E(hxo + HW * 0.25, HY + HR * 0.1, HW * 0.12, HR * 0.16) : earPath(1, hxo + HW * 0.18), skin, { mat: 'skin', inner: earS === 'Round' });
+    else {
+      const ex = hxo + HW * 0.32, ey2 = HY + HR * 0.18;
+      add(8.02, earS === 'Round' ? E(ex, ey2, HW * 0.15, HR * 0.21) : earPath(1, ex - HW * 0.04), tone(skin, -0.04), { mat: 'skin', inner: true });
+      det(8.03, () => curve(ex - HW * 0.05, ey2 - HR * 0.1, ex + HW * 0.08, ey2 - HR * 0.02, ex - HW * 0.02, ey2 + HR * 0.11, tone(skin, -0.35), lw(1.4), 0.8));
+    }
     // face
     if (!back) det(8.1, () => {
       const eyeStyle = L.eyes[look.eyes || 0], ey = HY + HR * 0.1, er = 0.021 * hk, dark = '#1e140e';
@@ -309,8 +334,8 @@
       // nose
       const nsh = 'rgba(110,52,34,.4)', ny = HY + HR * 0.36, nx = side ? hxo - HW * 0.98 : HW * 0.05;
       if (side) {
-        const ext = { Button: 0.012, Straight: 0.02, Broad: 0.016, Pointed: 0.032, Hooked: 0.028 }[noseS];
-        g.fillStyle = skin; g.strokeStyle = INK; g.lineWidth = 0.012; g.beginPath(); g.moveTo(nx + 0.01, ny - HR * 0.3); g.quadraticCurveTo(nx - ext * (noseS === 'Hooked' ? 1.4 : 0.6), ny - HR * 0.05, nx - ext, ny + HR * 0.06); g.lineTo(nx + 0.012, ny + HR * 0.1); g.closePath(); g.fill(); g.stroke();
+        // nostril and a soft shadow where the nose meets the cheek
+
       } else if (noseS === 'Button') { g.fillStyle = nsh; g.beginPath(); g.ellipse(nx, ny, er * 0.65, er * 0.42, 0, 0, 7); g.fill(); }
       else if (noseS === 'Broad') { g.fillStyle = nsh; g.beginPath(); g.ellipse(nx, ny + er * 0.1, er * 1.05, er * 0.5, 0, 0, 7); g.fill(); dot(nx - er * 0.45, ny + er * 0.25, er * 0.18, 'rgba(70,30,20,.5)'); dot(nx + er * 0.45, ny + er * 0.25, er * 0.18, 'rgba(70,30,20,.5)'); }
       else { const len = noseS === 'Pointed' ? 1.6 : noseS === 'Hooked' ? 1.4 : 1.2; curve(nx - er * 0.1, ny - er * len, nx + er * (noseS === 'Hooked' ? 0.7 : 0.4), ny - er * 0.2, nx - er * 0.35, ny + er * 0.3, 'rgba(90,40,26,.55)', lw(1.2)); g.fillStyle = nsh; g.beginPath(); g.ellipse(nx, ny + er * 0.2, er * 0.55, er * 0.3, 0, 0, 7); g.fill(); }
@@ -321,6 +346,7 @@
       if (lips) { g.fillStyle = 'rgba(170,60,60,.42)'; g.beginPath(); g.ellipse(mx, my + er * 0.1, er * 0.75, er * 0.33, 0, 0, 7); g.fill(); }
       if (mouthS === 'Smile') curve(mx - er * 0.8, my - HR * 0.02, mx, my + HR * 0.05, mx + er * 0.8, my - HR * 0.03, mc, lw(1.3));
       else if (mouthS === 'Neutral') line([[mx - er * 0.6, my], [mx + er * 0.6, my]], mc, lw(1.2));
+      else if (side && (mouthS === 'Grin' || mouthS === 'Open')) { g.fillStyle = '#4a1a14'; g.beginPath(); g.moveTo(mx - er * 0.75, my - er * 0.15); g.quadraticCurveTo(mx, my + er * (mouthS === 'Open' ? 1.5 : 1.1), mx + er * 0.8, my - er * 0.3); g.closePath(); g.fill(); if (mouthS === 'Grin') { g.fillStyle = '#f4ece0'; g.fillRect(mx - er * 0.45, my - er * 0.12, er * 0.95, er * 0.22); } }
       else if (mouthS === 'Grin') { g.fillStyle = '#4a1a14'; g.beginPath(); g.moveTo(mx - er * 0.95, my - er * 0.15); g.quadraticCurveTo(mx, my + er * 1.3, mx + er * 0.95, my - er * 0.15); g.closePath(); g.fill(); g.fillStyle = '#f4ece0'; g.fillRect(mx - er * 0.7, my - er * 0.1, er * 1.4, er * 0.28); }
       else if (mouthS === 'Smirk') curve(mx - er * 0.7, my + er * 0.1, mx + er * 0.1, my + er * 0.3, mx + er * 0.85, my - er * 0.4, mc, lw(1.3));
       else if (mouthS === 'Frown') curve(mx - er * 0.75, my + er * 0.3, mx, my - er * 0.35, mx + er * 0.75, my + er * 0.3, mc, lw(1.3));
