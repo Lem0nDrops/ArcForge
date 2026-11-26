@@ -665,7 +665,8 @@
     C.raf = requestAnimationFrame(loop);
   };
   C.close = function () { root().hidden = true; cancelAnimationFrame(C.raf); };
-  C.wornIds = () => (C.mode === 'new' ? Object.values(C.kit).filter(Boolean) : AF.equippedIds(C.state).filter((id) => AF.ITEMS[id].slot !== 'charm'));
+  // Tools aren't shown or chosen in the creator/Salon; you still own the wrench and can equip tools from the Wardrobe.
+  C.wornIds = () => (C.mode === 'new' ? Object.values(C.kit).filter(Boolean) : AF.equippedIds(C.state)).filter((id) => !['charm', 'tool'].includes(AF.ITEMS[id].slot));
   C.previewLook = function () {
     const o = {};
     C.wornIds().forEach((id) => { o[AF.ITEMS[id].slot] = id; });

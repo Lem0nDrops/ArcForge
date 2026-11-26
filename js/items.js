@@ -183,9 +183,9 @@
     hat: [null, 'wanderer_hood', 'leather_cap', 'red_bandana'], face: [null, 'glasses'],
     top: ['basic_tee', 'linen_tunic', 'leather_jerkin', 'padded_vest', 'overalls_denim', 'mage_robe'],
     bottom: ['basic_pants', 'breeches', 'denim_shorts', 'pleated_skirt'], shoes: ['basic_shoes', 'dust_boots', 'sneakers'],
-    gloves: [null, 'work_gloves'], cape: [null, 'traveler_cloak', 'patch_scarf'], tool: [null, 'wrench', 'tome'],
+    gloves: [null, 'work_gloves'], cape: [null, 'traveler_cloak', 'patch_scarf'],
   };
-  AF.STARTER_KIT = { top: 'leather_jerkin', bottom: 'breeches', shoes: 'dust_boots', gloves: 'work_gloves', tool: 'wrench' };
+  AF.STARTER_KIT = { top: 'leather_jerkin', bottom: 'breeches', shoes: 'dust_boots', gloves: 'work_gloves' };
   AF.BASE_WARDROBE = ['linen_tunic', 'basic_tee', 'basic_pants', 'basic_shoes', 'denim_shorts', 'pleated_skirt', 'wrench'];
 
   const STAT_TEXT = {
