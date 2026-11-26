@@ -188,58 +188,30 @@
     // ----- Resource nodes and ruins -----
     const nodes = {}, ruins = [];
     const free = (x, y) => !nearTown(x, y, 2) && t[I(x, y)] !== 'p' && !deco[I(x, y)] && !solid[I(x, y)] && !nodes[key(x, y)] && !ruins.includes(key(x, y)) && !(Math.abs(x - lair.x) <= 2 && Math.abs(y - lair.y) <= 2) && !(Math.abs(x - cave[0]) <= 5 && y <= cave[1] + 2 && y >= cave[1] - 4);
-    // Deposits: resources gather in named sites that suit them (scrapyards on the scrap fields, copper where the
-    // rubble meets the crags, silica in the dunes, arcite crystals on the mountain edge), not sprinkled everywhere.
-    const deposits = [], nodeSite = {};
-    const near = (x, y, ch, rad) => { for (let dy = -rad; dy <= rad; dy++) for (let dx = -rad; dx <= rad; dx++) { const xx = x + dx, yy = y + dy; if (xx >= 0 && yy >= 0 && xx < W && yy < H && t[I(xx, yy)] === ch) return true; } return false; };   // ch is a map letter: r rubble, m mountain, g grass
-    const edgeOfMountain = (x, y) => CH[t[I(x, y)]] === 'mountain' && [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => { const c = CH[t[I(x + dx, y + dy)]]; return c && c !== 'mountain' && c !== 'water' && !solid[I(x + dx, y + dy)]; });
-    const SITE = {
-      scrap: { ok: (x, y, c) => (c === 'rubble' || (c === 'sand' && near(x, y, 'r', 3))), cell: (c) => c === 'rubble' || c === 'sand' || c === 'grass' },
-      copper: { ok: (x, y, c) => c === 'rubble' && near(x, y, 'm', 4), cell: (c) => c === 'rubble' },
-      silicon: { ok: (x, y, c) => c === 'sand' && !near(x, y, 'g', 2), cell: (c) => c === 'sand' },
-      arcite: { ok: (x, y) => edgeOfMountain(x, y), cell: (c, x, y) => edgeOfMountain(x, y) },
-    };
-    const siteName = (type, i) => {
-      const N = AF.DEPOSITS[type].names; return N[i % N.length];
-    };
-    const spaced = (x, y, gap) => deposits.every((d) => Math.hypot(d.x - x, d.y - y) >= gap);
-    const addSite = (type, x, y, n, name) => {
-      const site = { type, x, y, name, nodes: [] }, cand = [];
-      for (let dy = -3; dy <= 3; dy++) for (let dx = -3; dx <= 3; dx++) {
-        const xx = x + dx, yy = y + dy; if (xx < 1 || yy < 1 || xx >= W - 1 || yy >= H - 1) continue;
-        const c = CH[t[I(xx, yy)]];
-        if (dx * dx + dy * dy <= 10 && SITE[type].cell(c, xx, yy) && (type === 'arcite' || free(xx, yy)) && !nodes[key(xx, yy)]) cand.push([xx, yy, dx * dx + dy * dy]);
-      }
-      cand.sort((p1, p2) => p1[2] - p2[2] + (r() - 0.5) * 6);
-      for (const [xx, yy] of cand) {
-        if (site.nodes.length >= n) break;
-        if (site.nodes.some(([ax, ay]) => Math.abs(ax - xx) + Math.abs(ay - yy) < 2)) continue;
-        nodes[key(xx, yy)] = type; nodeSite[key(xx, yy)] = deposits.length; site.nodes.push([xx, yy]);
-      }
-      if (site.nodes.length >= 2) deposits.push(site); else site.nodes.forEach(([xx, yy]) => { delete nodes[key(xx, yy)]; delete nodeSite[key(xx, yy)]; });
-    };
-    // A small scrapyard just outside Rivet Hollow for your first jobs
-    for (let tries = 0; tries < 3000 && !deposits.length; tries++) {
-      const x = AF.randInt(r, T1.x - 10, T1.x + T1.w + 9), y = AF.randInt(r, T1.y - 10, T1.y + T1.h + 9), c = CH[t[I(x, y)]], d = Math.hypot(x - c1[0], y - c1[1]);
-      if (d > 14 && d < 22 && reach.has(key(x, y)) && (c === 'grass' || c === 'sand') && free(x, y)) addSite('scrap', x, y, 4, 'Hollow Junkyard');
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      if (!free(x, y)) continue;
+      const c = CH[t[I(x, y)]], roll = r(), d = Math.hypot(x - c1[0], y - c1[1]);
+      let n = null;
+      if ((c === 'grass' || c === 'forest') && roll < 0.011 && d > 22) n = 'scrap';
+      else if (c === 'rubble') n = roll < 0.025 ? 'copper' : roll < 0.035 ? 'scrap' : null;
+      else if (c === 'sand' && roll < 0.016) n = 'silicon';
+      else if (c === 'mountain' && roll < 0.025) n = 'arcite';
+      else if (c === 'forest' && roll < 0.004 && d > 26) n = 'arcite';
+      if (n) nodes[key(x, y)] = n;
     }
-    for (const type of ['copper', 'silicon', 'scrap', 'arcite']) {
-      const D = AF.DEPOSITS[type];
-      for (let made = 0, tries = 0; made < D.sites && tries < 12000; tries++) {
-        const x = AF.randInt(r, 4, W - 5), y = AF.randInt(r, 4, H - 5), c = CH[t[I(x, y)]], d = Math.hypot(x - c1[0], y - c1[1]);
-        if (d < D.minDist || !SITE[type].ok(x, y, c) || !spaced(x, y, 11) || Math.hypot(x - c2[0], y - c2[1]) < 13) continue;
-        const before = deposits.length;
-        addSite(type, x, y, AF.randInt(r, D.per[0], D.per[1]), siteName(type, made));
-        if (deposits.length > before) made++;
-      }
-    }
+    const starter = ['scrap', 'scrap', 'scrap', 'scrap', 'scrap', 'copper', 'copper', 'copper', 'silicon'];
     let guard = 0;
-    while (ruins.length < AF.RUINS && guard++ < 9000) {
+    while (starter.length && guard++ < 4000) {
+      const x = AF.randInt(r, T1.x - 9, T1.x + T1.w + 8), y = AF.randInt(r, T1.y - 9, T1.y + T1.h + 8), c = CH[t[I(x, y)]];
+      if (reach.has(key(x, y)) && (c === 'grass' || c === 'sand' || c === 'forest') && free(x, y)) nodes[key(x, y)] = starter.pop();
+    }
+    guard = 0;
+    while (ruins.length < 34 && guard++ < 9000) {
       const x = AF.randInt(r, 2, W - 3), y = AF.randInt(r, 2, H - 3);
-      if (t[I(x, y)] !== 'w' && Math.hypot(x - c1[0], y - c1[1]) > 20 && free(x, y) && ruins.every((k) => { const [a2, b2] = k.split(',').map(Number); return Math.hypot(a2 - x, b2 - y) > 12; })) ruins.push(key(x, y));
+      if (t[I(x, y)] !== 'w' && Math.hypot(x - c1[0], y - c1[1]) > 20 && free(x, y)) ruins.push(key(x, y));
     }
 
-    const mp = { area: 'over', w: W, h: H, t, solid, deco, signs, buildings, doors, nodes, deposits, nodeSite, ruins, lair, spawn, cave, bridges, reach: reach.size, I, c1, c2, vision: 6 };
+    const mp = { area: 'over', w: W, h: H, t, solid, deco, signs, buildings, doors, nodes, ruins, lair, spawn, cave, bridges, reach: reach.size, I, c1, c2, vision: 6 };
     // ----- Starting enemies (same for everyone) -----
     mp.enemies0 = [];
     let id = 1;
@@ -403,7 +375,7 @@
     if (mp.doors[k]) { const id = mp.doors[k]; return { kind: 'door', id, label: AF.SHOPS.includes(id) || AF.INTERIORS[id] ? 'Enter' : 'Knock' }; }
     const npc = npcAt(state, x, y); if (npc) return { kind: 'talk', npc: npc.id, label: 'Talk', tall: true };
     if (mp.signs[k]) return { kind: 'sign', text: mp.signs[k], label: 'Read' };
-    if (mp.nodes[k]) { const ready = (w.ready[k] || 0) <= state.steps; return { kind: 'node', k, label: ready ? (mp.nodes[k] === 'scrap' ? 'Rummage' : 'Mine') : 'Picked clean' }; }
+    if (mp.nodes[k]) { const ready = (w.ready[k] || 0) <= state.steps; return { kind: 'node', k, label: ready ? (mp.nodes[k] === 'scrap' ? 'Pick up' : 'Gather') : 'Depleted' }; }
     if (mp.ruins.includes(k)) return { kind: 'ruin', k, label: w.opened[k] ? 'Searched' : 'Search' };
     if (d === 'cave' || (mp.area === 'over' && mp.cave && x === mp.cave[0] + 1 && y === mp.cave[1])) return { kind: 'dungeon', label: 'Enter', tall: true, x: mp.cave[0], y: mp.cave[1] };
     if (d === 'stairsup') return { kind: 'leave', label: 'Climb out' };
@@ -436,8 +408,7 @@
     w.dir = DIRS[dx + ',' + dy];
     const c = terr(mp, nx, ny);
     if (!c) return { type: 'blocked', text: 'The edge of the known world.' };
-    const th = thingAt(state, nx, ny);
-    if ((th && th.kind !== 'talk') || mp.solid[ny * mp.w + nx]) return { type: 'bump' };   // townsfolk never block: walk right through them
+    if (thingAt(state, nx, ny) || mp.solid[ny * mp.w + nx]) return { type: 'bump' };
     if (c === 'dwall') return { type: 'bump' };
     if (!state.flags.robot && inTownXY(state, w.px, w.py) && !inTownXY(state, nx, ny)) return { type: 'talk', npc: 'rook' };
     const need = AF.TERRAIN[c].legs;
@@ -544,9 +515,17 @@
     }
     if (t.kind === 'node') {
       const k = t.k, def = AF.NODES[mp.nodes[k]];
-      if ((w.ready[k] || 0) > state.steps) return { type: 'msg', text: `${def.label} is picked clean. It recovers in ${w.ready[k] - state.steps} steps.` };
+      if ((w.ready[k] || 0) > state.steps) return { type: 'msg', text: `${def.label} is depleted. It regrows in ${w.ready[k] - state.steps} steps.` };
       if (def.arms && state.parts.arms < def.arms) return { type: 'msg', text: `${def.label}: too hard for Grabbers. Upgrade Arms to Drill Arms at a Garage or Smithy.` };
-      return { type: 'gather', k, node: mp.nodes[k], x: t.x, y: t.y, site: siteOf(mp, k) };
+      const r = AF.rng(state.seed + state.steps * 7 + t.x);
+      let amt = AF.randInt(r, def.amount[0], def.amount[1]) + (st.gather - 1) + (AF.hasPerk(state, 'scavenger') ? 1 : 0);
+      if (p.vit <= 0) amt = Math.max(1, amt - 2);
+      AF.gain(state.res, { [def.res]: amt });
+      w.ready[k] = state.steps + def.respawn;
+      AF.sfx('gather');
+      AF.Render.burst(t.x + 0.5, t.y + 0.5, def.res, 12);
+      AF.Quests.event(state, 'gather', { res: def.res, amt });
+      return { type: 'msg', text: `+${amt} ${AF.RES[def.res].name}` };
     }
     if (t.kind === 'ruin') {
       const k = t.k;
@@ -558,7 +537,7 @@
       state.credits += cr;
       AF.sfx('forge'); AF.Render.burst(t.x + 0.5, t.y + 0.3, 'sparkle', 16);
       AF.Quests.event(state, 'ruin', {});
-      if (locked.length) { const id = locked[Math.floor(r() * locked.length)]; state.known.push(id); return { type: 'blueprint', id, text: `You also find ${AF.moneyText(cr)} in the rubble.` }; }
+      if (locked.length) { const id = locked[Math.floor(r() * locked.length)]; state.known.push(id); return { type: 'msg', text: `Ruin searched: blueprint for ${AF.CARDS[id].name} and ${AF.moneyText(cr)}!` }; }
       AF.gain(state.res, { circuits: 2, copper: 4 });
       return { type: 'msg', text: `Ruin searched: 2 Circuits, 4 Copper and ${AF.moneyText(cr)}.` };
     }
@@ -578,26 +557,6 @@
   }
 
   function removeEnemy(state, id) { state.world.enemies = state.world.enemies.filter((e) => e.id !== id); }
-
-  // ---------- Gathering (after the mini-game) ----------
-  function siteOf(mp, k) { const i = mp.nodeSite && mp.nodeSite[k]; return i != null && mp.deposits[i] ? mp.deposits[i].name : null; }
-  // result: { score (0..), flawless } from AF.Mini. Applies the haul and puts the node to rest.
-  function finishGather(state, k, result) {
-    const mp = map(state), w = state.world, type = mp.nodes[k], def = AF.NODES[type], st = AF.stats(state);
-    if (!def) return null;
-    let amt = Math.floor(result.score * def.mult + 1e-9);
-    if (result.score > 0) amt = Math.max(1, amt) + (st.gather - 1) + (AF.hasPerk(state, 'scavenger') ? 1 : 0);
-    if (state.pilot.vit <= 0 && amt > 1) amt--;
-    const got = {}; if (amt > 0) got[def.res] = amt;
-    for (const [res, n] of Object.entries(result.extra || {})) got[res] = (got[res] || 0) + n;
-    if (result.flawless) got[def.bonus] = (got[def.bonus] || 0) + 1;
-    AF.gain(state.res, got);
-    // A poor job still disturbs the node, but it recovers faster.
-    w.ready[k] = state.steps + Math.round(def.respawn * (result.score > 0 ? 1 : 0.35));
-    const [x, y] = k.split(',').map(Number);
-    if (Object.keys(got).length) { AF.sfx('gather'); AF.Render.burst(x + 0.5, y + 0.5, def.res, 14); AF.Quests.event(state, 'gather', { res: def.res, amt: got[def.res] || 0 }); AF.bumpStat(state, 'gathered'); if (result.flawless) AF.bumpStat(state, 'flawlessGather'); }
-    return got;
-  }
 
   // ---------- Disturbances ----------
   function hotReady(state, k) { const h = state.world.hot; return !h || !h[k] || h[k] <= state.steps; }
@@ -688,8 +647,7 @@
     const ahead = mp.doors[key(w.px, w.py - 1)];
     if (ahead) return AF.BUILDINGS[ahead].name;
     const tn = townName(state); if (tn) return tn;
-    if (mp.nodes[k]) return siteOf(mp, k) || AF.NODES[mp.nodes[k]].label;
-    if (mp.deposits) { const d = mp.deposits.find((dd) => Math.abs(dd.x - w.px) <= 4 && Math.abs(dd.y - w.py) <= 4); if (d) return d.name; }
+    if (mp.nodes[k]) return AF.NODES[mp.nodes[k]].label;
     if (mp.ruins.includes(k)) return 'Searched ruin';
     if (mp.bridges[k]) return 'Old bridge';
     return AF.TERRAIN[terr(mp, w.px, w.py)].name;
@@ -714,7 +672,6 @@
     if (mp.chests) { g.fillStyle = '#f2c45a'; for (const k of Object.keys(mp.chests)) { if (w.opened[k]) continue; const [x, y] = k.split(',').map(Number); if (w.fog[y * mp.w + x] === '1') g.fillRect(x * s, y * s, s, s); } }
     if (mp.cave && w.fog[mp.cave[1] * mp.w + mp.cave[0]] === '1') { g.fillStyle = '#c27bff'; g.fillRect((mp.cave[0] - 1) * s, (mp.cave[1] - 1) * s, s * 4, s * 3); }
     if (w.fog[mp.lair.y * mp.w + mp.lair.x] === '1') { g.fillStyle = '#ff3b5c'; g.fillRect((mp.lair.x - 1) * s, (mp.lair.y - 1) * s, s * 3, s * 3); }
-    if (mp.nodes) for (const [k, n] of Object.entries(mp.nodes)) { const [x, y] = k.split(',').map(Number); if (w.fog[y * mp.w + x] !== '1') continue; g.fillStyle = (w.ready[k] || 0) > state.steps ? '#6a6458' : AF.RES[AF.NODES[n].res].color; g.fillRect(x * s, y * s, s, s); }
     if (mp.hotspots) { g.fillStyle = '#e8803a'; for (const k of Object.keys(mp.hotspots)) { const [x, y] = k.split(',').map(Number); if (w.fog[y * mp.w + x] === '1' && hotReady(state, k)) g.fillRect(x * s, y * s, s, s); } }
     if (mp.boards) { g.fillStyle = '#f2c45a'; for (const k of Object.keys(mp.boards)) { const [x, y] = k.split(',').map(Number); if (w.fog[y * mp.w + x] === '1') g.fillRect((x - 1) * s, (y - 1) * s, s * 3, s * 3); } }
     const bt = w.bounty && mp.area === 'over' && w.enemies.find((e) => e.bounty);
@@ -724,6 +681,6 @@
     return Math.round(((w.fog.split('1').length - 1) / (mp.w * mp.h)) * 100);
   }
 
-  AF.World = { finishGather, siteOf: (k) => siteOf(over(), k), clearHotspot, hotReady, bountyOffers, acceptBounty, dropBounty, completeBounty, bountyHint, useLure, map: () => map(), init, placeRobot, move, interact, facing, face, drawMap, draw: (c, s, t) => AF.Render.draw(c, s, t), removeEnemy, sendHome, inTown, describeHere, terrainHere, npcList,
+  AF.World = { clearHotspot, hotReady, bountyOffers, acceptBounty, dropBounty, completeBounty, bountyHint, useLure, map: () => map(), init, placeRobot, move, interact, facing, face, drawMap, draw: (c, s, t) => AF.Render.draw(c, s, t), removeEnemy, sendHome, inTown, describeHere, terrainHere, npcList,
     terrainAt: (state, x, y) => terr(state ? map(state) : map(), x, y), enterDungeon, leaveDungeon, townName, TOWNS, area: (s) => (s.world.area || 'over') };
 })();

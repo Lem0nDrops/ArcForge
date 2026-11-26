@@ -183,7 +183,7 @@
         <rect x="30" y="74" width="60" height="16" rx="6" fill="#2a2030"/><path d="M32 74 l6 7 l6 -7 l6 7 l6 -7 l6 7 l6 -7 l6 7 l6 -7 l6 7" fill="#fff" stroke="#2a2030" stroke-width="2"/>
         <path d="M22 62 h-14 l-6 12 h16" fill="#8a96a8" ${OL}/>${angry(46, 56, 1.2)}${angry(74, 56, 1.2)}`; break;
       case 'sniper': s = `<path d="M30 30 H90 M60 30 V40" stroke="#2a2030" stroke-width="5" stroke-linecap="round"/><ellipse cx="42" cy="28" rx="16" ry="4" fill="#c8ccd8" ${OL}/><ellipse cx="78" cy="28" rx="16" ry="4" fill="#c8ccd8" ${OL}/>
-        <circle cx="62" cy="64" r="26" fill="${c}" ${OL}/><rect x="2" y="60" width="40" height="9" rx="4" fill="${ac}" ${OL}/><circle cx="54" cy="64" r="11" fill="#ffffff" ${OL}/><circle cx="52" cy="64" r="5.5" fill="#ff2a3a"/><path d="M42 50 L66 56" stroke="#2a2030" stroke-width="4" stroke-linecap="round"/>`; break;
+        <circle cx="62" cy="64" r="26" fill="${c}" ${OL}/><rect x="2" y="60" width="40" height="9" rx="4" fill="#4a4e5a" ${OL}/><circle cx="54" cy="64" r="11" fill="#ffffff" ${OL}/><circle cx="52" cy="64" r="5.5" fill="#ff2a3a"/><path d="M42 50 L66 56" stroke="#2a2030" stroke-width="4" stroke-linecap="round"/>`; break;
       case 'shellback': s = `<rect x="22" y="94" width="78" height="14" rx="7" fill="#3a3e4a" ${OL}/><path d="M16 98 Q60 4 104 98 Z" fill="${c}" ${OL}/>
         ${[[40, 50], [60, 34], [80, 50], [50, 74], [72, 74]].map(([x, y]) => `<path d="M${x - 8} ${y + 6} L${x} ${y - 8} L${x + 8} ${y + 6} Z" fill="#c8d4a8" ${OL}/>`).join('')}
         <ellipse cx="22" cy="86" rx="14" ry="12" fill="#8aa86a" ${OL}/>${angry(18, 86, 0.8)}`; break;

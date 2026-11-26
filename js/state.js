@@ -98,7 +98,14 @@
     s.quests = s.quests || AF.Quests.fresh();
     s.look = s.look || Object.assign(AF.defaultLook('f'), { name: 'Pilot' });
     if (s.credits == null) s.credits = 300;
-    s.pilot = Object.assign({ vit: 20, perks: [], buffs: {}, rations: 2 }, s.pilot || {});
+    s.pilot = Object.assign({ vit: 20, perks: [], buffs: {}, rations: 2, lures: { lure: 2 } }, s.pilot || {});
+    s.stats = Object.assign({ wins: 0, forged: 0 }, s.stats || {}); s.ach = s.ach || {};
+    // v8: far fewer roaming bots (battles now also come from disturbances, Bounty Boards and lures).
+    if ((s.version || 0) < 8) {
+      s.version = 8;
+      const w = s.world, list = w && ((w.area || 'over') === 'over' ? w : w.store && w.store.over);
+      if (list && list.enemies) { let n = 0; list.enemies = list.enemies.filter((e) => e.boss || e.bounty || n++ < AF.ROAMERS); }
+    }
     s.bank = s.bank || { credits: 0, res: {} };
     s.unlocks = s.unlocks || [];
     s.stats = Object.assign({ wins: 0, forged: 0 }, s.stats || {});

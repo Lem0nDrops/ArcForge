@@ -66,7 +66,7 @@
     $('#hudbuffs').innerHTML = buffs + (s.pilot.vit <= 0 ? '<span class="bad">Exhausted</span>' : '');
   };
 
-  const canAct = () => game.state && !game.battle && !AF.UI.isOpen() && $('#menu').hidden && !(AF.Mini && AF.Mini.isOpen()) && $('#creator').hidden && !AF.Studio.isOpen() && !AF.Dialog.open && !$('#game').hidden;
+  const canAct = () => game.state && !game.battle && !AF.UI.isOpen() && $('#menu').hidden && $('#creator').hidden && !AF.Studio.isOpen() && !AF.Dialog.open && !$('#game').hidden;
 
   // ---------- Movement (one tile at a time, chained smoothly while a direction is held) ----------
   const VEC = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
@@ -133,8 +133,6 @@
     else if (ev.type === 'talk') AF.Quests.talk(s, ev.npc);
     else if (ev.type === 'sign') AF.Dialog.show([{ text: ev.text }]);
     else if (ev.type === 'bounty') game.bountyBoard(ev.town);
-    else if (ev.type === 'gather') { input.held = []; AF.Mini.gather(s, ev); }
-    else if (ev.type === 'blueprint') { input.held = []; AF.Mini.reveal(ev.id, ev.text); }
     else if (ev.type === 'msg') game.toast(ev.text, ev.long ? 6000 : undefined);
     else if (ev.type === 'dungeon') { input.held = []; fade(); setTimeout(() => { AF.World.enterDungeon(s); game.toast('The Sunken Foundry. The air smells of oil and old magic.', 3500); game.persist(); game.refresh(); }, 160); }
     else if (ev.type === 'leave') { input.held = []; fade(); setTimeout(() => { AF.World.leaveDungeon(s); game.toast('Fresh air again. Brasshaven lies to the south.'); game.persist(); game.refresh(); }, 160); }

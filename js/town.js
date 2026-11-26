@@ -36,7 +36,7 @@
     { id: 'haggler', name: 'Haggler', price: 500, text: '15% off in every shop.' },
     { id: 'tactician', name: 'Tactician', price: 600, text: 'Draw 1 extra card on your first turn of each battle.' },
     { id: 'salvager', name: 'Salvage Expert', price: 600, text: '+25% money from battles.' },
-    { id: 'hunter', name: 'Blueprint Hunter', price: 700, text: 'Tough bots and bounty targets carry blueprints more often, and mid-tier bots sometimes do too.' },
+    { id: 'hunter', name: 'Blueprint Hunter', price: 700, text: 'Blueprints drop more often, even from small bots.' },
   ];
   T.PART_CREDITS = (lvl) => AF.UPGRADE_COST[lvl] ? AF.UPGRADE_COST[lvl].credits : 0;
 

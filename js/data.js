@@ -89,22 +89,12 @@
   };
 
   // Resource nodes on the map.
-  // Gathering is a mini-game (js/minigame.js): scrap piles are rummaged, ore and crystal are struck.
-  // mult: how much of the mini-game score becomes material. bonus: the rare find for a flawless job.
   AF.NODES = {
-    scrap:   { res: 'scrap',   game: 'rummage', respawn: 450, label: 'Scrap pile', mult: 1, bonus: 'circuits' },
-    copper:  { res: 'copper',  game: 'strike', zone: 0.26, speed: 1.0, respawn: 550, label: 'Copper vein', mult: 0.7, bonus: 'silicon' },
-    silicon: { res: 'silicon', game: 'strike', zone: 0.22, speed: 1.15, respawn: 600, label: 'Silica crystals', mult: 0.7, bonus: 'circuits' },
-    arcite:  { res: 'arcite',  game: 'strike', zone: 0.15, speed: 1.35, respawn: 900, label: 'Arcite crystal', arms: 2, mult: 0.4, bonus: 'arcite' },
+    scrap:   { res: 'scrap',   amount: [1, 3], respawn: 220, label: 'Scrap pile' },
+    copper:  { res: 'copper',  amount: [1, 2], respawn: 260, label: 'Copper vein' },
+    silicon: { res: 'silicon', amount: [1, 2], respawn: 280, label: 'Silicon crystals' },
+    arcite:  { res: 'arcite',  amount: [1, 1], respawn: 400, label: 'Arcite crystal', arms: 2 },
   };
-  // Where each resource is found: a few named deposits instead of nodes scattered over the whole map.
-  AF.DEPOSITS = {
-    scrap:   { sites: 6, per: [4, 5], minDist: 18, names: ['Rustfield Scrapyard', 'Wreck Hollow', 'Gearbone Heap', 'Old Convoy Wreck', 'Tinker\'s Graveyard', 'Slag Flats'] },
-    copper:  { sites: 5, per: [3, 4], minDist: 24, names: ['Redrock Copper Seam', 'Verdigris Cut', 'Ember Quarry', 'Old Miner\'s Seam', 'Kettle Gorge Lode'] },
-    silicon: { sites: 4, per: [3, 4], minDist: 22, names: ['Glassdune Silica Beds', 'Mirror Flats', 'Shardsand Hollow', 'Sunglass Basin'] },
-    arcite:  { sites: 4, per: [2, 3], minDist: 34, names: ['Arcspire Grotto', 'Stormcrown Ledge', 'Violet Hollow', 'Thunder Crag'] },
-  };
-  AF.RUINS = 16;   // ruins on the overworld (each holds a blueprint while you still have some to find)
 
   // ---------- Cards ----------
   // kind: attack | defend | move | repair | tech
@@ -311,7 +301,7 @@
   // Credits dropped per enemy tier [min, max]
   // Money dropped (in Bolts) and the chance that a bot drops money / each material at all.
   AF.CREDITS_BY_TIER = { 1: [40, 90], 2: [100, 180], 3: [220, 340], 4: [2500, 2500] };
-  AF.DROP = { money: 0.6, material: 0.22, gear: { 1: 0.04, 2: 0.07, 3: 0.11 }, blueprint: { 3: 0.12, bounty: 0.4 } };
+  AF.DROP = { money: 0.6, material: 0.35, gear: { 1: 0.04, 2: 0.07, 3: 0.11 } };
 
   // ---------- The shared world ----------
   // Every player explores the same map: it's always built from this seed.

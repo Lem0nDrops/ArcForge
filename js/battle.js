@@ -189,7 +189,7 @@
       // Drops are chances, not guarantees. Drop luck from gear raises every chance.
       const st = AF.stats(s), luck = st.luck, boss = !!this.def.boss;
       for (const [k, [lo, hi]] of Object.entries(this.def.loot)) {
-        if (!boss && !this.ref.lure && !this.ref.bounty && Math.random() > AF.DROP.material + luck) continue;
+        if (!boss && !this.ref.hot && !this.ref.lure && !this.ref.bounty && Math.random() > AF.DROP.material + luck) continue;
         const n = Math.max(1, lo + Math.floor(Math.random() * (hi - lo + 1))); out.loot[k] = n;
       }
       if (this.salvage) out.loot.scrap = (out.loot.scrap || 0) + this.salvage;
@@ -205,9 +205,7 @@
       }
       out.xp = AF.gainXP(s, AF.XP_BY_TIER[this.def.tier]);
       const locked = AF.lockedCards(s), hunter = AF.hasPerk(s, 'hunter');
-      // Blueprints are rare now: tough bots and bounty targets sometimes carry one (Hunter perk improves the odds).
-      const bpChance = this.ref.bounty ? AF.DROP.blueprint.bounty : this.def.tier >= 3 ? AF.DROP.blueprint[3] : hunter && this.def.tier >= 2 ? 0.05 : 0;
-      if (locked.length && Math.random() < bpChance * (hunter ? 1.6 : 1)) { out.blueprint = locked[Math.floor(Math.random() * locked.length)]; s.known.push(out.blueprint); }
+      if ((this.def.tier >= 2 || hunter) && locked.length && Math.random() < (hunter ? 0.5 : 0.3)) { out.blueprint = locked[Math.floor(Math.random() * locked.length)]; s.known.push(out.blueprint); }
       s.stats.wins++;
       AF.maxStat(s, 'bestHit', this.bestHit); AF.maxStat(s, 'bestTurn', this.bestTurn);
       if (!this.hurt) AF.bumpStat(s, 'flawless');
@@ -479,7 +477,7 @@
       ${!out.credits && !lootRows && !out.gear ? '<p class="muted">No drops this time.</p>' : ''}
       ${out.gear ? `<p class="gear-drop" style="--rc:${AF.RARITY[AF.ITEMS[out.gear].rarity].color}">${AF.itemIcon(out.gear)}<span>${out.dup ? 'Duplicate' : 'New outfit piece!'} <b>${AF.esc(AF.ITEMS[out.gear].name)}</b><small>${out.dup ? `Already in your wardrobe, turned into ${AF.moneyText(out.dup)}` : AF.itemText(out.gear) + ' · added to your Wardrobe'}</small></span></p>` : ''}
       ${out.bagFull ? '<p class="muted">Gear dropped, but your bag is full.</p>' : ''}
-      ${out.blueprint ? AF.blueprintReveal(out.blueprint) : ''}
+      ${out.blueprint ? `<p class="bp">Blueprint recovered: <b>${AF.esc(AF.CARDS[out.blueprint].name)}</b></p>` : ''}
       ${out.bounty ? `<p class="bounty-done">Bounty complete! <b>${out.bounty}</b></p>` : ''}
       ${achHtml(out.ach)}
       <button class="btn primary" data-act="close-result">Continue</button>`;
