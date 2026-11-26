@@ -12,7 +12,7 @@
   --accent: #ff7a3d; --accent2: #ff5468; --teal: #22b8c4; --gold: #ffc83a; --good: #2fae62; --danger: #e8404f; --warn: #e09a10; --blue: #3a7cf0;
   --head: 'Fredoka', 'Nunito', system-ui, sans-serif; --body: 'Nunito', system-ui, sans-serif;
   --shadow: 0 10px 30px rgba(20,30,60,.18), 0 2px 6px rgba(20,30,60,.12);
-  --safe-t: env(safe-area-inset-top, 0px); --safe-b: env(safe-area-inset-bottom, 0px);
+  --safe-t: env(safe-area-inset-top, 0px); --safe-b: env(safe-area-inset-bottom, 0px); --safe-l: env(safe-area-inset-left, 0px); --safe-r: env(safe-area-inset-right, 0px);
 }
 * { box-sizing: border-box; min-width: 0; }
 html, body { margin: 0; height: 100%; background: var(--navy); color: var(--ink); font: 600 16px/1.45 var(--body); overflow: hidden; overscroll-behavior: none; -webkit-tap-highlight-color: transparent; }
@@ -625,3 +625,140 @@ h3, .slot-name, .lvl b, .collect b, .cr h2, .bot-name, .con b, .title-slots h2 {
 .cr .txt { font: 600 18px var(--head); min-height: 44px; padding: 6px 12px; border-radius: 12px; border: 0; background: #fff; color: var(--ink); box-shadow: 0 0 0 2px #cdb48a inset; flex: 1; min-width: 140px; }
 .studio .bot-stage .bot-pre { width: 66%; margin: 9% auto 0; }
 @media (max-width: 760px) { .slide { grid-template-columns: 1fr auto 3fr auto; } .slide > span { grid-column: 1 / -1; } }
+
+/* =====================================================================
+   v0.12 — Responsive layer: phones (portrait + landscape), tablets, desktop.
+   Breakpoints:  narrow  = max-width 760px  (phones, small tablets portrait)
+                 short   = max-height 520px (phones in landscape)
+                 tiny    = max-width 380px  (small phones)
+   ===================================================================== */
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+.screen { height: 100vh; height: 100dvh; }
+button, .btn, .opt, .tab, .sw, .card { touch-action: manipulation; }
+/* iOS zooms into inputs under 16px; keep them at 16 on touch screens */
+@media (pointer: coarse) { input, textarea, select { font-size: 16px !important; } }
+/* Content taller than the screen can always scroll back to the top */
+#title { place-items: initial; }
+.title-inner { margin: auto; }
+
+/* ---------- Creator & Studio on narrow screens: preview stays pinned while you scroll the options ---------- */
+@media (max-width: 760px) {
+  #creator .cr, #studio .cr { padding: 10px 10px calc(16px + var(--safe-b)); gap: 10px; border-radius: 0; }
+  .cr-side { display: contents; }
+  .cr-side h2 { font-size: 24px; text-align: center; }
+  .cr-side .cr-stage, .cr-side .bot-stage { position: sticky; top: 0; z-index: 4; height: clamp(170px, 34vh, 260px); height: clamp(170px, 34dvh, 260px); margin: 0 -10px; border-radius: 0 0 18px 18px; }
+  .cr-side .fld, .cr-side > .row, .cr-side .cr-name { margin: 0; }
+  .cr-side > .row { justify-content: center; flex-wrap: wrap; gap: 6px; }
+  .cr-side > .row .btn { min-height: 40px; padding: 6px 12px; font-size: 15px; }
+  .cr-tabs { top: calc(clamp(170px, 34dvh, 260px) + 4px); }
+  .cr-turn { top: 6px; } .cr-turn .opt.sm { min-height: 28px; padding: 2px 8px; }
+  .cr-opts section { padding: 10px 12px; border-radius: 16px; }
+  .opts { gap: 5px; } .opt { min-height: 40px; padding: 4px 11px; font-size: 14px; }
+  .pick .quick { width: 100%; }
+  .dye > span { min-width: 0; width: 100%; }
+  .studio .bot-stage .bot-pre { width: min(56%, 220px); margin: 4% auto 0; }
+  /* party/workshop sheets fill the screen like a native page */
+  .modal { padding: 0; }
+  .sheet { width: 100%; max-height: 100vh; max-height: 100dvh; height: 100%; border-radius: 0; padding: 0 12px calc(20px + var(--safe-b)); }
+  .ph { top: 0; padding: calc(8px + var(--safe-t)) 0 8px; }
+  .tabs { overflow-x: auto; flex-wrap: nowrap; scrollbar-width: none; } .tabs::-webkit-scrollbar { display: none; }
+  .tabs .tab { flex: none; }
+  /* cards: two per row instead of one huge card */
+  .grid { grid-template-columns: repeat(auto-fill, minmax(min(150px, 44vw), 1fr)); gap: 10px; }
+}
+@media (max-width: 380px) {
+  .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .slide { gap: 4px; } .slide small { font-size: 11px; }
+  .hud-r .btn { padding: 4px 8px; font-size: 13px; }
+}
+
+/* ---------- Phones in landscape (and any short window) ---------- */
+@media (max-height: 520px) {
+  /* Title: logo left, slots right, both compact */
+  .title-inner { grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr); gap: 16px; padding: 10px 16px; }
+  .title-bot { width: min(90px, 18vh); }
+  .title-brand .logo { max-height: 38vh; width: auto; max-width: 100%; }
+  .title-brand .tag, .title-brand p { font-size: 13px; margin-top: 4px; }
+  .title-slots { padding: 12px 14px; }
+  .title-slots h2 { font-size: 20px; margin-bottom: 8px; }
+  .slot-card { min-height: 0; padding: 8px; }
+
+  /* World HUD: smaller, so the map stays visible */
+  .hud { padding: calc(6px + var(--safe-t)) calc(10px + var(--safe-r, 0px)) 4px calc(10px + var(--safe-l, 0px)); gap: 4px 8px; }
+  .hud-l { max-width: 250px; gap: 3px; }
+  .hud-l .bar { height: 18px; } .hud-l .bar span { font-size: 11px; line-height: 18px; }
+  .where { font-size: 12px; padding: 1px 8px; }
+  .tracker { font-size: 12px; padding: 4px 8px; } .tracker span { display: none; }
+  .hud .resbar { padding: 2px 10px; gap: 2px 10px; } .res { font-size: 13px; } .res em { display: none; }
+  .hud-r .btn { min-height: 34px; padding: 3px 10px; font-size: 13px; }
+  .hud-row .btn { min-height: 32px; padding: 2px 10px; font-size: 13px; }
+  .pad { left: calc(10px + var(--safe-l, 0px)); right: calc(10px + var(--safe-r, 0px)); bottom: calc(8px + var(--safe-b)); }
+  .dpad { width: 118px; height: 118px; }
+  .abtn { width: 54px; height: 54px; font-size: 20px; } .abtn.a { width: 62px; height: 62px; margin-bottom: 18px; }
+  #toast { top: auto; bottom: calc(10px + var(--safe-b)); max-width: 50vw; font-size: 13px; padding: 6px 12px; }
+
+  /* Dialogue: a low bar between the D-pad and the buttons */
+  .dialog { bottom: calc(8px + var(--safe-b)); width: min(620px, calc(100% - 300px)); min-width: 340px; }
+  .dlg { min-height: 0; padding: 10px 14px 14px; gap: 10px; border-radius: 16px; }
+  .dlg-face { width: 40px; height: 40px; }
+  .dlg .who { font-size: 14px; } .dlg .txt { font-size: 15px; min-height: 0; line-height: 1.35; }
+  .choices { margin-top: 6px; } .choices .btn { min-height: 36px; padding: 4px 12px; font-size: 14px; }
+
+  /* Battle: scene on the left, hand of cards on the right */
+  .bt { max-width: none; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto; gap: 6px 10px;
+    padding: calc(6px + var(--safe-t)) calc(8px + var(--safe-r, 0px)) calc(6px + var(--safe-b)) calc(8px + var(--safe-l, 0px)); }
+  .bt .scene { grid-column: 1; grid-row: 1; border-radius: 16px; }
+  .bt .msgbar { grid-column: 1; grid-row: 2; min-height: 0; padding: 5px 10px; border-radius: 12px; }
+  .bt .msgbar p { font-size: 13px; }
+  .bt .hand { grid-column: 2; grid-row: 1; flex-wrap: wrap; align-content: flex-start; overflow-x: hidden; overflow-y: auto; min-height: 0; gap: 6px; padding: 6px 4px; scroll-snap-type: none; }
+  .bt .hand .card { flex: 0 0 calc(33.333% - 4px); min-height: 0; }
+  .bt .bt-foot { grid-column: 2; grid-row: 2; }
+  .bt-foot .btn { min-width: 110px; min-height: 38px; padding: 4px 14px; }
+  .piles { font-size: 13px; }
+  .infobox { padding: 5px 9px 6px; border-radius: 12px; }
+  .foe-box, .me-box { width: min(58%, 240px); }
+  .ib-top { font-size: 14px; } .ib-top span { font-size: 11px; }
+  .intent { margin-top: 3px; padding-top: 3px; } .intent b { font-size: 14px; } .intent span { display: none; }
+  .hpbar { height: 9px; } .ib-sub { font-size: 13px; }
+  .banner { font-size: 24px; }
+
+  /* Creator & Studio: keep the preview column within the screen height */
+  #creator .cr, #studio .cr { grid-template-columns: minmax(230px, 36%) minmax(0, 1fr); gap: 12px; padding: 8px calc(10px + var(--safe-r, 0px)) 12px calc(10px + var(--safe-l, 0px)); }
+  .cr-side { position: sticky; top: 8px; gap: 6px; max-height: calc(100dvh - 16px); overflow-y: auto; }
+  .cr-side h2 { font-size: 20px; }
+  .cr-side .cr-stage, .cr-side .bot-stage { height: 48vh; height: 48dvh; min-height: 140px; }
+  .cr-side .fld { gap: 2px; font-size: 13px; } .cr-side .fld input { min-height: 38px; padding: 4px 10px; font-size: 16px; }
+  .cr-side > .row { gap: 5px; flex-wrap: wrap; } .cr-side > .row .btn { min-height: 36px; padding: 4px 10px; font-size: 14px; }
+  .cr-tabs { padding: 4px; } .cr-tabs .tab { min-height: 32px; font-size: 15px; }
+  .studio .bot-stage .bot-pre { width: min(70%, 40dvh); margin: 4% auto 0; }
+  /* party sheets use the whole screen */
+  .modal { padding: 0; }
+  .sheet { width: 100%; max-height: 100vh; max-height: 100dvh; height: 100%; border-radius: 0; padding: 0 calc(12px + var(--safe-r, 0px)) 14px calc(12px + var(--safe-l, 0px)); }
+  .ph { top: 0; padding: 6px 0; } .ph h2 { font-size: 20px; }
+  .tabs { overflow-x: auto; flex-wrap: nowrap; scrollbar-width: none; } .tabs .tab { flex: none; min-height: 32px; padding: 2px 10px; font-size: 14px; }
+}
+/* very short (small phones sideways) */
+@media (max-height: 400px) {
+  .hud-l .tracker { display: none; }
+  .bt .hand .card .tx { font-size: 12px; } .bt .hand .card .nm { font-size: 13px; }
+}
+
+/* ---------- Large screens: use the room ---------- */
+@media (min-width: 1500px) and (min-height: 900px) {
+  .bt { max-width: 1240px; }
+  .hand .card { flex-basis: 168px; min-height: 186px; }
+}
+/* v0.12 follow-ups */
+@media (max-width: 760px) {
+  .ph { flex-wrap: wrap; row-gap: 6px; }
+  .ph > h2 { flex: 1; font-size: 22px; }
+  .ph > .tabs { order: 3; flex: 1 0 100%; }
+  .ph > .btn { min-height: 38px; padding: 4px 12px; }
+}
+@media (max-height: 520px) {
+  .ph { flex-wrap: nowrap; } .ph > .tabs { flex: 1; min-width: 0; }
+  .cr-side .cr-stage, .cr-side .bot-stage { height: 40vh; height: 40dvh; }
+  .cr-side h2 { font-size: 18px; margin: 0; }
+  .cr-side > .row { flex-wrap: nowrap; } .cr-side > .row .btn { padding: 4px 8px; font-size: 13px; white-space: nowrap; }
+  .cr-side .cr-turn .opt.sm { min-height: 26px; padding: 1px 7px; font-size: 12px; }
+}
