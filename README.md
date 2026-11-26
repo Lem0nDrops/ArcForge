@@ -18,7 +18,7 @@ Controls: WASD / arrow keys to walk (hold Shift to run). Face something and pres
 3. **Settings → Pages → Build and deployment**, then set Source to *Deploy from a branch*, choose `main` and `/ (root)`, and save.
 4. After a minute your game is live at `https://<your-username>.github.io/ArcForge/`.
 
-After uploading an update, give GitHub Pages a few minutes, then hard-refresh (Ctrl+Shift+R / Cmd+Shift+R). Every file link in `index.html` ends in `?v=0.8.0`. When you change files yourself, bump that number everywhere in `index.html` so players' browsers fetch the new files instead of cached old ones.
+After uploading an update, give GitHub Pages a few minutes, then hard-refresh (Ctrl+Shift+R / Cmd+Shift+R). Every file link in `index.html` ends in `?v=0.9.0`. When you change files yourself, bump that number everywhere in `index.html` so players' browsers fetch the new files instead of cached old ones.
 
 Saves are kept in each player's browser. The Menu has a **save code** you can copy to move a save between devices.
 
@@ -26,7 +26,7 @@ Saves are kept in each player's browser. The Menu has a **save code** you can co
 
 | System | What it does |
 |---|---|
-| **Pilot** | A big-headed chibi drawn entirely from what you wear (`js/pilot.js`). Pick body, skin, 10 hairstyles, hair color, 5 eye styles and eye color, plus a starter outfit (Scavenger, Tinker or Dreamer). Change hair and eyes later at the Boutique's Salon. The pilot gets hungry in the wild; at zero vitality you're exhausted. |
+| **Pilot** | A painted, ~3.5-heads-tall adventurer with a two-bone rig (knees, elbows, a grounded walk with weight shift), a choice of Slim/Average/Broad build, 16 hairstyles, 8 beard styles, layered gear (bracers, cross-body straps, pouches, a knife) and cloth and hair that sway as you move, all drawn from what you wear (`js/pilot.js`). Pick body, skin, 10 hairstyles, hair color, 5 eye styles and eye color, plus a starter outfit (Scavenger, Tinker or Dreamer). Change hair and eyes later at the Boutique's Salon. The pilot gets hungry in the wild; at zero vitality you're exhausted. |
 | **Outfit collecting** | 84 pieces across 10 slots: hat, face, top, bottom, shoes, gloves, back, tool and 2 hidden charms (`js/items.js`). **Everything you wear shows on your pilot** in town, in the wild, in battle and in menus. Most pieces also give stats. The Wardrobe (`O`) is a collection book: owned vs. undiscovered, completion %, 3 saved outfit presets. 7 outfit sets (Wastelander, Forgehand, Skyrunner, Pastel Pop, Archivist, Diner Crew, Arcknight) give bonuses at 3 and 5 pieces. Duplicates turn into Bolts. |
 | **The world** | A 128×128 overworld built from one seed, so it's the same for every player (`js/world.js`). **Rivet Hollow**, a timber-frame village, sits in the south-west. The **Brass Road** runs east over the river to **Brasshaven**, a walled steam-and-spellwork city with a Great Clock, a Wayfarers' Guild, the Gilded Cog Inn, the Arcanum (cards), the Brass Anvil Smithy (upgrades), a branch of the Ironclad Bank and the Velvet & Valve Tailor. Every building has an interior. |
 | **The Sunken Foundry** | A hand-built dungeon north of Brasshaven: torch-lit halls, rune crystals, forge pits, 5 strongboxes and 4 new enemies (Cog Spider, Gear Ghoul, Rune Golem and the Clockwork Warden boss). It's dark: your automaton's core and your own light carry you through. The halls refill after a while; the Warden stays down. |

@@ -1,5 +1,5 @@
 /* Automata: ArcForge — the pilot avatar.
-   A big-headed chibi drawn from base features (body, skin, hair, eyes) plus every item worn.
+   A detailed adventurer drawn from base features (body, skin, hair, eyes) plus every item worn.
    Change an item and the character changes with it. */
 (function () {
   const AF = (window.AF = window.AF || {});
@@ -8,20 +8,21 @@
     skin: ['#fde0c8', '#f2c8a2', '#d9a074', '#b07448', '#7c4c2c', '#523020'],
     hairColor: ['#2a1e1a', '#5a3a24', '#9a5a2a', '#e0a840', '#f4e0a0', '#c83a2a', '#ff7ab8', '#4a8ce8', '#5ac878', '#e8ecf4', '#8a5ad8', '#3a3a4a'],
     eyeColor: ['#3a2a20', '#2a5ad8', '#2a9a5a', '#8a4ad8', '#d8402a', '#e0a020'],
-    hair: ['Swoop', 'Spiky', 'Messy', 'Bob', 'Long', 'Ponytail', 'Twin tails', 'Bun', 'Mohawk', 'Curly'],
+    hair: ['Swoop', 'Spiky', 'Messy', 'Bob', 'Long', 'Ponytail', 'Twin tails', 'Bun', 'Mohawk', 'Curly', 'Braid', 'Undercut', 'Top-knot', 'Crop', 'Wavy', 'Locs'],
     eyes: ['Classic', 'Sparkle', 'Sleepy', 'Sharp', 'Dot'],
-    beard: ['None', 'Stubble', 'Mustache', 'Goatee', 'Short beard', 'Full beard'],
+    beard: ['None', 'Stubble', 'Mustache', 'Goatee', 'Short beard', 'Full beard', 'Long beard', 'Braided beard'],
+    build: ['Slim', 'Average', 'Broad'],
     core: [['#ffd75e', 'Solar'], ['#5ef2e1', 'Arc blue'], ['#ff6b5c', 'Ember'], ['#7ee08a', 'Toxic'], ['#c27bff', 'Void'], ['#7fb8ff', 'Glacier'], ['#ff9ad5', 'Bubblegum'], ['#ffffff', 'Starlight']],
   });
-  AF.defaultLook = (body) => ({ name: '', body: body || 'f', skin: 1, hair: body === 'm' ? 0 : 5, hairColor: 2, eyes: 0, eyeColor: 0, core: 1 });
+  AF.defaultLook = (body) => ({ name: '', body: body || 'f', build: 1, skin: 1, hair: body === 'm' ? 0 : 5, hairColor: 2, eyes: 0, eyeColor: 0, core: 1 });
   AF.randomLook = function () {
     const p = (n) => Math.floor(Math.random() * n), body = Math.random() < 0.5 ? 'm' : 'f';
-    return { name: '', body, skin: p(L.skin.length), hair: p(L.hair.length), hairColor: p(L.hairColor.length), eyes: p(L.eyes.length), eyeColor: p(L.eyeColor.length), core: p(L.core.length), beard: body === 'm' && Math.random() < 0.6 ? p(L.beard.length) : 0 };
+    return { name: '', body, build: p(3), skin: p(L.skin.length), hair: p(L.hair.length), hairColor: p(L.hairColor.length), eyes: p(L.eyes.length), eyeColor: p(L.eyeColor.length), core: p(L.core.length), beard: body === 'm' && Math.random() < 0.6 ? p(L.beard.length) : 0 };
   };
   // NPC helper: base features + a list of worn item ids.
   AF.npcLook = (o, items) => { const out = {}; (items || []).forEach((id) => { const it = AF.ITEMS[id]; if (it && it.slot !== 'charm') out[it.slot] = id; }); return Object.assign({ name: '', body: 'm', skin: 1, hair: 0, hairColor: 1, eyes: 0, eyeColor: 0, core: 1 }, o, { outfit: out }); };
   AF.coreColor = (look) => L.core[(look && look.core) || 0][0];
-  const mix = (c, a) => AF.shadeHex(c, a);
+  const mix = (c, a) => (typeof c === 'string' ? AF.shadeHex(c, a) : c);
   // Darker, earthier palette: pull every clothing colour toward a weathered brown and drop the brightness.
   const MUTE = {};
   AF.mute = function (c, k) {
@@ -35,291 +36,581 @@
   };
 
   // ---------- Drawing ----------
+  // A detailed, ~3-heads-tall adventurer. Everything worn is drawn on the body, with shading, folds and trim.
   // cx = centre x, fy = feet y, H = height in px. phase advances π per tile walked.
   AF.drawPilotAt = function (g, cx, fy, H, look, dir, phase, opt) {
     opt = opt || {};
-    const out = look.outfit || {}, V = (k) => { const v = out[k] && AF.ITEMS[out[k]] && AF.ITEMS[out[k]].vis; return v ? { s: v.s, a: AF.mute(v.a), b: AF.mute(v.b) } : null; };
-    const hat = V('hat'), face = V('face'), top = V('top') || { s: 'tunic', a: AF.mute('#b8a888'), b: '#5a4028' }, bot = V('bottom') || { s: 'pants', a: AF.mute('#5a4a38'), b: '#3a2e22' };
-    const shoes = V('shoes'), gloves = V('gloves'), cape = V('cape'), tool = V('tool');
+    const out = look.outfit || {}, V = (k) => { const v = out[k] && AF.ITEMS[out[k]] && AF.ITEMS[out[k]].vis; return v ? { s: v.s, a: AF.mute(v.a, 0.28), b: AF.mute(v.b, 0.28) } : null; };
+    const hat = V('hat'), face = V('face'), shoes = V('shoes'), gloves = V('gloves'), cape = V('cape'), tool = V('tool');
+    const top = V('top') || { s: 'tunic', a: '#9a8a6a', b: '#4a3422' }, bot = V('bottom') || { s: 'pants', a: '#4e4232', b: '#2e261c' };
     g.save();
-    if (dir === 'right') { g.translate(cx, 0); g.scale(-1, 1); g.translate(-cx, 0); dir = 'left'; }
+    let flip = 1;
+    if (dir === 'right') { g.translate(cx, 0); g.scale(-1, 1); g.translate(-cx, 0); dir = 'left'; flip = -1; }
     g.translate(cx, fy - H); g.scale(H, H);
     g.lineJoin = 'round'; g.lineCap = 'round';
-    const OL = '#1c1410', LW = 0.016; g.strokeStyle = OL; g.lineWidth = LW;
-    const sk = L.skin[look.skin || 0], hc = AF.mute(L.hairColor[look.hairColor || 0], 0.18), ec = L.eyeColor[look.eyeColor || 0];
-    const f = look.body === 'f', side = dir === 'left', back = dir === 'up';
-    const moving = !!opt.moving, s1 = Math.sin(phase || 0);
-    const bob = moving ? Math.abs(Math.cos(phase || 0)) * 0.022 : Math.sin((opt.t || 0) / 520) * 0.006;
+    const OL = '#1a120c', LW = Math.max(0.0055, 0.85 / H);
+    g.strokeStyle = OL; g.lineWidth = LW;
+    const sk = L.skin[look.skin || 0], skD = mix(sk, -34), hc = AF.mute(L.hairColor[look.hairColor || 0], 0.22), ec = L.eyeColor[look.eyeColor || 0];
+    const fem = look.body === 'f', side = dir === 'left', back = dir === 'up', front = !side && !back;
+    const moving = !!opt.moving, s1 = Math.sin(phase || 0), t = opt.t || 0;
+    // ---- tiny drawing kit ----
     const P = () => g.beginPath();
-    const fs = (c, st) => { g.fillStyle = c; g.fill(); if (st !== false) g.stroke(); };
+    const stroke = (c, w, a) => { g.save(); g.strokeStyle = c || OL; g.lineWidth = w || LW; if (a != null) g.globalAlpha = a; g.stroke(); g.restore(); };
+    // outlines take a deep shade of the fill (no flat black ink)
+    const fs = (c, st) => { g.fillStyle = c; g.fill(); if (st !== false) { g.strokeStyle = typeof c === 'string' ? mix(c, -64) : c && c._b ? mix(c._b, -64) : OL; g.stroke(); g.strokeStyle = OL; } };
+    const poly = (pts, c, st) => { P(); pts.forEach(([x, y], i) => (i ? g.lineTo(x, y) : g.moveTo(x, y))); g.closePath(); fs(c, st); };
     const rr = (x, y, w, h, r, c, st) => { P(); g.roundRect(x, y, w, h, r); fs(c, st); };
-    const el = (x, y, rx, ry, c, st) => { P(); g.ellipse(x, y, rx, ry, 0, 0, 7); fs(c, st); };
-    const vg = (c, y0, y1) => { const gr = g.createLinearGradient(0, y0, 0, y1); gr.addColorStop(0, mix(c, 14)); gr.addColorStop(1, mix(c, -30)); return gr; };
-    const core = AF.coreColor(look);
+    const el = (x, y, rx, ry, c, st) => { P(); g.ellipse(x, y, Math.abs(rx), Math.abs(ry), 0, 0, 7); fs(c, st); };
+    const ln = (pts, c, w, a) => { P(); pts.forEach(([x, y], i) => (i ? g.lineTo(x, y) : g.moveTo(x, y))); stroke(c, w, a); };
+    const qd = (x0, y0, qx, qy, x1, y1, c, w, a) => { P(); g.moveTo(x0, y0); g.quadraticCurveTo(qx, qy, x1, y1); stroke(c, w, a); };
+    const cyl = (c, x0, x1, k) => { if (typeof c !== 'string') return c; const gr = g.createLinearGradient(x0, 0, x1, 0); k = k || 1; gr.addColorStop(0, mix(c, 8 * k)); gr.addColorStop(0.18, mix(c, 24 * k)); gr.addColorStop(0.4, c); gr.addColorStop(0.6, c); gr.addColorStop(0.66, mix(c, -22 * k)); gr.addColorStop(1, mix(c, -36 * k)); gr._b = c; return gr; };
+    const vg = (c, y0, y1) => { if (typeof c !== 'string') return c; const gr = g.createLinearGradient(0, y0, 0, y1); gr.addColorStop(0, mix(c, 14)); gr.addColorStop(1, mix(c, -30)); gr._b = c; return gr; };
+    const fold = (pts, a) => ln(pts, '#000', LW * 0.9, a == null ? 0.28 : a);
+    const hi = (pts, a) => ln(pts, '#fff', LW * 0.9, a == null ? 0.16 : a);
+    const metal = (c, x0, x1) => { const gr = g.createLinearGradient(x0, 0, x1, 0); gr.addColorStop(0, mix(c, 40)); gr.addColorStop(0.3, mix(c, 10)); gr.addColorStop(0.55, mix(c, -25)); gr.addColorStop(0.8, mix(c, 12)); gr.addColorStop(1, mix(c, -40)); gr._b = c; return gr; };
 
-    // shadow
-    g.fillStyle = 'rgba(10,8,6,.32)'; P(); g.ellipse(0, 0.985, side ? 0.14 : 0.17, 0.032, 0, 0, 7); g.fill();
-    g.translate(0, -bob);
-    const tw = side ? 0.19 : f ? 0.23 : 0.27, T0 = 0.43, T1 = 0.685;
-    // The head is drawn in its own (smaller) space, anchored at the neck: realistic-ish proportions.
-    const HK = 0.7, headSpace = () => { g.save(); g.translate(0, T0 + 0.025); g.scale(HK, HK); g.translate(0, -0.555); };
+    // ---- proportions ----
+    const BI = look.build == null ? 1 : look.build, BS = [0.9, 1, 1.15][BI], BW = [0.86, 1, 1.2][BI], BL = [0.88, 1, 1.16][BI];
+    const HY = 0.18, HRX = side ? 0.112 : 0.117, HRY = 0.134;           // head centre and radii
+    const SY = 0.34, SW = (fem ? 0.122 : 0.142) * BS;                            // shoulder line, half-width
+    const WY = 0.56, WW = (fem ? 0.083 : 0.098) * BW, HIP = 0.6, HW = (fem ? 0.112 : 0.104) * (BW * 0.5 + 0.5); // waist and hip
+    const LEG = 0.38, KNEE = 0.19;                                         // hip-to-sole, hip-to-knee
+    const tw = side ? 0.62 : 1;                                            // torso squash in profile
+    const hx = side ? -0.008 : 0;
 
-    // ----- back layer: capes, wings, packs, long hair -----
-    const capeSway = moving ? s1 * 0.03 : Math.sin((opt.t || 0) / 700) * 0.01;
-    const drawBack = (front) => {
+    // ground shadow
+    g.fillStyle = 'rgba(8,6,4,.38)'; P(); g.ellipse(0, 0.99, side ? 0.13 : 0.16, 0.026, 0, 0, 7); g.fill();
+    // ===== rig: two-bone legs and arms, a real walk cycle =====
+    const hipY = HIP - 0.01, legW = (fem ? 0.045 : 0.049) * BL, LT = 0.185, LS = 0.178, ANK = 0.028;
+    const bareLeg = bot.s === 'shorts' || bot.s === 'skirt';
+    const robeLong = top.s === 'robe';
+    // capsule between two joints, shaded across its width (lit from the upper left)
+    function cap(x0, y0, x1, y1, w0, w1, col) {
+      const dx = x1 - x0, dy = y1 - y0, L0 = Math.hypot(dx, dy) || 1e-6, nx = -dy / L0, ny = dx / L0, ang = Math.atan2(dy, dx);
+      const bul = 1.06, mx = (x0 + x1) / 2, my = (y0 + y1) / 2, wm = ((w0 + w1) / 2) * bul;
+      P(); g.moveTo(x0 + nx * w0, y0 + ny * w0); g.quadraticCurveTo(mx + nx * wm, my + ny * wm, x1 + nx * w1, y1 + ny * w1);
+      g.arc(x1, y1, w1, ang + Math.PI / 2, ang - Math.PI / 2, true);
+      g.quadraticCurveTo(mx - nx * wm, my - ny * wm, x0 - nx * w0, y0 - ny * w0);
+      g.arc(x0, y0, w0, ang - Math.PI / 2, ang + Math.PI / 2, true); g.closePath();
+      if (typeof col === 'string') { const s0 = nx < 0 ? 1 : -1, gr = g.createLinearGradient(mx + nx * wm * s0, my + ny * wm * s0, mx - nx * wm * s0, my - ny * wm * s0);
+        gr.addColorStop(0, mix(col, 20)); gr.addColorStop(0.42, col); gr.addColorStop(0.6, col); gr.addColorStop(0.66, mix(col, -22)); gr.addColorStop(1, mix(col, -36)); gr._b = col; fs(gr); }
+      else fs(col);
+    }
+    const lerp = (a, b, k) => a + (b - a) * k;
+    // gait: phase p for the left leg, p+π for the right
+    function legPose(p) {
+      if (!moving) return { a1: 0.02, bend: 0.05 };
+      const sw = Math.cos(p);
+      return { a1: 0.34 * Math.sin(p), bend: 0.07 + 0.62 * Math.max(0, sw) * (0.6 + 0.4 * Math.max(0, Math.sin(p + 0.6))) };
+    }
+    function legJoints(hipX, pose) {
+      const a2 = pose.a1 - pose.bend, fwd = side ? -1 : 0;
+      // front/back views can't show the stride, so the swinging knee lifts (foreshortened) instead
+      const f1 = side ? pose.a1 : pose.a1 * 1.7, f2 = side ? a2 : f1 - pose.bend * 1.25;
+      const kx = hipX + fwd * Math.sin(pose.a1) * LT, ky = hipY + Math.cos(f1) * LT;
+      const ax = kx + fwd * Math.sin(a2) * LS, ay = ky + Math.cos(f2) * LS;
+      return { kx, ky, ax, ay, a2 };
+    }
+    const PL = legPose(phase || 0), PR = legPose((phase || 0) + Math.PI);
+    const LX = side ? 0 : fem ? 0.048 : 0.054;
+    const JL = legJoints(side ? 0.0 : -LX, PL), JR = legJoints(side ? 0.0 : LX, PR);
+    const full = hipY + LT + LS, drop = full - Math.max(JL.ay, JR.ay);
+    g.translate(0, drop * 0.75 + (moving ? 0.004 : Math.sin(t / 800) * 0.002));
+
+    // ===== back layer (capes, packs, wings) — in back view these go on top later =====
+    const sway = moving ? Math.sin((phase || 0) - 1.0) * 0.028 + (side ? 0.025 : 0) : Math.sin(t / 900) * 0.008;
+    const hairSw = moving ? Math.sin((phase || 0) - 1.3) * 0.016 + (side ? 0.018 : 0) : Math.sin(t / 1100) * 0.003;
+    function backGear(onTop) {
       if (!cape) return;
       const a = cape.a, b = cape.b;
-      if (cape.s === 'cape' || cape.s === 'cloak') {
-        if (front) { if (back) { P(); g.moveTo(-0.15, T0); g.lineTo(0.15, T0); g.lineTo(0.2 + capeSway, 0.93); g.quadraticCurveTo(0, 0.96, -0.2 + capeSway, 0.93); g.closePath(); fs(vg(a, T0, 0.93)); rr(-0.15, T0 - 0.01, 0.3, 0.04, 0.02, b); } return; }
-        P(); if (side) { g.moveTo(0.02, T0); g.lineTo(0.22 + capeSway, 0.92); g.lineTo(0.06, 0.9); } else { g.moveTo(-0.16, T0); g.lineTo(0.16, T0); g.lineTo(0.22, 0.9); g.lineTo(-0.22, 0.9); } g.closePath(); fs(mix(a, -25));
-      } else if (cape.s === 'wings') {
-        if (front && !back) return;
-        const wing = (dx) => { P(); g.moveTo(dx * 0.06, T0 + 0.04); g.quadraticCurveTo(dx * 0.42, T0 - 0.2 + capeSway, dx * 0.48, T0 + 0.02); g.quadraticCurveTo(dx * 0.36, T0 + 0.1, dx * 0.4, T0 + 0.2); g.quadraticCurveTo(dx * 0.22, T0 + 0.14, dx * 0.06, T0 + 0.12); g.closePath(); fs(vg(a, T0 - 0.2, T0 + 0.2)); P(); g.moveTo(dx * 0.08, T0 + 0.06); g.lineTo(dx * 0.44, T0); g.strokeStyle = b; g.stroke(); g.strokeStyle = OL; };
-        if (side) wing(1); else { wing(-1); wing(1); }
-      } else if (cape.s === 'backpack') {
-        if (front) { if (back) rr(-0.13, T0 + 0.01, 0.26, 0.22, 0.06, vg(a, T0, T0 + 0.22)), rr(-0.1, T0 + 0.1, 0.2, 0.08, 0.03, b); return; }
-        if (side) rr(0.08, T0 + 0.01, 0.12, 0.2, 0.05, vg(a, T0, T0 + 0.2));
-      } else if (cape.s === 'jetpack') {
-        const flame = moving && Math.floor((opt.t || 0) / 80) % 2;
-        if (front) { if (back) { rr(-0.17, T0, 0.14, 0.24, 0.05, vg(a, T0, T0 + 0.24)); rr(0.03, T0, 0.14, 0.24, 0.05, vg(a, T0, T0 + 0.24)); if (moving) { el(-0.1, T0 + 0.29, 0.035, 0.05 + flame * 0.02, b, false); el(0.1, T0 + 0.29, 0.035, 0.05 + flame * 0.02, b, false); } } return; }
-        if (side) rr(0.08, T0, 0.12, 0.24, 0.05, vg(a, T0, T0 + 0.24)); else { rr(-0.22, T0 - 0.01, 0.08, 0.12, 0.04, a); rr(0.14, T0 - 0.01, 0.08, 0.12, 0.04, a); }
-      } else if (cape.s === 'scarf') {
-        if (!front && (back || side)) { P(); g.moveTo(0.02, T0 + 0.01); g.quadraticCurveTo(0.2 + capeSway, T0 + 0.06, 0.26 + capeSway * 2, T0 + 0.16); g.lineTo(0.2 + capeSway * 2, T0 + 0.2); g.quadraticCurveTo(0.14, T0 + 0.1, 0.0, T0 + 0.05); g.closePath(); fs(a); }
+      switch (cape.s) {
+        case 'cloak': case 'cape': {
+          const long = cape.s === 'cloak' ? 0.94 : 0.86, w0 = SW * tw + 0.015, w1 = (SW + 0.07) * tw;
+          if (onTop) { // back view: full drape with folds and hood
+            poly([[-w0, SY - 0.01], [w0, SY - 0.01], [w1 + sway, long], [-w1 + sway, long]], vg(a, SY, long));
+            for (let i = -2; i <= 2; i++) fold([[i * 0.035, SY + 0.08], [i * 0.05 + sway, long - 0.02]], 0.3);
+            if (cape.s === 'cloak' && !hat) { P(); g.ellipse(hx, SY - 0.005, 0.1, 0.06, 0, 0, Math.PI); fs(mix(a, -12)); fold([[-0.07, SY + 0.02], [0, SY + 0.05], [0.07, SY + 0.02]]); }
+            rr(-w1 + sway - 0.002, long - 0.02, (w1) * 2, 0.022, 0.006, b, false);
+          } else if (side) {
+            poly([[0.0, SY - 0.01], [0.06, SY - 0.01], [0.14 + sway * 2, long], [0.02 + sway, long - 0.01]], vg(mix(a, -10), SY, long));
+            fold([[0.05, SY + 0.1], [0.1 + sway, long - 0.03]]);
+          } else {
+            poly([[-w0, SY], [w0, SY], [w1 + 0.01, long - 0.02], [-w1 - 0.01, long - 0.02]], vg(mix(a, -22), SY, long));
+          }
+          break;
+        }
+        case 'wings': {
+          if (!onTop && back) return;
+          const wing = (d) => {
+            P(); g.moveTo(d * 0.05, SY + 0.04); g.bezierCurveTo(d * 0.25, SY - 0.12 + sway, d * 0.42, SY - 0.08, d * 0.44, SY + 0.02); g.quadraticCurveTo(d * 0.33, SY + 0.06, d * 0.36, SY + 0.16); g.quadraticCurveTo(d * 0.22, SY + 0.12, d * 0.06, SY + 0.14); g.closePath(); fs(vg(a, SY - 0.1, SY + 0.16));
+            for (let i = 0; i < 3; i++) qd(d * 0.08, SY + 0.06 + i * 0.025, d * 0.25, SY - 0.02 + i * 0.03, d * (0.4 - i * 0.03), SY + 0.02 + i * 0.05, mix(b, -10), LW * 1.2, 0.8);
+          };
+          if (side) wing(1); else { wing(-1); wing(1); }
+          break;
+        }
+        case 'backpack': {
+          if (onTop) { rr(-0.1, SY + 0.02, 0.2, 0.2, 0.035, vg(a, SY, SY + 0.22)); rr(-0.08, SY + 0.1, 0.16, 0.08, 0.02, mix(a, -14)); rr(-0.015, SY + 0.1, 0.03, 0.04, 0.006, b); rr(-0.11, SY - 0.005, 0.22, 0.05, 0.02, mix(b, -10)); fold([[-0.07, SY + 0.05], [0.07, SY + 0.05]]); }
+          else if (side) { rr(0.04, SY + 0.0, 0.1, 0.21, 0.03, vg(a, SY, SY + 0.21)); rr(0.07, SY + 0.12, 0.08, 0.07, 0.015, mix(a, -14)); }
+          break;
+        }
+        case 'jetpack': {
+          const flame = moving && Math.floor(t / 70) % 2;
+          if (onTop) { [-1, 1].forEach((d) => { rr(d * 0.065 - 0.045, SY, 0.09, 0.22, 0.04, metal(a, d * 0.065 - 0.045, d * 0.065 + 0.045)); rr(d * 0.065 - 0.035, SY + 0.21, 0.07, 0.03, 0.01, '#2a2622'); if (moving) el(d * 0.065, SY + 0.27 + flame * 0.01, 0.022, 0.035, '#ff9a30', false); }); rr(-0.03, SY + 0.06, 0.06, 0.08, 0.01, b); }
+          else if (side) { rr(0.04, SY, 0.09, 0.22, 0.04, metal(a, 0.04, 0.13)); if (moving) el(0.085, SY + 0.26, 0.02, 0.035, '#ff9a30', false); }
+          else { [-1, 1].forEach((d) => rr(d * (SW + 0.02) - 0.025, SY - 0.03, 0.05, 0.1, 0.02, metal(a, d * (SW + 0.02) - 0.025, d * (SW + 0.02) + 0.025))); }
+          break;
+        }
+        case 'scarf': if (!onTop && (side || back)) { P(); g.moveTo(0.02, SY - 0.005); g.quadraticCurveTo(0.12 + sway, SY + 0.04, 0.17 + sway * 2, SY + 0.14); g.lineTo(0.13 + sway * 2, SY + 0.16); g.quadraticCurveTo(0.08, SY + 0.07, 0.0, SY + 0.03); g.closePath(); fs(a); } break;
       }
-    };
-    drawBack(false);
-    const hairStyle = (() => {
+    }
+    if (!back) backGear(false);
+
+    // ===== hair behind the head =====
+    const hs = (() => {
       const h = L.hair[look.hair || 0];
-      const tucks = hat && ['beanie', 'chef', 'hardhat', 'miner', 'knight', 'bandana', 'aviator', 'tophat', 'wizard', 'cowboy', 'beret', 'visorcap', 'cap', 'hood', 'kettle'].includes(hat.s);
-      return tucks && ['Spiky', 'Mohawk', 'Bun', 'Curly', 'Messy'].includes(h) ? 'Swoop' : h;
+      const tight = hat && ['beanie', 'chef', 'hardhat', 'miner', 'knight', 'bandana', 'aviator', 'tophat', 'wizard', 'cowboy', 'beret', 'visorcap', 'cap', 'hood', 'kettle'].includes(hat.s);
+      return tight && ['Spiky', 'Mohawk', 'Bun', 'Curly', 'Messy'].includes(h) ? 'Swoop' : h;
     })();
-    const hx = side ? -0.02 : 0, hy = 0.285, hr = 0.255;
-    headSpace();
-    if (!side && hairStyle === 'Long') rr(-0.27, hy - 0.04, 0.54, back ? 0.46 : 0.4, 0.14, vg(hc, hy, hy + 0.4));
-    if (!side && hairStyle === 'Bob') rr(-0.275, hy - 0.02, 0.55, 0.27, 0.12, vg(hc, hy, hy + 0.27));
-    if (hairStyle === 'Twin tails') { const tt = (x) => { P(); g.moveTo(x, hy + 0.02); g.quadraticCurveTo(x + Math.sign(x) * 0.12, hy + 0.2, x + Math.sign(x) * 0.04, hy + 0.36); g.quadraticCurveTo(x - Math.sign(x) * 0.02, hy + 0.2, x, hy + 0.02); fs(hc); }; if (side) tt(0.18); else { tt(-0.25); tt(0.25); } }
-    if (back && hairStyle === 'Ponytail') { P(); g.moveTo(-0.05, hy + 0.05); g.quadraticCurveTo(0.1, hy + 0.28, 0, hy + 0.4); g.quadraticCurveTo(-0.1, hy + 0.28, -0.05, hy + 0.05); fs(hc); }
-    g.restore();
-
-    // ----- legs, bottoms, shoes -----
-    const legY = T1 - 0.01, legLen = 0.275;
-    const leg = (x, lift, far) => {
-      const c = (k) => (far ? mix(k, -22) : k), y1 = legY + legLen - lift;
-      const bare = bot.s === 'shorts' || bot.s === 'skirt';
-      rr(x - 0.042, legY, 0.084, legLen - lift, 0.035, c(bare ? sk : bot.a));
-      if (bot.s === 'shorts') rr(x - 0.05, legY - 0.005, 0.1, 0.07, 0.025, c(bot.a));
-      if (bot.s === 'checker' && !far) { g.fillStyle = bot.b; for (let i = 0; i < 3; i++) g.fillRect(x - 0.035 + (i % 2) * 0.035, legY + 0.02 + i * 0.05, 0.035, 0.035); }
-      if (bot.s === 'cargo' && !far) rr(x - 0.04, legY + 0.07, 0.05, 0.05, 0.01, c(bot.b));
-      if (bot.s === 'greaves') rr(x - 0.05, legY + 0.06, 0.1, 0.1, 0.03, c(bot.b === '#5ef2e1' ? mix(bot.a, 30) : bot.b));
-      // shoes
-      const sx = x + (side ? -0.025 : 0);
-      if (!shoes) { el(sx, y1, 0.045, 0.025, c(sk)); return; }
-      if (shoes.s === 'boots') { rr(x - 0.05, y1 - 0.07, 0.1, 0.08, 0.025, c(shoes.a)); el(sx, y1, side ? 0.07 : 0.058, 0.035, c(shoes.a)); rr(x - 0.05, y1 - 0.075, 0.1, 0.025, 0.01, c(shoes.b), false); }
-      else if (shoes.s === 'flats') { el(sx, y1, side ? 0.06 : 0.05, 0.028, c(shoes.a)); if (!side) el(sx, y1 - 0.02, 0.018, 0.012, c(shoes.b), false); }
-      else if (shoes.s === 'rocket') { el(sx, y1, side ? 0.07 : 0.06, 0.036, c(shoes.a)); rr(x - 0.05, y1 - 0.045, 0.1, 0.025, 0.01, c(shoes.b), false); if (moving) el(x, y1 + 0.05, 0.03, 0.04, '#ffb040', false); }
-      else { el(sx, y1, side ? 0.066 : 0.056, 0.033, c(shoes.a)); P(); g.ellipse(sx, y1 + 0.012, side ? 0.064 : 0.054, 0.016, 0, 0, Math.PI); g.fillStyle = c(shoes.b); g.fill(); }
-    };
-    if (side) { const sw = moving ? s1 * 0.07 : 0; leg(-sw, moving ? Math.max(0, -s1) * 0.03 : 0, true); leg(sw, moving ? Math.max(0, s1) * 0.03 : 0); }
-    else { leg(-0.055, moving ? Math.max(0, s1) * 0.035 : 0); leg(0.055, moving ? Math.max(0, -s1) * 0.035 : 0); }
-    if (bot.s === 'skirt') { P(); g.moveTo(-tw / 2 + 0.01, T1 - 0.04); g.lineTo(tw / 2 - 0.01, T1 - 0.04); g.lineTo(tw / 2 + 0.06, T1 + 0.08); g.quadraticCurveTo(0, T1 + 0.11, -tw / 2 - 0.06, T1 + 0.08); g.closePath(); fs(vg(bot.a, T1 - 0.04, T1 + 0.1)); P(); g.moveTo(-tw / 2 - 0.05, T1 + 0.07); g.quadraticCurveTo(0, T1 + 0.1, tw / 2 + 0.05, T1 + 0.07); g.strokeStyle = bot.b; g.stroke(); g.strokeStyle = OL; }
-
-    // ----- arms (far arm first in side view) -----
-    const sleeveCol = ['vest', 'apron', 'overalls'].includes(top.s) ? top.b : top.s === 'jerkin' ? AF.mute('#a8987a') : top.s === 'armor' ? '#4a4e5a' : top.s === 'mail' ? mix(top.a, -10) : top.a;
-    const drawTool = () => {
-      if (!tool) return;
-      g.save(); g.translate(0, 0.25); g.rotate(-0.5);
-      const a = tool.a, b = tool.b;
-      switch (tool.s) {
-        case 'wrench': rr(-0.018, -0.2, 0.036, 0.22, 0.015, a); P(); g.arc(0, -0.22, 0.045, 0, 7); fs(a); el(0, -0.24, 0.02, 0.025, mix(a, 40), false); break;
-        case 'hammer': rr(-0.016, -0.22, 0.032, 0.25, 0.012, b); rr(-0.07, -0.27, 0.14, 0.07, 0.015, vg(a, -0.27, -0.2)); break;
-        case 'sword': rr(-0.02, -0.34, 0.04, 0.3, 0.02, vg(a, -0.34, -0.04)); rr(-0.06, -0.06, 0.12, 0.03, 0.01, b); rr(-0.014, -0.04, 0.028, 0.07, 0.01, '#6a4a2a'); break;
-        case 'tome': rr(-0.065, -0.06, 0.12, 0.1, 0.012, a); rr(-0.055, -0.052, 0.1, 0.012, 0.004, b, false); el(-0.005, -0.01, 0.015, 0.015, b, false); break;
-        case 'crossbow': rr(-0.015, -0.2, 0.03, 0.22, 0.01, a); P(); g.moveTo(-0.11, -0.13); g.quadraticCurveTo(0, -0.2, 0.11, -0.13); g.lineWidth = 0.025; g.strokeStyle = b; g.stroke(); g.strokeStyle = OL; g.lineWidth = LW; P(); g.moveTo(-0.11, -0.13); g.lineTo(0.11, -0.13); g.lineWidth = 0.006; g.stroke(); g.lineWidth = LW; break;
-        case 'staff': rr(-0.015, -0.34, 0.03, 0.4, 0.015, a); el(0, -0.36, 0.05, 0.05, b); el(-0.015, -0.375, 0.015, 0.015, '#ffffff', false); break;
-        case 'lantern': P(); g.moveTo(0, 0.0); g.lineTo(0, -0.04); g.stroke(); rr(-0.045, 0.0, 0.09, 0.1, 0.02, a); rr(-0.03, 0.015, 0.06, 0.07, 0.015, b, false); break;
-        case 'spatula': rr(-0.014, -0.18, 0.028, 0.2, 0.01, '#6a4a2a'); rr(-0.045, -0.29, 0.09, 0.12, 0.02, vg(b, -0.29, -0.17)); break;
-      }
-      g.restore();
-    };
-    const arm = (x, ang, far, withTool) => {
-      g.save(); g.translate(x, T0 + 0.025); g.rotate(ang);
-      const sc = far ? mix(sleeveCol, -22) : sleeveCol;
-      const shortS = top.s === 'tee' || top.s === 'vest' || top.s === 'apron' || top.s === 'overalls' || top.s === 'jerkin';
-      rr(-0.035, 0, 0.07, shortS ? 0.1 : 0.19, 0.03, sc);
-      if (shortS) rr(-0.03, 0.085, 0.06, 0.12, 0.03, far ? mix(sk, -18) : sk);
-      if (withTool) drawTool();
-      if (gloves) { if (gloves.s === 'gauntlets') { rr(-0.05, 0.17, 0.1, 0.05, 0.02, gloves.b, false); el(0, 0.235, 0.045, 0.045, far ? mix(gloves.a, -22) : gloves.a); } else el(0, 0.225, 0.038, 0.038, far ? mix(gloves.a, -22) : gloves.a); }
-      else el(0, 0.225, 0.034, 0.034, far ? mix(sk, -18) : sk);
-      g.restore();
-    };
-    if (side) arm(0.02, moving ? -s1 * 0.6 : 0.12, true, false);
-
-    // ----- torso & top -----
-    const coatLong = top.s === 'coat' || top.s === 'dress' || top.s === 'tunic';
-    const tb = top.s === 'tunic' ? T1 - T0 + 0.07 : coatLong ? 0.33 : T1 - T0 + 0.01;
-    if (top.s === 'robe') { P(); g.moveTo(-tw / 2, T0 + 0.1); g.lineTo(tw / 2, T0 + 0.1); g.lineTo(tw / 2 + 0.05, 0.94); g.quadraticCurveTo(0, 0.96, -tw / 2 - 0.05, 0.94); g.closePath(); fs(vg(top.a, T0, 0.95)); if (!back && !side) { P(); g.moveTo(0, T1); g.lineTo(0, 0.94); g.strokeStyle = top.b; g.lineWidth = 0.02; g.stroke(); g.strokeStyle = OL; g.lineWidth = LW; } P(); g.moveTo(-tw / 2 - 0.045, 0.925); g.quadraticCurveTo(0, 0.95, tw / 2 + 0.045, 0.925); g.strokeStyle = top.b; g.lineWidth = 0.018; g.stroke(); g.strokeStyle = OL; g.lineWidth = LW; }
-    if (top.s === 'dress') { P(); g.moveTo(-tw / 2, T0 + 0.12); g.lineTo(tw / 2, T0 + 0.12); g.lineTo(tw / 2 + 0.08, T0 + 0.32); g.quadraticCurveTo(0, T0 + 0.36, -tw / 2 - 0.08, T0 + 0.32); g.closePath(); fs(vg(top.a, T0, T0 + 0.34)); P(); g.moveTo(-tw / 2 - 0.07, T0 + 0.31); g.quadraticCurveTo(0, T0 + 0.35, tw / 2 + 0.07, T0 + 0.31); g.strokeStyle = top.b; g.lineWidth = 0.025; g.stroke(); g.strokeStyle = OL; g.lineWidth = LW; }
-    const bodyCol = top.s === 'apron' || top.s === 'overalls' ? top.b : top.s === 'vest' ? top.b : top.a;
-    rr(-tw / 2, T0, tw, top.s === 'dress' ? 0.14 : tb, 0.07, vg(top.s === 'armor' ? '#4a4e5a' : bodyCol, T0, T0 + tb));
-    if (!back) {
-      switch (top.s) {
-        case 'tee': P(); g.arc(0, T0 + 0.005, 0.045, 0.2, Math.PI - 0.2); g.strokeStyle = mix(top.a, -40); g.stroke(); g.strokeStyle = OL; if (top.b && !side) el(0, T0 + 0.11, 0.035, 0.035, top.b, false); break;
-        case 'vest': if (!side) { rr(-tw / 2, T0, tw * 0.38, tb, 0.05, vg(top.a, T0, T1)); rr(tw / 2 - tw * 0.38, T0, tw * 0.38, tb, 0.05, vg(top.a, T0, T1)); } else rr(-tw / 2, T0, tw * 0.6, tb, 0.05, top.a); break;
-        case 'jacket': if (!side) { rr(-tw / 2, T0, tw * 0.42, tb, 0.06, vg(top.a, T0, T1)); rr(tw / 2 - tw * 0.42, T0, tw * 0.42, tb, 0.06, vg(top.a, T0, T1)); rr(-tw / 2 - 0.005, T0 - 0.01, tw + 0.01, 0.045, 0.02, top.b); } else rr(-tw / 2, T0 - 0.01, tw, 0.045, 0.02, top.b); break;
-        case 'hoodie': if (!side) { rr(-0.07, T0 + 0.12, 0.14, 0.07, 0.03, mix(top.a, -18)); P(); g.moveTo(-0.035, T0 + 0.01); g.lineTo(-0.035, T0 + 0.08); g.moveTo(0.035, T0 + 0.01); g.lineTo(0.035, T0 + 0.08); g.strokeStyle = top.b; g.stroke(); g.strokeStyle = OL; } break;
-        case 'sweater': g.save(); P(); g.roundRect(-tw / 2, T0, tw, tb, 0.07); g.clip(); g.fillStyle = top.b; for (let y = T0 + 0.05; y < T1; y += 0.07) g.fillRect(-0.2, y, 0.4, 0.025); g.restore(); break;
-        case 'apron': case 'overalls': { const c = top.a; rr(-tw * 0.36, T0 + 0.06, tw * 0.72, tb - 0.04, 0.04, vg(c, T0, T1)); if (!side) { rr(-tw * 0.36, T0, 0.03, 0.07, 0.01, c, false); rr(tw * 0.36 - 0.03, T0, 0.03, 0.07, 0.01, c, false); if (top.s === 'overalls') { el(-tw * 0.3, T0 + 0.07, 0.012, 0.012, '#f8d048', false); el(tw * 0.3, T0 + 0.07, 0.012, 0.012, '#f8d048', false); } else rr(-0.04, T0 + 0.13, 0.08, 0.05, 0.015, mix(c, -18)); } break; }
-        case 'coat': if (!side) { P(); g.moveTo(0, T0 + 0.02); g.lineTo(0, T0 + tb); g.stroke(); [0.06, 0.13, 0.2].forEach((y) => el(0.03, T0 + y, 0.01, 0.01, top.b, false)); rr(-tw / 2 - 0.005, T0 - 0.01, tw + 0.01, 0.04, 0.02, top.b); } break;
-        case 'armor': rr(-tw / 2 + 0.02, T0 + 0.02, tw - 0.04, 0.16, 0.05, vg(top.a, T0, T0 + 0.18)); el(0, T0 + 0.09, 0.03, 0.03, top.b); el(-tw / 2 - 0.02, T0 + 0.03, 0.06, 0.045, vg(top.a, T0 - 0.02, T0 + 0.07)); el(tw / 2 + 0.02, T0 + 0.03, 0.06, 0.045, vg(top.a, T0 - 0.02, T0 + 0.07)); break;
-        case 'dress': rr(-tw / 2, T0 + 0.1, tw, 0.035, 0.015, top.b, false); break;
-        case 'tunic': case 'jerkin': case 'mail': case 'robe': {
-          if (top.s === 'mail') { g.save(); P(); g.roundRect(-tw / 2, T0, tw, tb, 0.07); g.clip(); g.strokeStyle = mix(top.a, -35); g.lineWidth = 0.007; for (let y = T0 + 0.03; y < T0 + tb; y += 0.03) for (let x = -tw / 2; x < tw / 2; x += 0.035) { P(); g.arc(x + ((y * 100) % 2 ? 0.017 : 0), y, 0.016, 0.2, Math.PI - 0.2); g.stroke(); } g.restore(); g.strokeStyle = OL; g.lineWidth = LW; }
-          if (top.s === 'jerkin' && !side) { g.strokeStyle = mix(top.b, 20); g.lineWidth = 0.008; P(); for (let y = T0 + 0.03; y < T0 + 0.15; y += 0.035) { g.moveTo(-0.025, y); g.lineTo(0.025, y + 0.03); g.moveTo(0.025, y); g.lineTo(-0.025, y + 0.03); } g.stroke(); g.strokeStyle = OL; g.lineWidth = LW; }
-          if (top.s === 'tunic' && !side) { P(); g.moveTo(-0.04, T0 + 0.005); g.lineTo(0, T0 + 0.07); g.lineTo(0.04, T0 + 0.005); g.strokeStyle = mix(top.a, -45); g.stroke(); g.strokeStyle = OL; }
-          if (top.s === 'robe' && !side) { P(); g.moveTo(-0.05, T0); g.lineTo(0, T0 + 0.09); g.lineTo(0.05, T0); g.strokeStyle = top.b; g.lineWidth = 0.016; g.stroke(); g.strokeStyle = OL; g.lineWidth = LW; }
-          const by = T0 + 0.19; rr(-tw / 2 - 0.004, by, tw + 0.008, 0.032, 0.008, top.s === 'robe' ? top.b : AF.mute('#4a3020'));
-          if (!side) rr(-0.022, by - 0.004, 0.044, 0.04, 0.008, AF.mute('#c8a050'));
-          else rr(-tw / 2 + 0.01, by + 0.02, 0.05, 0.06, 0.012, AF.mute('#5a3a22'));
-          break;
-        }
-      }
-    } else {
-      if (top.s === 'hoodie') rr(-0.1, T0 - 0.01, 0.2, 0.07, 0.035, mix(top.a, -18));
-      if (top.s === 'armor') { el(-tw / 2 - 0.02, T0 + 0.03, 0.06, 0.045, top.a); el(tw / 2 + 0.02, T0 + 0.03, 0.06, 0.045, top.a); }
-      if (['tunic', 'jerkin', 'mail', 'robe'].includes(top.s)) rr(-tw / 2 - 0.004, T0 + 0.19, tw + 0.008, 0.032, 0.008, top.s === 'robe' ? top.b : AF.mute('#4a3020'));
+    const hairG = (y0, y1) => { const gr = g.createLinearGradient(-0.1, y0, 0.1, y1); gr.addColorStop(0, mix(hc, 26)); gr.addColorStop(0.5, hc); gr.addColorStop(1, mix(hc, -34)); return gr; };
+    const strands = (x0, y0, x1, y1, n, len) => { for (let i = 0; i < n; i++) { const x = x0 + ((x1 - x0) * i) / Math.max(1, n - 1), y = y0 + ((y1 - y0) * i) / Math.max(1, n - 1); qd(x, y, x + 0.004, y + len * 0.5, x - 0.004, y + len, mix(hc, -45), LW * 0.8, 0.55); } };
+    if (!back && !(hat && hat.s === 'hood')) {
+      if (hs === 'Long') { P(); g.moveTo(hx - 0.12, HY - 0.04); g.quadraticCurveTo(hx - 0.15, HY + 0.2, hx - 0.11 + hairSw, HY + 0.33); g.lineTo(hx + 0.11 + hairSw, HY + 0.33); g.quadraticCurveTo(hx + 0.15, HY + 0.2, hx + 0.12, HY - 0.04); g.closePath(); fs(hairG(HY, HY + 0.33)); strands(hx - 0.1, HY + 0.12, hx + 0.1, HY + 0.12, 7, 0.18); }
+      if (hs === 'Bob') { P(); g.moveTo(hx - 0.125, HY - 0.03); g.quadraticCurveTo(hx - 0.14, HY + 0.1, hx - 0.105, HY + 0.13); g.lineTo(hx + 0.105, HY + 0.13); g.quadraticCurveTo(hx + 0.14, HY + 0.1, hx + 0.125, HY - 0.03); g.closePath(); fs(hairG(HY, HY + 0.13)); }
+      if (hs === 'Twin tails') { const tt = (x) => { P(); g.moveTo(x, HY - 0.02); g.bezierCurveTo(x + Math.sign(x) * 0.09, HY + 0.05, x + Math.sign(x) * 0.07, HY + 0.22, x + Math.sign(x) * 0.02 + hairSw, HY + 0.3); g.bezierCurveTo(x - Math.sign(x) * 0.01, HY + 0.2, x + Math.sign(x) * 0.0, HY + 0.08, x, HY - 0.02); fs(hairG(HY, HY + 0.3)); strands(x + Math.sign(x) * 0.03, HY + 0.06, x + Math.sign(x) * 0.04, HY + 0.08, 3, 0.15); }; if (side) tt(0.1); else { tt(-0.115); tt(0.115); } }
+      if (hs === 'Ponytail' && side) { P(); g.moveTo(0.08, HY - 0.07); g.bezierCurveTo(0.2, HY - 0.04, 0.2 + hairSw, HY + 0.12, 0.15 + hairSw * 1.6, HY + 0.24); g.bezierCurveTo(0.11, HY + 0.12, 0.11, HY + 0.0, 0.06, HY - 0.02); fs(hairG(HY, HY + 0.24)); strands(0.14, HY, 0.15, HY + 0.04, 3, 0.15); }
+      if (hs === 'Wavy') { P(); g.moveTo(hx - 0.125, HY - 0.04); for (let i = 0; i <= 6; i++) g.quadraticCurveTo(hx - 0.15 + (i % 2) * 0.02, HY + i * 0.05, hx - 0.135 + (i % 2 ? 0.0 : 0.01) + hairSw * i / 6, HY + 0.02 + i * 0.05); g.lineTo(hx + 0.12 + hairSw, HY + 0.32); for (let i = 6; i >= 0; i--) g.quadraticCurveTo(hx + 0.15 - (i % 2) * 0.02 + hairSw * i / 6, HY + i * 0.05, hx + 0.13, HY - 0.02 + i * 0.05); g.closePath(); fs(hairG(HY, HY + 0.32)); strands(hx - 0.1, HY + 0.12, hx + 0.1, HY + 0.12, 6, 0.16); }
+      if (hs === 'Locs') for (let i = -4; i <= 4; i++) { if (!i) continue; const x0 = hx + i * 0.028; P(); g.moveTo(x0 - 0.011, HY - 0.02); g.quadraticCurveTo(x0 + hairSw, HY + 0.12, x0 + hairSw * 1.5, HY + 0.24 - Math.abs(i) * 0.012); g.lineTo(x0 + 0.013 + hairSw * 1.5, HY + 0.24 - Math.abs(i) * 0.012); g.quadraticCurveTo(x0 + 0.012 + hairSw, HY + 0.12, x0 + 0.011, HY - 0.02); g.closePath(); fs(hairG(HY, HY + 0.24)); }
+      if (hs === 'Braid' && side) { for (let i = 0; i < 7; i++) el(0.07 + i * 0.006 + hairSw * i / 4, HY + 0.02 + i * 0.038, 0.022 - i * 0.0012, 0.024, hairG(HY, HY + 0.3)); }
+      if (hs === 'Curly') for (let i = 0; i < 8; i++) { const a2 = Math.PI * (0.05 + i * 0.13); el(hx + Math.cos(a2) * 0.12 * (i < 4 ? 1 : -1), HY + 0.02 + Math.sin(a2) * 0.06, 0.035, 0.035, hairG(HY - 0.03, HY + 0.08)); }
     }
-    drawBack(true);
-    if (cape && cape.s === 'cloak' && !back) { rr(-tw / 2 - 0.035, T0 - 0.03, tw + 0.07, 0.075, 0.035, vg(cape.a, T0 - 0.03, T0 + 0.05)); if (!side) el(0, T0 + 0.02, 0.022, 0.022, cape.b); }
-    if (cape && cape.s === 'scarf' && !back) { rr(side ? -0.11 : -0.14, T0 - 0.025, side ? 0.22 : 0.28, 0.06, 0.03, cape.a); if (!side) rr(0.04, T0 + 0.01, 0.06, 0.14, 0.03, cape.b); }
-    // near arms
-    if (side) arm(-0.02, moving ? s1 * 0.6 : -0.08, false, true);
-    else { const a = moving ? s1 * 0.45 : 0.06; arm(-tw / 2 - 0.015, a + 0.1, false, false); arm(tw / 2 + 0.015, -a - 0.1, false, !back); }
-    if (back && tool) { g.save(); g.translate(-tw / 2 - 0.03, T0 + 0.12); drawTool(); g.restore(); }
 
-    // ----- head -----
-    headSpace();
-    rr(hx - 0.04, 0.5, 0.08, 0.06, 0.02, mix(sk, -18), false);
-    if (!side) { el(hx - hr + 0.01, hy + 0.04, 0.035, 0.05, sk); el(hx + hr - 0.01, hy + 0.04, 0.035, 0.05, sk); }
-    P(); g.ellipse(hx, hy + 0.01, hr * 0.92, hr * 0.98, 0, 0, 7);
-    const hg = g.createRadialGradient(hx - 0.07, hy - 0.06, 0.02, hx, hy, hr); hg.addColorStop(0, mix(sk, 18)); hg.addColorStop(1, mix(sk, -10)); fs(hg);
-    // face
-    const eyeStyle = L.eyes[look.eyes || 0];
-    const eye = (x, y, mirror) => {
-      if (opt.blink || eyeStyle === 'Sleepy') {
-        if (eyeStyle === 'Sleepy' && !opt.blink) { P(); g.ellipse(x, y + 0.01, 0.034, 0.03, 0, 0, Math.PI); fs('#2a1a2a', false); el(x, y + 0.02, 0.018, 0.014, ec, false); P(); g.moveTo(x - 0.04, y + 0.005); g.lineTo(x + 0.04, y + 0.005); g.lineWidth = 0.016; g.stroke(); g.lineWidth = LW; return; }
-        P(); g.moveTo(x - 0.035, y + 0.01); g.quadraticCurveTo(x, y + 0.03, x + 0.035, y + 0.01); g.lineWidth = 0.018; g.stroke(); g.lineWidth = LW; return;
+    function leg(hipX, J, far) {
+      const c = (k) => (far ? mix(k, -24) : k);
+      const legC = bareLeg ? sk : bot.a, shinC = bareLeg || bot.s === 'shorts' ? sk : bot.a;
+      const fwd = side ? -1 : 0, footY = J.ay + ANK;
+      // shin, then thigh over the knee
+      cap(J.kx, J.ky, J.ax, J.ay, legW * 0.78, legW * 0.6, c(shinC));
+      cap(hipX, hipY, J.kx, J.ky, legW * 1.02, legW * 0.8, c(legC));
+      if (bot.s === 'shorts') { const kx2 = lerp(hipX, J.kx, 0.85), ky2 = lerp(hipY, J.ky, 0.85); cap(hipX, hipY, kx2, ky2, legW * 1.08, legW * 0.92, c(bot.a)); }
+      if (!bareLeg) {
+        fold([[J.kx - legW * 0.5, J.ky - 0.012], [J.kx + legW * 0.3, J.ky + 0.004]], 0.3);
+        fold([[lerp(hipX, J.kx, 0.4) - legW * 0.3, lerp(hipY, J.ky, 0.4)], [lerp(hipX, J.kx, 0.55) + legW * 0.2, lerp(hipY, J.ky, 0.5)]], 0.18);
+        if (bot.s === 'cargo' && !far) { const px = lerp(hipX, J.kx, 0.55) - legW * 0.85, py = lerp(hipY, J.ky, 0.55) - 0.02; rr(px, py, legW * 0.8, 0.045, 0.008, mix(bot.a, -10)); ln([[px, py + 0.012], [px + legW * 0.8, py + 0.012]], OL, LW * 0.7, 0.4); }
+        if (bot.s === 'checker' && !far) { g.save(); P(); g.rect(Math.min(hipX, J.ax) - legW, hipY, legW * 2 + Math.abs(hipX - J.ax), J.ay - hipY); g.clip(); g.globalAlpha = 0.4; g.fillStyle = bot.b; for (let yy = hipY; yy < J.ay; yy += 0.026) for (let xx = hipX - 0.08 + ((yy / 0.026) % 2) * 0.013; xx < hipX + 0.08; xx += 0.026) g.fillRect(xx, yy, 0.013, 0.013); g.restore(); }
+        if (bot.s === 'greaves') { cap(lerp(J.kx, J.ax, 0.1), lerp(J.ky, J.ay, 0.1), lerp(J.kx, J.ax, 0.8), lerp(J.ky, J.ay, 0.8), legW * 0.84, legW * 0.7, c(metal(mix(bot.a, 12), J.kx - legW, J.kx + legW))); el(J.kx, J.ky, legW * 0.85, legW * 0.7, c(metal(mix(bot.a, 20), J.kx - legW, J.kx + legW))); }
+      } else qd(J.kx - legW * 0.4, J.ky - 0.004, J.kx, J.ky + 0.01, J.kx + legW * 0.4, J.ky - 0.004, skD, LW, 0.45);
+      // boots: cover the lower shin
+      const fl = side ? 0.078 : 0.05, toe = side ? fwd : 0;
+      const shoeTop = (k) => [lerp(J.kx, J.ax, k), lerp(J.ky, J.ay, k)];
+      if (shoes && (shoes.s === 'boots' || shoes.s === 'rocket')) {
+        const [bx0, by0] = shoeTop(0.32);
+        cap(bx0, by0, J.ax, J.ay, legW * 0.86, legW * 0.72, c(shoes.s === 'rocket' ? metal(shoes.a, bx0 - legW, bx0 + legW) : shoes.a));
+        const cuffAng = Math.atan2(J.ay - J.ky, J.ax - J.kx);
+        g.save(); g.translate(bx0, by0); g.rotate(cuffAng - Math.PI / 2); rr(-legW * 0.95, -0.012, legW * 1.9, 0.024, 0.008, c(mix(shoes.a, shoes.s === 'rocket' ? -12 : 16))); g.restore();
+        if (shoes.s === 'boots' && !far && !side) for (let i = 0; i < 3; i++) { const [lx, ly] = shoeTop(0.45 + i * 0.15); ln([[lx - legW * 0.3, ly], [lx + legW * 0.3, ly + 0.01]], mix(shoes.b, 12), LW * 0.9, 0.7); }
+        if (shoes.s === 'rocket') { const [rx, ry] = shoeTop(0.6); ln([[rx - legW * 0.7, ry], [rx + legW * 0.7, ry]], shoes.b, LW * 2.4, 0.9); }
       }
-      if (eyeStyle === 'Dot') { el(x, y + 0.01, 0.022, 0.026, '#2a1a2a', false); el(x + 0.007, y + 0.002, 0.008, 0.008, '#fff', false); return; }
-      const big = eyeStyle === 'Sparkle', rx = big ? 0.034 : eyeStyle === 'Sharp' ? 0.03 : 0.029, ry = big ? 0.048 : eyeStyle === 'Sharp' ? 0.034 : 0.04;
-      el(x, y, rx, ry, '#2a1a2a', false);
-      P(); g.ellipse(x, y + ry * 0.3, rx * 0.78, ry * 0.58, 0, 0, 7); fs(ec, false);
-      el(x + rx * 0.3, y - ry * 0.4, rx * 0.42, ry * 0.28, '#ffffff', false);
-      if (big) el(x - rx * 0.35, y + ry * 0.45, rx * 0.2, rx * 0.2, '#ffffff', false);
-      if (eyeStyle === 'Sharp') { P(); g.moveTo(x - 0.05 * mirror, y - 0.075); g.lineTo(x + 0.035 * mirror, y - 0.05); g.lineWidth = 0.022; g.strokeStyle = mix(hc, -20); g.stroke(); g.strokeStyle = OL; g.lineWidth = LW; }
-      if (f && eyeStyle !== 'Sharp') { P(); g.moveTo(x + rx * 0.8 * mirror, y - ry * 0.55); g.lineTo(x + rx * 1.35 * mirror, y - ry * 0.85); g.lineWidth = 0.016; g.stroke(); g.lineWidth = LW; }
-    };
-    if (!back) {
-      const ey = hy + 0.045;
+      // foot
+      const fc = shoes ? shoes.a : sk, sole = shoes ? mix(shoes.b, -34) : skD;
       if (side) {
-        eye(-0.12, ey, -1); el(-0.15, ey + 0.08, 0.03, 0.017, 'rgba(200,90,80,.16)', false);
-        P(); g.arc(-0.17, ey + 0.1, 0.018, 0.3, Math.PI - 0.3); g.stroke(); el(0.07, hy + 0.05, 0.035, 0.05, sk);
+        P(); g.moveTo(J.ax + 0.03, footY); g.lineTo(J.ax + toe * fl, footY); g.quadraticCurveTo(J.ax + toe * (fl + 0.008), footY - 0.03, J.ax + toe * fl * 0.35, footY - 0.036); g.quadraticCurveTo(J.ax - 0.0, footY - 0.05, J.ax + 0.03, footY - 0.03); g.closePath(); fs(c(cyl(fc, J.ax - fl, J.ax + 0.03)));
+        if (shoes) ln([[J.ax + 0.03, footY - 0.004], [J.ax + toe * fl, footY - 0.004]], c(sole), LW * 2.2);
       } else {
-        eye(-0.09, ey, -1); eye(0.09, ey, 1);
-        el(-0.145, ey + 0.075, 0.035, 0.018, 'rgba(200,90,80,.16)', false); el(0.145, ey + 0.075, 0.035, 0.018, 'rgba(200,90,80,.16)', false);
-        P(); g.arc(0, ey + 0.085, 0.022, 0.4, Math.PI - 0.4); g.stroke();
+        P(); g.moveTo(J.ax - fl * 0.95, footY); g.quadraticCurveTo(J.ax - fl, footY - 0.045, J.ax - fl * 0.2, footY - 0.042); g.lineTo(J.ax + fl * 0.2, footY - 0.042); g.quadraticCurveTo(J.ax + fl, footY - 0.045, J.ax + fl * 0.95, footY); g.closePath(); fs(c(cyl(fc, J.ax - fl, J.ax + fl)));
+        if (shoes) rr(J.ax - fl * 0.95, footY - 0.012, fl * 1.9, 0.014, 0.005, c(sole), false);
+        if (shoes && shoes.s === 'flats' && !far) el(J.ax, footY - 0.03, 0.009, 0.006, shoes.b, false);
+        if (shoes && shoes.s === 'sneakers' && !far) ln([[J.ax - fl * 0.4, footY - 0.026], [J.ax + fl * 0.4, footY - 0.026]], mix(shoes.b, 18), LW, 0.6);
       }
-      if (eyeStyle !== 'Sharp' && !hat) { g.strokeStyle = mix(hc, -15); g.lineWidth = 0.016; P(); if (side) { g.moveTo(-0.15, ey - 0.08); g.lineTo(-0.09, ey - 0.085); } else { g.moveTo(-0.12, ey - 0.085); g.lineTo(-0.06, ey - 0.09); g.moveTo(0.06, ey - 0.09); g.lineTo(0.12, ey - 0.085); } g.stroke(); g.strokeStyle = OL; g.lineWidth = LW; }
+      if (shoes && shoes.s === 'rocket' && moving) el(J.ax, footY + 0.02, 0.02, 0.028, '#ffb040', false);
     }
-    // facial hair
-    const beard = L.beard[look.beard || 0];
-    if (beard !== 'None' && !back) {
-      const bc = mix(hc, -8), cx2 = side ? -0.05 : 0, half = side ? 0.16 : hr * 0.9, my = hy + 0.13;
-      g.save(); g.lineWidth = LW;
-      if (beard === 'Stubble') { P(); g.ellipse(cx2, hy + 0.14, half * 0.85, 0.11, 0, 0, Math.PI); g.fillStyle = bc; g.globalAlpha = 0.35; g.fill(); }
-      if (beard === 'Short beard' || beard === 'Full beard') {
-        const low = beard === 'Full beard' ? 0.2 : 0.1;
-        P(); g.moveTo(cx2 - half, hy + 0.0); g.quadraticCurveTo(cx2 - half * 0.95, hy + hr + low * 0.6, cx2, hy + hr + low);
-        g.quadraticCurveTo(cx2 + half * 0.95, hy + hr + low * 0.6, cx2 + half, hy + 0.0); g.lineTo(cx2 + half * 0.8, hy + 0.03);
-        g.quadraticCurveTo(cx2 + half * 0.55, my + 0.02, cx2 + 0.05, my - 0.005); g.quadraticCurveTo(cx2, my + 0.03, cx2 - 0.05, my - 0.005);
-        g.quadraticCurveTo(cx2 - half * 0.55, my + 0.02, cx2 - half * 0.8, hy + 0.03); g.closePath(); fs(vg(bc, hy, hy + hr + low));
+    // the leg further from us goes first
+    if (side) { const lFar = Math.sin(phase || 0) < 0; leg(0, lFar ? JL : JR, true); leg(0, lFar ? JR : JL, false); }
+    else { leg(-LX, JL, false); leg(LX, JR, false); }
+    if (bot.s === 'skirt' && !robeLong) {
+      P(); g.moveTo(-WW * tw, WY); g.lineTo(WW * tw, WY); g.quadraticCurveTo((HW + 0.06) * tw, HIP + 0.08, (HW + 0.065) * tw, HIP + 0.15); g.quadraticCurveTo(0, HIP + 0.175, -(HW + 0.065) * tw, HIP + 0.15); g.quadraticCurveTo(-(HW + 0.06) * tw, HIP + 0.08, -WW * tw, WY); g.closePath(); fs(vg(bot.a, WY, HIP + 0.16));
+      for (let i = -2; i <= 2; i++) fold([[i * 0.03 * tw, WY + 0.02], [i * 0.055 * tw, HIP + 0.15]], 0.25);
+      qd(-(HW + 0.06) * tw, HIP + 0.14, 0, HIP + 0.168, (HW + 0.06) * tw, HIP + 0.14, bot.b, LW * 2, 0.8);
+    }
+
+    // ===== arms =====
+    const sleeveCol = ({ vest: '#a89a7a', overalls: '#9a8e74', apron: '#a89878', jerkin: '#8a7c62', armor: '#4a4038', tee: top.a, dress: top.a })[top.s] || top.a;
+    const shortSleeve = ['tee', 'dress'].includes(top.s);
+    const wideSleeve = top.s === 'robe';
+    const A1 = 0.122, A2 = 0.112;
+    function handAt(x, y, ang, far, grip) {
+      const c = (k) => (far ? mix(k, -22) : k);
+      g.save(); g.translate(x, y); g.rotate(ang);
+      if (gloves && gloves.s === 'gauntlets') { cap(0, -0.012, 0, 0.012, 0.03, 0.026, c(metal(gloves.a, -0.03, 0.03))); el(0, 0.03, 0.026, 0.024, c(metal(gloves.a, -0.03, 0.03))); ln([[-0.018, 0.036], [0.018, 0.036]], OL, LW * 0.8, 0.5); }
+      else {
+        const hc2 = gloves ? gloves.a : sk;
+        if (gloves) rr(-0.026, -0.014, 0.052, 0.022, 0.008, c(mix(gloves.b, 8)));
+        // palm + fingers (a closed grip or a relaxed hand) and a thumb
+        P(); g.moveTo(-0.019, 0.0); g.quadraticCurveTo(-0.024, grip ? 0.03 : 0.04, -0.008, grip ? 0.04 : 0.05); g.quadraticCurveTo(0.012, grip ? 0.044 : 0.052, 0.02, grip ? 0.03 : 0.036); g.quadraticCurveTo(0.024, 0.01, 0.017, 0.0); g.closePath(); fs(c(cyl(hc2, -0.022, 0.022)));
+        el(0.02 * (side ? -1 : 1), 0.014, 0.009, 0.014, c(hc2));
+        if (!far) { ln([[-0.012, grip ? 0.03 : 0.036], [0.012, grip ? 0.032 : 0.04]], c(mix(hc2, -40)), LW * 0.8, 0.5); }
       }
-      if (beard === 'Goatee') { P(); g.moveTo(cx2 - 0.045, my + 0.03); g.quadraticCurveTo(cx2, my + 0.15, cx2 + 0.045, my + 0.03); g.quadraticCurveTo(cx2, my + 0.05, cx2 - 0.045, my + 0.03); fs(bc); }
-      if (beard !== 'Stubble') { P(); g.moveTo(cx2, my - 0.012); g.quadraticCurveTo(cx2 - 0.06, my - 0.03, cx2 - 0.085, my + 0.02); g.quadraticCurveTo(cx2 - 0.05, my + 0.0, cx2, my + 0.01); g.quadraticCurveTo(cx2 + 0.05, my + 0.0, cx2 + 0.085, my + 0.02); g.quadraticCurveTo(cx2 + 0.06, my - 0.03, cx2, my - 0.012); fs(bc); }
       g.restore();
     }
-    // face items
-    if (face && !back) {
-      const a = face.a, b = face.b, ey = hy + 0.045;
-      switch (face.s) {
-        case 'glasses': g.lineWidth = 0.016; P(); if (side) g.arc(-0.12, ey, 0.05, 0, 7); else { g.arc(-0.09, ey, 0.05, 0, 7); g.moveTo(0.14, ey); g.arc(0.09, ey, 0.05, 0, 7); g.moveTo(-0.04, ey); g.lineTo(0.04, ey); } g.strokeStyle = a; g.stroke(); g.strokeStyle = OL; g.lineWidth = LW; break;
-        case 'goggles': rr(hx - hr, ey - 0.03, hr * 2, 0.05, 0.02, b); (side ? [-0.12] : [-0.09, 0.09]).forEach((x) => { el(x, ey, 0.06, 0.055, b); el(x, ey, 0.045, 0.04, a); el(x + 0.015, ey - 0.015, 0.012, 0.01, '#fff', false); }); break;
-        case 'hearts': (side ? [-0.12] : [-0.09, 0.09]).forEach((x) => { P(); g.moveTo(x, ey + 0.05); g.bezierCurveTo(x - 0.08, ey - 0.0, x - 0.04, ey - 0.06, x, ey - 0.02); g.bezierCurveTo(x + 0.04, ey - 0.06, x + 0.08, ey, x, ey + 0.05); fs(a); }); if (!side) { P(); g.moveTo(-0.03, ey - 0.01); g.lineTo(0.03, ey - 0.01); g.stroke(); } break;
-        case 'eyepatch': P(); g.moveTo(hx - hr, ey - 0.1); g.lineTo(hx + hr, ey + 0.02); g.lineWidth = 0.014; g.stroke(); g.lineWidth = LW; el(side ? -0.12 : 0.09, ey, 0.05, 0.05, a); break;
-        case 'mask': P(); g.moveTo(hx - hr * 0.85, ey + 0.04); g.quadraticCurveTo(hx, ey + 0.03, hx + (side ? 0.02 : hr * 0.85), ey + 0.04); g.lineTo(hx + (side ? 0.0 : hr * 0.7), ey + 0.16); g.quadraticCurveTo(hx, ey + 0.21, hx - hr * 0.7, ey + 0.16); g.closePath(); fs(vg(a, ey, ey + 0.2)); break;
-        case 'monocle': g.lineWidth = 0.018; P(); g.arc(side ? -0.12 : 0.09, ey, 0.05, 0, 7); g.strokeStyle = a; g.stroke(); P(); g.moveTo(side ? -0.12 : 0.12, ey + 0.05); g.quadraticCurveTo(0.15, ey + 0.15, 0.1, ey + 0.22); g.lineWidth = 0.008; g.stroke(); g.strokeStyle = OL; g.lineWidth = LW; break;
+    function drawTool(x0, y0, ta) {
+      if (!tool) return;
+      const a = tool.a, b = tool.b;
+      g.save(); g.translate(x0, y0); g.rotate(ta);
+      switch (tool.s) {
+        case 'sword': rr(-0.012, -0.03, 0.024, 0.06, 0.006, '#3a2818'); rr(-0.045, -0.04, 0.09, 0.016, 0.006, metal(b === '#6a4a2a' ? '#8a7a5a' : b, -0.045, 0.045)); poly([[-0.016, -0.04], [0.016, -0.04], [0.012, -0.33], [0, -0.36], [-0.012, -0.33]], metal('#b8bcc4', -0.016, 0.016)); ln([[0, -0.05], [0, -0.32]], '#fff', LW, 0.35); el(0, 0.035, 0.012, 0.012, '#8a6a32'); break;
+        case 'staff': rr(-0.011, -0.42, 0.022, 0.6, 0.01, cyl('#5a3e24', -0.011, 0.011)); el(0, -0.44, 0.032, 0.032, b); el(-0.008, -0.452, 0.01, 0.01, '#fff', false); qd(-0.03, -0.41, 0, -0.38, 0.03, -0.41, '#8a6a32', LW * 2); break;
+        case 'hammer': rr(-0.01, -0.25, 0.02, 0.28, 0.006, cyl('#5a3e24', -0.01, 0.01)); rr(-0.055, -0.3, 0.11, 0.065, 0.01, metal(a, -0.055, 0.055)); break;
+        case 'wrench': rr(-0.012, -0.22, 0.024, 0.24, 0.01, metal(a, -0.012, 0.012)); P(); g.arc(0, -0.235, 0.035, 0.6, Math.PI * 2 - 0.4); fs(metal(a, -0.035, 0.035)); el(0, -0.255, 0.014, 0.018, '#1a1410', false); break;
+        case 'spatula': rr(-0.009, -0.18, 0.018, 0.2, 0.006, '#4a3020'); rr(-0.035, -0.27, 0.07, 0.1, 0.012, metal(b, -0.035, 0.035)); break;
+        case 'lantern': ln([[0, 0], [0, 0.03]], '#2a2622', LW * 1.5); rr(-0.03, 0.03, 0.06, 0.085, 0.012, '#2a2622'); rr(-0.022, 0.04, 0.044, 0.06, 0.008, b, false); el(0, 0.07, 0.012, 0.02, '#fff8d0', false); P(); g.moveTo(-0.034, 0.032); g.lineTo(0, 0.012); g.lineTo(0.034, 0.032); fs(a); break;
+        case 'tome': rr(-0.045, -0.02, 0.09, 0.11, 0.008, vg(a, -0.02, 0.09)); rr(-0.04, -0.012, 0.012, 0.095, 0.004, '#e8dcc0', false); rr(-0.012, 0.015, 0.035, 0.035, 0.006, b, false); break;
+        case 'crossbow': rr(-0.012, -0.12, 0.024, 0.16, 0.006, cyl('#5a3e24', -0.012, 0.012)); qd(-0.09, -0.08, 0, -0.14, 0.09, -0.08, b, LW * 3.5); ln([[-0.09, -0.08], [0, -0.1], [0.09, -0.08]], '#d8d0c0', LW * 0.8); rr(-0.008, -0.17, 0.016, 0.06, 0.004, '#8a8a90'); break;
       }
+      g.restore();
     }
-    // ----- hair (front) -----
-    const hgr = () => { const gr = g.createLinearGradient(0, hy - hr, 0, hy + 0.12); gr.addColorStop(0, mix(hc, 32)); gr.addColorStop(1, mix(hc, -16)); return gr; };
-    const cap = (low) => {
-      P();
-      if (back) { g.ellipse(hx, hy, hr + 0.012, hr * 0.94 + 0.012, 0, 0, 7); }
-      else if (side) { g.ellipse(hx, hy, hr + 0.01, hr * 0.94 + 0.01, 0, Math.PI * 1.0, Math.PI * 2.35); g.quadraticCurveTo(hx + 0.06, hy + 0.05, hx + 0.0, hy - 0.04); g.quadraticCurveTo(hx - 0.1, hy - 0.11, hx - hr - 0.01, hy - 0.0); }
-      else {
-        const d = low || 0; g.moveTo(-hr - 0.012, hy + 0.06); g.ellipse(hx, hy, hr + 0.012, hr * 0.94 + 0.012, 0, Math.PI, 0); g.lineTo(hr + 0.012, hy + 0.06);
-        g.quadraticCurveTo(0.2, hy - 0.04 + d, 0.13, hy - 0.02 + d); g.quadraticCurveTo(0.06, hy - 0.1 + d, -0.02, hy - 0.035 + d); g.quadraticCurveTo(-0.11, hy - 0.1 + d, -0.16, hy - 0.02 + d); g.quadraticCurveTo(-0.22, hy + 0.0, -hr - 0.012, hy + 0.06);
+    // u: upper-arm swing (forward +), e: elbow bend, d: which side in front/back view (-1 left, +1 right)
+    function arm(d, u, e, far, withTool) {
+      const c = (k) => (far ? mix(k, -22) : k);
+      const sx0 = side ? 0.005 : d * (SW - 0.006), sy0 = SY + 0.016;
+      let ex, ey, wx, wy;
+      if (side) { ex = sx0 - Math.sin(u) * A1; ey = sy0 + Math.cos(u) * A1; wx = ex - Math.sin(u + e) * A2; wy = ey + Math.cos(u + e) * A2; }
+      else { const out = 0.012 + (fem ? 0.0 : 0.004); ex = sx0 + d * out; ey = sy0 + Math.cos(u) * A1; wx = ex + d * (0.004 - e * 0.012); wy = ey + Math.cos(u + e) * A2 * (back ? 1 : 0.98); }
+      const holdLong = withTool && tool && ['staff', 'sword', 'crossbow'].includes(tool.s);
+      const fAng = Math.atan2(wy - ey, wx - ex) - Math.PI / 2;
+      const hx2 = wx + Math.cos(fAng + Math.PI / 2) * 0.012, hy2 = wy + Math.sin(fAng + Math.PI / 2) * 0.012;
+      if (holdLong) drawTool(hx2, hy2 + 0.02, tool.s === 'staff' ? 0 : side ? -0.35 : d * 0.25);
+      // forearm, then upper arm (with sleeve)
+      if (shortSleeve) {
+        cap(ex, ey, wx, wy, 0.028 * BL, 0.022 * BL, c(sk));
+        cap(sx0, sy0, ex, ey, 0.032 * BL, 0.029 * BL, c(sk));
+        cap(sx0, sy0, lerp(sx0, ex, 0.5), lerp(sy0, ey, 0.5), 0.038 * BL, 0.035 * BL, c(sleeveCol));
+        qd(ex - 0.012, ey - 0.004, ex, ey + 0.006, ex + 0.012, ey - 0.004, skD, LW, 0.4);
+      } else {
+        const wide = wideSleeve ? 1.35 : 1;
+        cap(ex, ey, wx, wy, 0.03 * BL * (wideSleeve ? 1.1 : 1), 0.026 * BL * wide, c(top.s === 'armor' ? metal('#7a7068', ex - 0.03, ex + 0.03) : sleeveCol));
+        cap(sx0, sy0, ex, ey, 0.036 * BL, 0.031 * BL, c(sleeveCol));
+        if (['tunic', 'jerkin', 'vest', 'jacket', 'hoodie'].includes(top.s) && !(gloves && gloves.s === 'gauntlets')) { cap(lerp(ex, wx, 0.42), lerp(ey, wy, 0.42), lerp(ex, wx, 0.86), lerp(ey, wy, 0.86), 0.031 * BL, 0.028 * BL, c('#4a3422')); [0.55, 0.75].forEach((k) => { const bx2 = lerp(ex, wx, k), by2 = lerp(ey, wy, k); ln([[bx2 - 0.028 * BL, by2], [bx2 + 0.028 * BL, by2 + 0.004]], c('#8a6a3a'), LW * 1.4, 0.9); }); }
+        fold([[ex - 0.02, ey - 0.006], [ex + 0.014, ey + 0.006]], 0.32);
+        fold([[lerp(sx0, ex, 0.5) - 0.016, lerp(sy0, ey, 0.5)], [lerp(sx0, ex, 0.5) + 0.012, lerp(sy0, ey, 0.5) + 0.008]], 0.2);
+        // cuff
+        g.save(); g.translate(lerp(ex, wx, 0.86), lerp(ey, wy, 0.86)); g.rotate(fAng); rr(-0.03 * wide, -0.01, 0.06 * wide, 0.02, 0.007, c(top.s === 'mail' || top.s === 'armor' ? metal(top.a, -0.03, 0.03) : mix(wideSleeve ? top.b : sleeveCol, wideSleeve ? 0 : -16))); g.restore();
+        if (top.s === 'mail') { g.save(); P(); g.moveTo(sx0 - 0.04, sy0); g.lineTo(sx0 + 0.04, sy0); g.lineTo(wx + 0.035, wy); g.lineTo(wx - 0.035, wy); g.closePath(); g.clip(); g.globalAlpha = 0.3; for (let yy = sy0; yy < wy; yy += 0.016) for (let xx = Math.min(sx0, wx) - 0.04 + ((yy * 62) % 2) * 0.006; xx < Math.max(sx0, wx) + 0.04; xx += 0.012) { P(); g.arc(xx, yy, 0.006, 0, Math.PI); stroke('#1a1814', LW * 0.6); } g.restore(); }
       }
-      g.closePath(); fs(hgr());
-      if (!back) { g.fillStyle = 'rgba(255,255,255,.28)'; P(); g.ellipse(hx - 0.06, hy - hr * 0.72, 0.08, 0.025, -0.3, 0, 7); g.fill(); }
+      handAt(hx2 - Math.cos(fAng + Math.PI / 2) * 0.012, hy2 - Math.sin(fAng + Math.PI / 2) * 0.012, fAng, far, !!withTool && !!tool);
+      if (withTool && tool && !holdLong) drawTool(hx2, hy2 + 0.014, tool.s === 'lantern' || tool.s === 'tome' ? 0 : side ? -0.5 : d * 0.45);
+      return { sx0, sy0 };
+    }
+    // arm poses from the gait: each arm swings opposite its leg
+    const armPose = (p, holding) => {
+      if (holding && tool && ['staff', 'sword', 'crossbow'].includes(tool.s)) return { u: moving ? 0.15 * Math.sin(p) + 0.2 : 0.22, e: 0.75 };
+      if (!moving) return { u: 0.03 + Math.sin(t / 800) * 0.015, e: 0.12 + (holding && tool ? 0.25 : 0) };
+      const u = -0.5 * Math.sin(p);
+      return { u, e: 0.22 + 0.45 * Math.max(0, u) + (holding && tool ? 0.2 : 0) };
     };
-    switch (hairStyle) {
-      case 'Spiky': cap(); P(); for (let i = -2; i <= 2; i++) { const x = hx + i * 0.09; g.moveTo(x - 0.06, hy - 0.18); g.lineTo(x + 0.02, hy - 0.34 + Math.abs(i) * 0.03); g.lineTo(x + 0.06, hy - 0.18); } fs(hgr()); break;
-      case 'Messy': cap(); P(); [[-0.16, -0.2], [-0.05, -0.27], [0.08, -0.25], [0.18, -0.17]].forEach(([x, y]) => { g.moveTo(hx + x - 0.05, hy - 0.15); g.quadraticCurveTo(hx + x - 0.06, hy + y, hx + x + 0.04, hy + y - 0.02); g.quadraticCurveTo(hx + x, hy - 0.12, hx + x + 0.06, hy - 0.15); }); fs(hgr()); break;
-      case 'Curly': cap(); for (let i = 0; i < 9; i++) { const a = Math.PI * (1.0 + i * 0.125); el(hx + Math.cos(a) * hr * 0.95, hy + Math.sin(a) * hr * 0.9, 0.07, 0.07, hgr()); } break;
-      case 'Bob': cap(); if (!back && !side) { rr(-0.285, hy - 0.02, 0.09, 0.25, 0.04, hc); rr(0.195, hy - 0.02, 0.09, 0.25, 0.04, hc); } if (side) rr(0.0, hy - 0.04, 0.22, 0.26, 0.08, hc); break;
-      case 'Long': cap(); if (!back && !side) { rr(-0.29, hy - 0.02, 0.09, 0.36, 0.04, hc); rr(0.2, hy - 0.02, 0.09, 0.36, 0.04, hc); } if (side) rr(-0.02, hy - 0.04, 0.25, 0.42, 0.1, vg(hc, hy, hy + 0.4)); break;
-      case 'Ponytail': cap(); if (side) { P(); g.moveTo(0.2, hy - 0.06); g.quadraticCurveTo(0.42, hy + 0.04, 0.3, hy + 0.26); g.quadraticCurveTo(0.24, hy + 0.08, 0.16, hy + 0.04); fs(hc); } else if (!back) el(0.27, hy + 0.06, 0.045, 0.11, hc); break;
-      case 'Bun': cap(); el(hx, hy - hr - 0.03, 0.085, 0.075, hgr()); break;
-      case 'Mohawk': g.globalAlpha = 0.65; cap(-0.07); g.globalAlpha = 1; rr(hx - 0.04, hy - hr - 0.12, 0.08, 0.26, 0.035, hgr()); break;
-      case 'Twin tails': cap(); break;
-      default: cap();
+    // weight shift: hips sway, shoulders roll, a slight forward lean when walking in profile
+    if (moving) {
+      g.translate(0, HIP); g.rotate(side ? -0.05 + Math.sin((phase || 0) * 2) * 0.008 : Math.sin(phase || 0) * 0.028); g.translate(side ? 0 : Math.sin(phase || 0) * 0.006, -HIP);
     }
-    // ----- hats -----
+    const nearIsLeft = !(Math.sin(phase || 0) < 0); // the side-view near arm swings with the far leg
+    if (side) { const p0 = armPose((phase || 0) + (nearIsLeft ? Math.PI : 0), false); arm(0, -p0.u, p0.e, true, false); }
+    if (back) { const pl = armPose(phase || 0, false), pr = armPose((phase || 0) + Math.PI, true); arm(-1, pl.u, pl.e, false, false); arm(1, pr.u, pr.e, false, true); }
+
+    // ===== torso and top =====
+    const TX = (v) => v * tw + (side ? 0.0 : 0);
+    function torsoPath(y1, flare) {
+      P(); g.moveTo(TX(-SW), SY + 0.01);
+      g.quadraticCurveTo(TX(-SW - 0.005), SY - 0.012, TX(-SW + 0.03), SY - 0.016);
+      g.lineTo(TX(SW - 0.03), SY - 0.016); g.quadraticCurveTo(TX(SW + 0.005), SY - 0.012, TX(SW), SY + 0.01);
+      g.quadraticCurveTo(TX(SW - 0.01), SY + 0.12, TX(WW), WY);
+      const hsw = y1 > HIP + 0.05 ? (moving ? Math.sin((phase || 0) - 0.8) * 0.014 * (side ? 0.4 : 1) + (side ? 0.016 : 0) : 0) * Math.min(1, (y1 - HIP) / 0.15) : 0;
+      g.lineTo(TX(HW + (flare || 0)) + hsw, y1); g.lineTo(TX(-HW - (flare || 0)) + hsw, y1); g.lineTo(TX(-WW), WY);
+      g.quadraticCurveTo(TX(-SW + 0.01), SY + 0.12, TX(-SW), SY + 0.01); g.closePath();
+    }
+    const shirt = ['vest', 'jerkin', 'overalls', 'apron'].includes(top.s) ? '#a89a7a' : null;
+    const hemY = { tunic: HIP + 0.07, jerkin: HIP + 0.04, mail: HIP + 0.07, coat: HIP + 0.2, robe: 0.95, dress: HIP + 0.17, apron: HIP + 0.04, armor: HIP + 0.02 }[top.s] || HIP + 0.015;
+    const flare = { tunic: 0.025, coat: 0.05, robe: 0.09, dress: 0.08, mail: 0.02 }[top.s] || 0;
+    // under-layer: a linen shirt hem peeks out below leather
+    if (top.s === 'jerkin' || top.s === 'vest') { torsoPath(HIP + 0.06, 0.02); fs(cyl('#9a8c6c', TX(-SW), TX(SW))); fold([[TX(-0.05), HIP + 0.02], [TX(-0.055), HIP + 0.055]], 0.25); fold([[TX(0.05), HIP + 0.02], [TX(0.055), HIP + 0.055]], 0.25); }
+    // base garment
+    torsoPath(hemY, flare);
+    const baseC = shirt || (top.s === 'armor' ? '#4a4038' : top.a);
+    fs(cyl(baseC, TX(-SW), TX(SW)));
+    if (!back) {
+      // chest/waist folds
+      fold([[TX(-0.06), SY + 0.12], [TX(-0.02), SY + 0.15]], 0.2); fold([[TX(0.07), SY + 0.1], [TX(0.04), SY + 0.16]], 0.2);
+      hi([[TX(-SW + 0.025), SY + 0.02], [TX(-SW + 0.04), SY + 0.14]], 0.14);
+    } else { fold([[0, SY + 0.03], [0, WY - 0.02]], 0.22); fold([[-0.06, SY + 0.05], [-0.05, SY + 0.17]], 0.18); fold([[0.06, SY + 0.05], [0.05, SY + 0.17]], 0.18); }
+    const a = top.a, b = top.b;
+    switch (top.s) {
+      case 'tee': if (front) { P(); g.ellipse(0, SY - 0.01, 0.04, 0.025, 0, 0, Math.PI); stroke(mix(a, -40), LW * 1.3); } break;
+      case 'tunic': case 'mail': {
+        if (top.s === 'mail') { g.save(); torsoPath(hemY, flare); g.clip(); g.fillStyle = metal(a, TX(-SW), TX(SW)); g.fill(); g.globalAlpha = 0.45; for (let yy = SY; yy < hemY; yy += 0.016) for (let xx = -SW + ((yy * 62) % 2) * 0.006; xx < SW; xx += 0.012) { P(); g.arc(TX(xx), yy, 0.006, 0, Math.PI); stroke('#141210', LW * 0.6); } g.restore(); torsoPath(hemY, flare); stroke(); }
+        if (front && top.s === 'tunic') { P(); g.moveTo(-0.035, SY - 0.014); g.lineTo(0, SY + 0.05); g.lineTo(0.035, SY - 0.014); fs(mix(a, -24)); for (let i = 0; i < 3; i++) ln([[-0.012, SY + 0.005 + i * 0.014], [0.012, SY + 0.012 + i * 0.014]], b, LW, 0.8); }
+        if (!back) { fold([[TX(-0.06), HIP], [TX(-0.07), hemY - 0.005]], 0.3); fold([[TX(0.02), HIP + 0.005], [TX(0.025), hemY - 0.005]], 0.3); fold([[TX(0.08), HIP], [TX(0.09), hemY - 0.005]], 0.3); }
+        rr(TX(-HW - flare), hemY - 0.012, TX(HW + flare) * 2, 0.014, 0.004, mix(top.s === 'mail' ? a : b, -10), false);
+        break;
+      }
+      case 'jerkin': case 'vest': {
+        const op = top.s === 'vest' ? 0.025 : 0.0;
+        g.save(); torsoPath(hemY, flare); g.clip();
+        if (!back) { rr(TX(-SW - 0.02), SY - 0.03, TX(SW) - op * tw + 0.02, hemY - SY + 0.05, 0, cyl(a, TX(-SW), 0), false); rr(op * tw, SY - 0.03, TX(SW) + 0.02, hemY - SY + 0.05, 0, cyl(a, 0, TX(SW)), false); }
+        else rr(-SW - 0.02, SY - 0.03, SW * 2 + 0.04, hemY - SY + 0.05, 0, cyl(a, -SW, SW), false);
+        g.restore(); torsoPath(hemY, flare); stroke();
+        if (front) {
+          ln([[-op, SY - 0.01], [-op, hemY]], OL, LW); ln([[op, SY - 0.01], [op, hemY]], OL, LW);
+          if (top.s === 'jerkin') for (let i = 0; i < 4; i++) { const yy = SY + 0.03 + i * 0.045; ln([[-0.012, yy], [0.012, yy + 0.015]], '#d8c8a0', LW, 0.8); ln([[0.012, yy], [-0.012, yy + 0.015]], '#d8c8a0', LW, 0.8); }
+          [-1, 1].forEach((d) => { for (let i = 0; i < 3; i++) el(d * (op + 0.035), SY + 0.05 + i * 0.05, 0.005, 0.005, '#8a7a5a', false); });
+          rr(-0.085, HIP - 0.07, 0.04, 0.035, 0.006, mix(a, -14));
+        }
+        break;
+      }
+      case 'hoodie': case 'sweater': {
+        if (top.s === 'sweater') { g.save(); torsoPath(hemY, flare); g.clip(); g.fillStyle = b; g.globalAlpha = 0.6; for (let yy = SY + 0.06; yy < hemY; yy += 0.06) g.fillRect(-0.3, yy, 0.6, 0.018); g.restore(); torsoPath(hemY, flare); stroke(); for (let x = -WW; x < WW; x += 0.012) ln([[TX(x), hemY - 0.022], [TX(x), hemY - 0.002]], '#000', LW * 0.6, 0.25); }
+        if (top.s === 'hoodie') { if (front) { rr(-0.06, HIP - 0.11, 0.12, 0.06, 0.015, mix(a, -12)); ln([[-0.02, SY], [-0.024, SY + 0.07]], b, LW * 1.2); ln([[0.02, SY], [0.024, SY + 0.07]], b, LW * 1.2); } P(); g.ellipse(hx + (side ? 0.03 : 0), SY - 0.005, side ? 0.06 : 0.085, 0.035, 0, back ? 0 : Math.PI, back ? Math.PI : 0); fs(mix(a, -14)); }
+        break;
+      }
+      case 'overalls': case 'apron': {
+        const bibTop = top.s === 'apron' ? SY + 0.04 : SY + 0.06, bw = top.s === 'apron' ? 0.085 : 0.075, low = top.s === 'apron' ? HIP + 0.16 : hemY;
+        if (front || side) {
+          P(); g.moveTo(TX(-bw), bibTop); g.lineTo(TX(bw), bibTop); g.lineTo(TX(bw + 0.01), WY); g.lineTo(TX(bw + 0.03), low); g.lineTo(TX(-bw - 0.03), low); g.lineTo(TX(-bw - 0.01), WY); g.closePath(); fs(cyl(a, TX(-bw), TX(bw)));
+          if (front) { ln([[-bw + 0.01, bibTop], [-SW + 0.04, SY - 0.012]], a, LW * 3); ln([[bw - 0.01, bibTop], [SW - 0.04, SY - 0.012]], a, LW * 3); }
+          if (top.s === 'overalls') { el(TX(-bw + 0.015), bibTop + 0.012, 0.007, 0.007, b, false); el(TX(bw - 0.015), bibTop + 0.012, 0.007, 0.007, b, false); rr(TX(-0.03), bibTop + 0.03, 0.06 * tw, 0.04, 0.006, mix(a, -12)); }
+          else { rr(TX(-0.04), WY + 0.01, 0.08 * tw, 0.045, 0.008, mix(a, -10)); fold([[TX(-0.04), WY + 0.08], [TX(-0.05), low - 0.01]]); fold([[TX(0.03), WY + 0.08], [TX(0.04), low - 0.01]]); ln([[TX(-bw - 0.03), low - 0.006], [TX(bw + 0.03), low - 0.006]], b, LW * 1.6, 0.8); }
+        } else { ln([[-0.06, SY - 0.01], [0.05, WY]], a, LW * 3); ln([[0.06, SY - 0.01], [-0.05, WY]], a, LW * 3); }
+        break;
+      }
+      case 'jacket': case 'coat': {
+        if (front) {
+          P(); g.moveTo(-0.03, SY - 0.012); g.lineTo(0, SY + 0.07); g.lineTo(0.03, SY - 0.012); fs('#a89a7a');
+          P(); g.moveTo(-0.045, SY - 0.015); g.lineTo(-0.008, SY + 0.09); g.lineTo(-0.05, SY + 0.12); g.lineTo(-0.075, SY + 0.0); g.closePath(); fs(mix(top.s === 'coat' ? b : a, -10));
+          P(); g.moveTo(0.045, SY - 0.015); g.lineTo(0.008, SY + 0.09); g.lineTo(0.05, SY + 0.12); g.lineTo(0.075, SY + 0.0); g.closePath(); fs(mix(top.s === 'coat' ? b : a, -10));
+          ln([[0.004, SY + 0.09], [0.004, hemY]], OL, LW);
+          for (let i = 0; i < (top.s === 'coat' ? 4 : 3); i++) el(0.018, SY + 0.11 + i * 0.05, 0.006, 0.006, top.s === 'coat' ? '#b8944a' : mix(a, -30), false);
+          if (top.s === 'coat') { fold([[-0.06, HIP + 0.02], [-0.075, hemY - 0.01]], 0.3); fold([[0.06, HIP + 0.02], [0.075, hemY - 0.01]], 0.3); }
+          rr(-0.09, WY + 0.01, 0.045, 0.006, 0.002, mix(a, -30), false); rr(0.045, WY + 0.01, 0.045, 0.006, 0.002, mix(a, -30), false);
+        } else if (back && top.s === 'coat') ln([[0, WY + 0.04], [0, hemY]], OL, LW);
+        break;
+      }
+      case 'dress': {
+        if (front) { P(); g.ellipse(0, SY - 0.006, 0.05, 0.03, 0, 0, Math.PI); fs(mix(a, -20)); rr(-WW * tw, WY - 0.01, WW * 2 * tw, 0.025, 0.006, b); }
+        for (let i = -3; i <= 3; i++) fold([[TX(i * 0.02), WY + 0.03], [TX(i * 0.032), hemY - 0.01]], 0.25);
+        qd(TX(-HW - flare), hemY - 0.006, 0, hemY + 0.01, TX(HW + flare), hemY - 0.006, b, LW * 2.2, 0.8);
+        break;
+      }
+      case 'robe': {
+        if (front) { P(); g.moveTo(-0.04, SY - 0.014); g.lineTo(0, SY + 0.07); g.lineTo(0.04, SY - 0.014); fs(mix(a, -22)); ln([[0, SY + 0.07], [0, hemY]], mix(b, -10), LW * 2.4, 0.9); ln([[-0.045, SY - 0.012], [0, SY + 0.07], [0.045, SY - 0.012]], b, LW * 2, 0.9); }
+        for (let i = -3; i <= 3; i++) if (i) fold([[TX(i * 0.025), HIP], [TX(i * 0.045), hemY - 0.01]], 0.28);
+        rr(TX(-HW - flare), hemY - 0.018, TX(HW + flare) * 2, 0.02, 0.006, b, false);
+        rr(TX(-WW - 0.005), WY - 0.012, TX(WW + 0.005) * 2, 0.03, 0.006, mix(b, -12));
+        if (front) { P(); g.moveTo(0.02, WY + 0.015); g.lineTo(0.03, WY + 0.09); g.lineTo(0.045, WY + 0.085); g.lineTo(0.035, WY + 0.015); fs(mix(b, -12)); }
+        break;
+      }
+      case 'armor': {
+        P(); g.moveTo(TX(-SW + 0.012), SY + 0.0); g.lineTo(TX(SW - 0.012), SY + 0.0); g.quadraticCurveTo(TX(SW - 0.01), SY + 0.12, TX(WW + 0.008), WY + 0.005); g.lineTo(TX(-WW - 0.008), WY + 0.005); g.quadraticCurveTo(TX(-SW + 0.01), SY + 0.12, TX(-SW + 0.012), SY); g.closePath(); fs(metal(a, TX(-SW), TX(SW)));
+        if (front) { ln([[0, SY + 0.01], [0, WY]], '#fff', LW, 0.25); el(0, SY + 0.08, 0.016, 0.016, b); [[-0.08, SY + 0.03], [0.08, SY + 0.03], [-0.06, WY - 0.02], [0.06, WY - 0.02]].forEach(([x, y]) => el(x, y, 0.004, 0.004, '#d8d0c0', false)); }
+        for (let i = 0; i < 2; i++) rr(TX(-HW - 0.005), WY + 0.008 + i * 0.03, TX(HW + 0.005) * 2, 0.03, 0.008, metal(mix(a, -10), TX(-HW), TX(HW)));
+        break;
+      }
+    }
+    // layered gear: a cross-body strap
+    if (['jerkin', 'tunic', 'vest', 'mail', 'jacket'].includes(top.s) && !(cape && (cape.s === 'backpack' || cape.s === 'jetpack'))) {
+      const sx1 = TX(back ? SW - 0.035 : -SW + 0.035), ex1 = TX(back ? -WW + 0.005 : WW - 0.005);
+      ln([[sx1, SY - 0.008], [ex1, WY - 0.005]], '#2a1c10', LW * 5.2); ln([[sx1, SY - 0.008], [ex1, WY - 0.005]], '#5a3e24', LW * 3.6);
+      if (front) { const mx = lerp(sx1, ex1, 0.45), my = lerp(SY, WY, 0.45); rr(mx - 0.012, my - 0.01, 0.024, 0.02, 0.004, '#a88a4a'); }
+    }
+    // belt (most garments)
+    if (!['robe', 'dress', 'armor', 'overalls'].includes(top.s)) {
+      const by = Math.min(hemY - 0.02, HIP - 0.03);
+      rr(TX(-WW - 0.012), by - 0.01, TX(WW + 0.012) * 2, 0.026, 0.006, '#3a2818');
+      if (!back) {
+        rr(TX(-0.016), by - 0.012, 0.032 * tw, 0.03, 0.005, '#a88a4a'); rr(TX(-0.008), by - 0.004, 0.016 * tw, 0.014, 0.003, '#3a2818', false);
+        rr(TX(WW - 0.02), by + 0.012, 0.035 * tw, 0.045, 0.008, vg('#5a4028', by, by + 0.05)); ln([[TX(WW - 0.02), by + 0.025], [TX(WW + 0.015), by + 0.025]], OL, LW * 0.8, 0.6);
+        if (front) { rr(TX(-WW - 0.005), by + 0.012, 0.03, 0.038, 0.008, vg('#4a3422', by, by + 0.05)); P(); g.moveTo(TX(-WW + 0.035), by + 0.012); g.lineTo(TX(-WW + 0.05), by + 0.012); g.lineTo(TX(-WW + 0.044), by + 0.075); g.closePath(); fs('#3a2818'); }
+        g.fillStyle = 'rgba(0,0,0,.18)'; g.fillRect(TX(-WW - 0.01), by + 0.016, TX(WW + 0.01) * 2, 0.012);
+      }
+    }
+    // shoulder armour pieces
+    if (top.s === 'armor') [-1, 1].forEach((d) => { if (side && d < 0) return; P(); g.ellipse(TX(d * (SW - 0.005)), SY + 0.012, 0.05, 0.035, d * 0.25, Math.PI, 0); g.lineTo(TX(d * (SW + 0.04)), SY + 0.04); g.lineTo(TX(d * (SW - 0.05)), SY + 0.035); g.closePath(); fs(metal(a, TX(d * SW) - 0.05, TX(d * SW) + 0.05)); });
+    // cloak/cape clasp and drape at the shoulders (front & side)
+    if (cape && (cape.s === 'cloak' || cape.s === 'cape') && !back) {
+      P(); g.moveTo(TX(-SW - 0.02), SY + 0.06); g.quadraticCurveTo(TX(-SW - 0.01), SY - 0.03, TX(-0.03), SY - 0.02); g.lineTo(TX(0.03), SY - 0.02); g.quadraticCurveTo(TX(SW + 0.01), SY - 0.03, TX(SW + 0.02), SY + 0.06); g.quadraticCurveTo(TX(SW - 0.02), SY + 0.02, 0, SY + 0.025); g.quadraticCurveTo(TX(-SW + 0.02), SY + 0.02, TX(-SW - 0.02), SY + 0.06); g.closePath(); fs(vg(cape.a, SY - 0.03, SY + 0.06));
+      if (front) { el(0, SY + 0.02, 0.014, 0.014, metal(cape.b, -0.014, 0.014)); }
+      if (front && cape.s === 'cloak') { P(); g.moveTo(TX(-SW - 0.02), SY + 0.06); g.quadraticCurveTo(TX(-SW - 0.04), SY + 0.25, TX(-SW - 0.03), HIP + 0.25); g.lineTo(TX(-SW + 0.005), HIP + 0.24); g.quadraticCurveTo(TX(-SW + 0.0), SY + 0.2, TX(-SW + 0.01), SY + 0.06); g.closePath(); fs(vg(mix(cape.a, -8), SY, HIP + 0.25)); P(); g.moveTo(TX(SW + 0.02), SY + 0.06); g.quadraticCurveTo(TX(SW + 0.04), SY + 0.25, TX(SW + 0.03), HIP + 0.25); g.lineTo(TX(SW - 0.005), HIP + 0.24); g.quadraticCurveTo(TX(SW), SY + 0.2, TX(SW - 0.01), SY + 0.06); g.closePath(); fs(vg(mix(cape.a, -18), SY, HIP + 0.25)); }
+    }
+    if (cape && cape.s === 'scarf' && !back) { P(); g.ellipse(hx, SY - 0.005, side ? 0.06 : 0.075, 0.03, 0, 0, 7); fs(vg(cape.a, SY - 0.03, SY + 0.03)); fold([[hx - 0.05, SY - 0.005], [hx + 0.05, SY + 0.0]], 0.3); if (front) { rr(0.02, SY + 0.01, 0.035, 0.12, 0.01, vg(cape.a, SY, SY + 0.13)); ln([[0.022, SY + 0.12], [0.053, SY + 0.12]], cape.b, LW * 2); } }
+    if (cape && (cape.s === 'backpack') && front) { ln([[-SW + 0.035, SY - 0.01], [-SW + 0.045, WY - 0.02]], mix(cape.a, -20), LW * 3.5); ln([[SW - 0.035, SY - 0.01], [SW - 0.045, WY - 0.02]], mix(cape.a, -20), LW * 3.5); }
+    if (cape && cape.s === 'jetpack' && front) { ln([[-SW + 0.04, SY - 0.01], [-0.02, WY - 0.04]], '#3a3632', LW * 3); ln([[SW - 0.04, SY - 0.01], [0.02, WY - 0.04]], '#3a3632', LW * 3); }
+
+    // near arms
+    if (side) { const p1 = armPose((phase || 0) + (nearIsLeft ? 0 : Math.PI), true); arm(0, p1.u, p1.e, false, true); }
+    else if (!back) {
+      const pl = armPose(phase || 0, false), pr = armPose((phase || 0) + Math.PI, true);
+      arm(-1, pl.u, pl.e, false, false); arm(1, pr.u, pr.e, false, true);
+      // shoulder caps blend the sleeves into the torso
+      [-1, 1].forEach((d) => { if (top.s !== 'armor') el(TX(d * (SW - 0.012)), SY + 0.02, 0.036, 0.03, cyl(sleeveCol, TX(d * SW) - 0.036, TX(d * SW) + 0.036), false); });
+    }
+
+    // ===== neck and head =====
+    el(hx, SY - 0.004, 0.055 * BS, 0.018, 'rgba(0,0,0,.22)', false);
+    rr(hx - 0.028, HY + HRY - 0.035, 0.056, 0.06, 0.012, cyl(skD, hx - 0.028, hx + 0.028));
+    // ears
+    if (front) { el(hx - HRX - 0.004, HY + 0.012, 0.016, 0.026, cyl(sk, hx - HRX - 0.02, hx - HRX + 0.01)); el(hx + HRX + 0.004, HY + 0.012, 0.016, 0.026, cyl(sk, hx + HRX - 0.01, hx + HRX + 0.02)); }
+    if (side) el(hx + 0.035, HY + 0.012, 0.018, 0.027, cyl(sk, hx + 0.02, hx + 0.05));
+    // skull and jaw
+    P();
+    if (side) { g.moveTo(hx + 0.08, HY - 0.06); g.quadraticCurveTo(hx + 0.11, HY + 0.05, hx + 0.06, HY + 0.1); g.quadraticCurveTo(hx + 0.02, HY + HRY + 0.005, hx - 0.04, HY + HRY - 0.005); g.quadraticCurveTo(hx - 0.075, HY + HRY - 0.02, hx - 0.085, HY + 0.08); g.lineTo(hx - 0.1, HY + 0.045); g.lineTo(hx - 0.105, HY + 0.035); g.quadraticCurveTo(hx - 0.112, HY - 0.0, hx - 0.1, HY - 0.05); g.quadraticCurveTo(hx - 0.06, HY - HRY - 0.01, hx + 0.02, HY - HRY); g.quadraticCurveTo(hx + 0.075, HY - HRY + 0.01, hx + 0.08, HY - 0.06); }
+    else { g.moveTo(hx - HRX, HY - 0.02); g.quadraticCurveTo(hx - HRX, HY - HRY, hx, HY - HRY); g.quadraticCurveTo(hx + HRX, HY - HRY, hx + HRX, HY - 0.02); g.quadraticCurveTo(hx + HRX + 0.002, HY + 0.06, hx + 0.07, HY + 0.1); g.quadraticCurveTo(hx + (fem ? 0.03 : 0.04), HY + HRY + 0.005, hx, HY + HRY + (fem ? 0.0 : 0.004)); g.quadraticCurveTo(hx - (fem ? 0.03 : 0.04), HY + HRY + 0.005, hx - 0.07, HY + 0.1); g.quadraticCurveTo(hx - HRX - 0.002, HY + 0.06, hx - HRX, HY - 0.02); }
+    g.closePath();
+    { const hg = g.createRadialGradient(hx - 0.03, HY - 0.03, 0.01, hx + 0.01, HY + 0.02, 0.15); hg.addColorStop(0, mix(sk, 14)); hg.addColorStop(0.65, sk); hg.addColorStop(1, mix(sk, -30)); fs(hg); }
+
+    // ===== face =====
+    const eyeStyle = L.eyes[look.eyes || 0], EY = HY + 0.03;
+    function eye(x, mirror) {
+      const sharp = eyeStyle === 'Sharp', big = eyeStyle === 'Sparkle', sleepy = eyeStyle === 'Sleepy';
+      const rx = big ? 0.021 : sharp ? 0.02 : 0.018, ry = big ? 0.015 : sharp ? 0.009 : 0.012;
+      if (opt.blink) { qd(x - rx, EY, x, EY + 0.006, x + rx, EY, OL, LW * 1.4); return; }
+      if (eyeStyle === 'Dot') { el(x, EY, 0.007, 0.009, '#1a120c', false); el(x + 0.002, EY - 0.003, 0.0025, 0.0025, '#fff', false); qd(x - 0.012, EY - 0.012, x, EY - 0.016, x + 0.012, EY - 0.012, OL, LW, 0.6); return; }
+      P(); g.ellipse(x, EY, rx, ry, 0, 0, 7); g.fillStyle = '#efe6d8'; g.fill();
+      g.save(); P(); g.ellipse(x, EY, rx, ry, 0, 0, 7); g.clip();
+      const ir = big ? 0.011 : 0.0095, ix = x - mirror * 0.002 + (side ? -0.006 : 0);
+      el(ix, EY + 0.001, ir, ir, ec, false); el(ix, EY + 0.001, ir * 0.5, ir * 0.5, '#0c0806', false);
+      el(ix + 0.003, EY - 0.004, ir * 0.32, ir * 0.32, '#ffffff', false); if (big) el(ix - 0.004, EY + 0.004, ir * 0.2, ir * 0.2, '#ffffff', false);
+      if (sleepy) { g.fillStyle = mix(sk, -12); g.fillRect(x - rx, EY - ry, rx * 2, ry * 1.1); }
+      g.restore();
+      // upper lid & lashes
+      P(); g.moveTo(x - rx - 0.002, EY + (sharp ? 0.002 * mirror : 0.001)); g.quadraticCurveTo(x, EY - ry * (sleepy ? 0.1 : 1.5), x + rx + 0.002, EY - (sharp ? 0.004 * mirror : 0)); stroke(OL, LW * (fem ? 1.7 : 1.4));
+      if (fem) ln([[x + mirror * rx, EY - 0.002], [x + mirror * (rx + 0.008), EY - 0.008]], OL, LW * 1.1);
+      qd(x - rx * 0.7, EY + ry + 0.002, x, EY + ry + 0.004, x + rx * 0.7, EY + ry + 0.002, skD, LW * 0.8, 0.5);
+    }
+    if (!back) {
+      const bc = mix(hc, -18);
+      if (side) {
+        eye(hx - 0.06, -1);
+        // nose, mouth, brow in profile
+        P(); g.moveTo(hx - 0.1, HY + 0.035); g.lineTo(hx - 0.118, HY + 0.068); g.lineTo(hx - 0.098, HY + 0.074); stroke(OL, LW);
+        qd(hx - 0.09, HY + 0.1, hx - 0.075, HY + 0.104, hx - 0.065, HY + 0.098, '#4a2a20', LW * 1.2, 0.8);
+        ln([[hx - 0.085, EY - 0.025], [hx - 0.04, EY - 0.03]], bc, LW * (fem ? 2 : 2.8));
+        el(hx - 0.055, HY + 0.072, 0.02, 0.01, 'rgba(180,80,60,.15)', false);
+      } else {
+        eye(hx - 0.046, -1); eye(hx + 0.046, 1);
+        // brows
+        const sharp = eyeStyle === 'Sharp', bw2 = fem ? 1.8 : 2.8;
+        qd(hx - 0.07, EY - 0.022 + (sharp ? -0.004 : 0), hx - 0.048, EY - 0.032, hx - 0.025, EY - 0.024 + (sharp ? 0.006 : 0), bc, LW * bw2);
+        qd(hx + 0.07, EY - 0.022 + (sharp ? -0.004 : 0), hx + 0.048, EY - 0.032, hx + 0.025, EY - 0.024 + (sharp ? 0.006 : 0), bc, LW * bw2);
+        // nose: bridge shadow + tip
+        ln([[hx + 0.006, EY + 0.005], [hx + 0.01, HY + 0.068]], skD, LW * 1.1, 0.55);
+        qd(hx - 0.01, HY + 0.072, hx + 0.002, HY + 0.08, hx + 0.013, HY + 0.07, mix(sk, -45), LW * 1.1, 0.75);
+        // mouth
+        qd(hx - 0.022, HY + 0.1, hx, HY + 0.106, hx + 0.022, HY + 0.099, '#4a2420', LW * 1.3, 0.85);
+        if (fem) qd(hx - 0.014, HY + 0.106, hx, HY + 0.114, hx + 0.014, HY + 0.106, 'rgba(170,70,70,.55)', LW * 1.6);
+        // cheekbones / jaw shading
+        qd(hx + 0.07, HY + 0.04, hx + 0.08, HY + 0.08, hx + 0.05, HY + 0.11, mix(sk, -30), LW * 1.4, 0.3);
+      }
+      // facial hair
+      const beard = L.beard[look.beard || 0];
+      if (beard !== 'None') {
+        const bcol = mix(hc, -6), cx2 = side ? hx - 0.04 : hx, wd = side ? 0.06 : 0.085, my = HY + 0.092;
+        if (beard === 'Stubble') { g.save(); P(); g.ellipse(cx2, HY + 0.1, wd, 0.04, 0, 0, Math.PI); g.fillStyle = bcol; g.globalAlpha = 0.3; g.fill(); g.restore(); }
+        if (beard === 'Short beard' || beard === 'Full beard' || beard === 'Long beard' || beard === 'Braided beard') {
+          const low = beard === 'Long beard' ? 0.16 : beard === 'Braided beard' ? 0.07 : beard === 'Full beard' ? 0.08 : 0.03;
+          P(); g.moveTo(cx2 - wd - 0.018, HY + 0.02); g.quadraticCurveTo(cx2 - wd, HY + HRY + low * 0.6, cx2, HY + HRY + low);
+          g.quadraticCurveTo(cx2 + wd, HY + HRY + low * 0.6, cx2 + wd + 0.018, HY + 0.02); g.lineTo(cx2 + wd - 0.005, HY + 0.05);
+          g.quadraticCurveTo(cx2 + 0.03, my + 0.005, cx2, my + 0.02); g.quadraticCurveTo(cx2 - 0.03, my + 0.005, cx2 - wd + 0.005, HY + 0.05); g.closePath(); fs(vg(bcol, HY, HY + HRY + low));
+          for (let i = -3; i <= 3; i++) qd(cx2 + i * 0.022, my + 0.03, cx2 + i * 0.024, HY + HRY, cx2 + i * 0.016, HY + HRY + low * 0.8, mix(bcol, -35), LW * 0.8, 0.5);
+          qd(cx2 - 0.014, HY + 0.103, cx2, HY + 0.108, cx2 + 0.014, HY + 0.103, '#2a1410', LW * 1.2, 0.8);
+          if (beard === 'Braided beard') { for (let i = 0; i < 4; i++) el(cx2 + hairSw * i * 0.5, HY + HRY + low + 0.01 + i * 0.026, 0.017 - i * 0.002, 0.016, vg(bcol, HY + HRY, HY + HRY + 0.15)); rr(cx2 - 0.012 + hairSw * 2, HY + HRY + low + 0.105, 0.024, 0.012, 0.004, '#8a6a32', false); }
+        }
+        if (beard === 'Goatee') { P(); g.moveTo(cx2 - 0.02, HY + 0.11); g.quadraticCurveTo(cx2, HY + HRY + 0.035, cx2 + 0.02, HY + 0.11); g.quadraticCurveTo(cx2, HY + 0.118, cx2 - 0.02, HY + 0.11); fs(vg(bcol, HY + 0.1, HY + HRY + 0.03)); }
+        if (beard !== 'Stubble') { P(); g.moveTo(cx2, my - 0.004); g.quadraticCurveTo(cx2 - 0.03, my - 0.012, cx2 - 0.045, my + 0.012); g.quadraticCurveTo(cx2 - 0.022, my + 0.004, cx2, my + 0.008); g.quadraticCurveTo(cx2 + 0.022, my + 0.004, cx2 + 0.045, my + 0.012); g.quadraticCurveTo(cx2 + 0.03, my - 0.012, cx2, my - 0.004); fs(bcol); }
+      }
+      // face items
+      if (face) {
+        const fa = face.a, fb = face.b, xs = side ? [hx - 0.06] : [hx - 0.046, hx + 0.046];
+        switch (face.s) {
+          case 'glasses': xs.forEach((x) => { P(); g.arc(x, EY, 0.022, 0, 7); g.fillStyle = 'rgba(200,220,230,.18)'; g.fill(); stroke(fa, LW * 1.4); }); if (!side) ln([[hx - 0.024, EY - 0.004], [hx + 0.024, EY - 0.004]], fa, LW * 1.3); break;
+          case 'goggles': rr(hx - HRX - 0.004, EY - 0.012, HRX * 2 + 0.008, 0.022, 0.008, '#3a2818'); xs.forEach((x) => { el(x, EY, 0.028, 0.024, metal('#9a7a3a', x - 0.028, x + 0.028)); el(x, EY, 0.02, 0.017, fa); el(x + 0.006, EY - 0.006, 0.005, 0.004, 'rgba(255,255,255,.7)', false); }); break;
+          case 'hearts': xs.forEach((x) => { P(); g.moveTo(x, EY + 0.02); g.bezierCurveTo(x - 0.035, EY + 0.0, x - 0.02, EY - 0.024, x, EY - 0.008); g.bezierCurveTo(x + 0.02, EY - 0.024, x + 0.035, EY, x, EY + 0.02); fs(fa); }); if (!side) ln([[hx - 0.02, EY - 0.006], [hx + 0.02, EY - 0.006]], OL, LW); break;
+          case 'eyepatch': ln([[hx - HRX, EY - 0.05], [hx + HRX, EY + 0.01]], '#1a120c', LW * 1.4); el(side ? hx - 0.06 : hx + 0.046, EY, 0.024, 0.02, '#1e1610'); break;
+          case 'monocle': { const x = side ? hx - 0.06 : hx + 0.046; P(); g.arc(x, EY, 0.022, 0, 7); g.fillStyle = 'rgba(220,235,245,.2)'; g.fill(); stroke(metal(fa, x - 0.02, x + 0.02), LW * 1.8); qd(x + 0.02, EY + 0.01, x + 0.04, EY + 0.08, x + 0.03, HY + 0.16, '#a08040', LW * 0.8); break; }
+          case 'mask': P(); g.moveTo(hx - HRX + 0.008, EY + 0.025); g.quadraticCurveTo(hx, EY + 0.015, hx + (side ? -0.02 : HRX - 0.008), EY + 0.025); g.lineTo(hx + (side ? -0.03 : 0.07), HY + 0.11); g.quadraticCurveTo(hx, HY + HRY + 0.008, hx - 0.07, HY + 0.11); g.closePath(); fs(vg(fa, EY, HY + HRY)); for (let i = -1; i <= 1; i++) fold([[hx + i * 0.03, EY + 0.04], [hx + i * 0.025, HY + 0.11]], 0.25); break;
+        }
+      }
+    }
+
+    // ===== hair (front) =====
+    function hairCap(fringe) {
+      P();
+      if (back) { g.moveTo(hx - HRX - 0.008, HY + 0.05); g.quadraticCurveTo(hx - HRX - 0.012, HY - HRY - 0.012, hx, HY - HRY - 0.014); g.quadraticCurveTo(hx + HRX + 0.012, HY - HRY - 0.012, hx + HRX + 0.008, HY + 0.05); g.quadraticCurveTo(hx + 0.06, HY + HRY - 0.01, hx, HY + HRY - 0.005); g.quadraticCurveTo(hx - 0.06, HY + HRY - 0.01, hx - HRX - 0.008, HY + 0.05); }
+      else if (side) { g.moveTo(hx - 0.095, HY - 0.02); g.quadraticCurveTo(hx - 0.11, HY - HRY - 0.015, hx + 0.0, HY - HRY - 0.016); g.quadraticCurveTo(hx + 0.09, HY - HRY, hx + 0.09, HY + 0.0); g.quadraticCurveTo(hx + 0.095, HY + 0.08, hx + 0.06, HY + 0.1); g.lineTo(hx + 0.04, HY + 0.05); g.quadraticCurveTo(hx + 0.03, HY - 0.02, hx - 0.03, HY - 0.035); g.quadraticCurveTo(hx - 0.07, HY - 0.04, hx - 0.095, HY - 0.02); }
+      else {
+        g.moveTo(hx - HRX - 0.008, HY + 0.04); g.quadraticCurveTo(hx - HRX - 0.012, HY - HRY - 0.014, hx, HY - HRY - 0.015); g.quadraticCurveTo(hx + HRX + 0.012, HY - HRY - 0.014, hx + HRX + 0.008, HY + 0.04);
+        g.lineTo(hx + HRX - 0.01, HY + 0.01);
+        const f2 = fringe || 0;
+        g.quadraticCurveTo(hx + 0.08, HY - 0.04 + f2, hx + 0.05, HY - 0.02 + f2); g.lineTo(hx + 0.03, HY - 0.05 + f2); g.quadraticCurveTo(hx + 0.0, HY - 0.025 + f2, hx - 0.02, HY - 0.035 + f2); g.lineTo(hx - 0.045, HY - 0.06 + f2); g.quadraticCurveTo(hx - 0.07, HY - 0.025 + f2, hx - HRX + 0.01, HY + 0.0);
+        g.lineTo(hx - HRX - 0.008, HY + 0.04);
+      }
+      g.closePath(); fs(hairG(HY - HRY, HY + 0.05));
+      // strand texture and a soft highlight
+      for (let i = -3; i <= 3; i++) qd(hx + i * 0.025, HY - HRY + 0.005, hx + i * 0.03 + 0.006, HY - 0.06, hx + i * 0.034, HY - 0.025, mix(hc, -40), LW * 0.8, 0.45);
+      qd(hx - 0.06, HY - HRY + 0.03, hx - 0.03, HY - HRY + 0.008, hx + 0.01, HY - HRY + 0.012, '#fff', LW * 2, 0.18);
+    }
+    const hatHidesHair = hat && ['hood', 'knight'].includes(hat.s);
+    if (!hatHidesHair) {
+      switch (hs) {
+        case 'Spiky': hairCap(0.01); P(); for (let i = -2; i <= 2; i++) { const x = hx + i * 0.04; g.moveTo(x - 0.025, HY - HRY + 0.02); g.lineTo(x + 0.008, HY - HRY - 0.07 + Math.abs(i) * 0.015); g.lineTo(x + 0.026, HY - HRY + 0.02); } fs(hairG(HY - HRY - 0.07, HY - HRY + 0.02)); break;
+        case 'Messy': hairCap(0.012); P(); [[-0.07, -0.05], [-0.025, -0.07], [0.025, -0.065], [0.07, -0.045]].forEach(([x, y]) => { g.moveTo(hx + x - 0.025, HY - HRY + 0.02); g.quadraticCurveTo(hx + x - 0.03, HY - HRY + y, hx + x + 0.018, HY - HRY + y - 0.005); g.quadraticCurveTo(hx + x, HY - HRY + 0.0, hx + x + 0.028, HY - HRY + 0.02); }); fs(hairG(HY - HRY - 0.07, HY - HRY + 0.02)); break;
+        case 'Curly': hairCap(0.005); for (let i = 0; i < 9; i++) { const a2 = Math.PI * (1.0 + i * 0.125); el(hx + Math.cos(a2) * HRX * 0.95, HY - 0.01 + Math.sin(a2) * HRY * 0.95, 0.03, 0.03, hairG(HY - HRY - 0.03, HY)); } break;
+        case 'Bob': hairCap(0.012); if (back) rr(hx - 0.125, HY - 0.03, 0.25, 0.16, 0.05, hairG(HY, HY + 0.13)); if (front) { rr(hx - HRX - 0.012, HY - 0.03, 0.04, 0.16, 0.018, hairG(HY, HY + 0.13)); rr(hx + HRX - 0.028, HY - 0.03, 0.04, 0.16, 0.018, hairG(HY, HY + 0.13)); } if (side) rr(hx + 0.0, HY - 0.06, 0.1, 0.18, 0.04, hairG(HY, HY + 0.12)); break;
+        case 'Long': hairCap(0.012); if (back) rr(hx - 0.115, HY - 0.02, 0.23, 0.32, 0.05, hairG(HY, HY + 0.3)); if (front) { rr(hx - HRX - 0.014, HY - 0.03, 0.04, 0.24, 0.018, hairG(HY, HY + 0.2)); rr(hx + HRX - 0.026, HY - 0.03, 0.04, 0.24, 0.018, hairG(HY, HY + 0.2)); } if (side) rr(hx - 0.01, HY - 0.06, 0.11, 0.32, 0.04, hairG(HY, HY + 0.3)); break;
+        case 'Ponytail': hairCap(0.01); if (back) { P(); g.moveTo(hx - 0.02, HY + 0.0); g.bezierCurveTo(hx - 0.05, HY + 0.12, hx + 0.03, HY + 0.18, hx, HY + 0.26); g.bezierCurveTo(hx + 0.05, HY + 0.16, hx + 0.03, HY + 0.06, hx + 0.02, HY + 0.0); fs(hairG(HY, HY + 0.26)); } rr(hx - 0.014 + (side ? 0.06 : 0), HY - 0.005, 0.028, 0.016, 0.006, '#6a2a24', false); break;
+        case 'Bun': hairCap(0.01); el(hx, HY - HRY - 0.025, 0.04, 0.035, hairG(HY - HRY - 0.06, HY - HRY)); qd(hx - 0.03, HY - HRY - 0.025, hx, HY - HRY - 0.04, hx + 0.03, HY - HRY - 0.02, mix(hc, -40), LW, 0.5); break;
+        case 'Mohawk': g.save(); g.globalAlpha = 0.55; hairCap(-0.04); g.restore(); P(); g.moveTo(hx - 0.022, HY - HRY + 0.03); for (let i = 0; i < 5; i++) { g.lineTo(hx - 0.03 + (side ? i * 0.02 : 0), HY - HRY - 0.04 - (i % 2) * 0.02 + i * 0.012 * (side ? 1 : 0)); } g.lineTo(hx + 0.022, HY - HRY + 0.03); g.closePath(); fs(hairG(HY - HRY - 0.07, HY - HRY + 0.03)); break;
+        case 'Twin tails': hairCap(0.012); if (back) [-1, 1].forEach((d) => { P(); g.moveTo(hx + d * 0.09, HY - 0.02); g.bezierCurveTo(hx + d * 0.18, HY + 0.05, hx + d * 0.16, HY + 0.22, hx + d * 0.11, HY + 0.3); g.bezierCurveTo(hx + d * 0.09, HY + 0.2, hx + d * 0.09, HY + 0.08, hx + d * 0.06, HY); fs(hairG(HY, HY + 0.3)); }); if (front) [-1, 1].forEach((d) => rr(hx + d * (HRX - 0.005) - 0.012, HY - 0.04, 0.024, 0.02, 0.006, '#6a2a24', false)); break;
+        case 'Crop': hairCap(-0.025); break;
+        case 'Undercut': g.save(); g.globalAlpha = 0.35; hairCap(-0.05); g.restore(); P(); g.moveTo(hx - 0.075, HY - 0.06); g.quadraticCurveTo(hx - 0.07, HY - HRY - 0.05, hx + 0.02, HY - HRY - 0.045); g.quadraticCurveTo(hx + 0.1, HY - HRY - 0.03, hx + 0.09, HY - 0.07); g.quadraticCurveTo(hx + 0.03, HY - 0.09, hx - 0.03, HY - 0.05); g.closePath(); fs(hairG(HY - HRY - 0.05, HY - 0.05)); for (let i = 0; i < 5; i++) qd(hx - 0.06 + i * 0.03, HY - 0.07, hx - 0.04 + i * 0.03, HY - HRY - 0.03, hx + 0.0 + i * 0.025, HY - HRY - 0.04, mix(hc, -40), LW * 0.8, 0.45); break;
+        case 'Top-knot': hairCap(-0.02); el(hx, HY - HRY - 0.035, 0.032, 0.03, hairG(HY - HRY - 0.07, HY - HRY)); rr(hx - 0.024, HY - HRY - 0.012, 0.048, 0.014, 0.005, '#6a2a24', false); break;
+        case 'Wavy': hairCap(0.014); if (front) [-1, 1].forEach((d) => { P(); g.moveTo(hx + d * (HRX - 0.01), HY - 0.04); for (let i = 1; i <= 5; i++) g.quadraticCurveTo(hx + d * (HRX + 0.022 - (i % 2) * 0.014) + hairSw * i / 5, HY - 0.04 + i * 0.045 - 0.022, hx + d * (HRX + 0.005) + hairSw * i / 5, HY - 0.04 + i * 0.045); g.lineTo(hx + d * (HRX - 0.03) + hairSw, HY + 0.18); g.quadraticCurveTo(hx + d * (HRX - 0.02), HY + 0.06, hx + d * (HRX - 0.03), HY - 0.02); g.closePath(); fs(hairG(HY, HY + 0.2)); }); if (back) rr(hx - 0.12, HY - 0.02, 0.24, 0.31, 0.06, hairG(HY, HY + 0.3)); break;
+        case 'Locs': hairCap(0.01); if (front) [-1, 1].forEach((d) => { for (let i = 0; i < 2; i++) { const x0 = hx + d * (HRX - 0.012 - i * 0.022); P(); g.moveTo(x0 - 0.01, HY - 0.05); g.quadraticCurveTo(x0 + hairSw, HY + 0.06, x0 + hairSw * 1.4, HY + 0.15 - i * 0.03); g.lineTo(x0 + 0.012 + hairSw * 1.4, HY + 0.15 - i * 0.03); g.quadraticCurveTo(x0 + 0.012 + hairSw, HY + 0.06, x0 + 0.01, HY - 0.05); g.closePath(); fs(hairG(HY, HY + 0.15)); } }); if (back) for (let i = -4; i <= 4; i++) { const x0 = hx + i * 0.027; cap(x0, HY, x0 + hairSw * 1.4, HY + 0.24 - Math.abs(i) * 0.01, 0.012, 0.01, hc); } break;
+        case 'Braid': hairCap(0.01); if (front) { for (let i = 0; i < 7; i++) el(hx + HRX - 0.005 + i * 0.004 + hairSw * i / 5, HY + 0.06 + i * 0.036, 0.02 - i * 0.0012, 0.022, hairG(HY, HY + 0.3)); rr(hx + HRX + 0.008 + hairSw * 1.3, HY + 0.31, 0.022, 0.012, 0.004, '#6a2a24', false); } if (back) { for (let i = 0; i < 8; i++) el(hx + hairSw * i / 5, HY + 0.08 + i * 0.036, 0.022 - i * 0.0012, 0.022, hairG(HY, HY + 0.35)); } break;
+        default: hairCap(0.0);
+      }
+    }
+
+    // ===== hats =====
     if (hat) {
-      const a = hat.a, b = hat.b;
-      const dome = (c, y, r, h) => { P(); g.ellipse(hx, y, r, h || r * 0.9, 0, Math.PI, 0); g.closePath(); fs(vg(c, y - r, y)); };
+      const a = hat.a, b = hat.b, TOP = HY - HRY;
+      const dome = (c, y, r, h) => { P(); g.ellipse(hx, y, r, h || r * 0.85, 0, Math.PI, 0); g.closePath(); fs(cyl(c, hx - r, hx + r)); };
+      const brimF = (y, w, h, c) => { P(); g.ellipse(hx + (side ? -0.03 : 0), y, w, h, 0, 0, 7); fs(vg(c, y - h, y + h)); };
       switch (hat.s) {
-        case 'cap': dome(a, hy - 0.03, hr + 0.015); if (!back) { P(); if (side) g.ellipse(hx - 0.22, hy - 0.03, 0.14, 0.04, 0, 0, 7); else g.ellipse(hx, hy - 0.02, hr - 0.01, 0.055, 0, 0, Math.PI); fs(b); } el(hx, hy - hr * 0.95, 0.025, 0.015, b, false); break;
-        case 'visorcap': dome(a, hy - 0.03, hr + 0.015); if (!back) { rr(hx - hr * (side ? 0.6 : 0.85), hy - 0.06, hr * (side ? 0.8 : 1.7), 0.06, 0.03, b); } break;
-        case 'beanie': dome(a, hy - 0.02, hr + 0.02); rr(hx - hr - 0.02, hy - 0.07, hr * 2 + 0.04, 0.075, 0.035, b); el(hx, hy - hr - 0.05, 0.05, 0.05, b); break;
-        case 'bandana': dome(a, hy - 0.0, hr + 0.012); [[-0.12, -0.12], [0.04, -0.19], [0.13, -0.08], [-0.02, -0.05]].forEach(([x, y]) => el(hx + x, hy + y, 0.014, 0.014, b, false)); if (!side) { el(hx + hr - 0.02, hy + 0.0, 0.05, 0.03, a); el(hx + hr + 0.03, hy + 0.03, 0.035, 0.05, a); } break;
-        case 'hardhat': case 'miner': dome(a, hy - 0.03, hr + 0.025); rr(hx - hr - 0.04 - (side ? 0.05 : 0), hy - 0.05, (hr + 0.04) * 2, 0.05, 0.02, b === '#fff2a0' ? mix(a, -30) : b); rr(hx - 0.025, hy - hr - 0.03, 0.05, hr * 0.9, 0.02, b === '#fff2a0' ? mix(a, -30) : b, false);
-          if (hat.s === 'miner' && !back) { el(hx + (side ? -0.12 : 0), hy - 0.15, 0.05, 0.045, b); } break;
-        case 'aviator': dome(a, hy - 0.01, hr + 0.02); if (!back) { rr(hx - hr - 0.03, hy - 0.02, 0.07, 0.17, 0.03, a); if (!side) rr(hx + hr - 0.04, hy - 0.02, 0.07, 0.17, 0.03, a); rr(hx - hr - 0.01, hy - 0.06, hr * 2 + 0.02, 0.04, 0.02, b); } break;
-        case 'knight': P(); g.ellipse(hx, hy - 0.01, hr + 0.03, hr + 0.01, 0, 0, 7); fs(vg(a, hy - hr, hy + hr)); if (!back) { P(); g.roundRect(hx - hr * (side ? 0.95 : 0.7), hy - 0.03, hr * (side ? 0.9 : 1.4), 0.17, 0.05); fs(sk); el(side ? -0.12 : -0.09, hy + 0.045, 0.03, 0.045, '#2a1a2a', false); if (!side) el(0.09, hy + 0.045, 0.03, 0.045, '#2a1a2a', false); }
-          P(); g.moveTo(hx - 0.03, hy - hr - 0.0); g.quadraticCurveTo(hx + 0.05, hy - hr - 0.2, hx + 0.2, hy - hr - 0.1); g.quadraticCurveTo(hx + 0.08, hy - hr - 0.05, hx + 0.04, hy - hr + 0.02); fs(b); break;
-        case 'bow': { const bx = hx + (side ? 0.05 : 0.13), by = hy - hr + 0.03; P(); g.moveTo(bx, by); g.quadraticCurveTo(bx - 0.13, by - 0.12, bx - 0.12, by + 0.05); g.closePath(); fs(a); P(); g.moveTo(bx, by); g.quadraticCurveTo(bx + 0.13, by - 0.12, bx + 0.12, by + 0.05); g.closePath(); fs(a); el(bx, by, 0.03, 0.03, b); break; }
-        case 'chef': rr(hx - hr * 0.85, hy - 0.12, hr * 1.7, 0.1, 0.03, b); [[-0.11, -0.25, 0.11], [0.1, -0.25, 0.11], [0, -0.32, 0.13]].forEach(([x, y, r]) => el(hx + x, hy + y, r, r * 0.9, a)); rr(hx - hr * 0.85, hy - 0.12, hr * 1.7, 0.08, 0.03, a); break;
-        case 'beret': P(); g.ellipse(hx + 0.03, hy - hr * 0.7, hr + 0.04, 0.1, -0.12, 0, 7); fs(vg(a, hy - hr - 0.1, hy - hr * 0.5)); el(hx + 0.05, hy - hr - 0.08, 0.02, 0.02, b); break;
-        case 'cowboy': P(); g.ellipse(hx, hy - 0.08, hr + 0.15, 0.06, 0, 0, 7); fs(vg(a, hy - 0.12, hy - 0.02)); P(); g.roundRect(hx - hr * 0.7, hy - hr - 0.12, hr * 1.4, hr + 0.04, [0.08, 0.08, 0.02, 0.02]); fs(vg(a, hy - hr - 0.12, hy - 0.08)); rr(hx - hr * 0.7, hy - 0.13, hr * 1.4, 0.04, 0.01, b, false); break;
-        case 'tophat': el(hx, hy - 0.1, hr + 0.06, 0.05, a); rr(hx - hr * 0.62, hy - hr - 0.22, hr * 1.24, hr + 0.14, 0.03, vg(a, hy - hr - 0.22, hy - 0.1)); rr(hx - hr * 0.62, hy - 0.17, hr * 1.24, 0.045, 0, b, false); break;
-        case 'wizard': el(hx, hy - 0.1, hr + 0.1, 0.06, a); P(); g.moveTo(hx - hr * 0.75, hy - 0.11); g.quadraticCurveTo(hx, hy - 0.5, hx + 0.16, hy - 0.62); g.quadraticCurveTo(hx + 0.1, hy - 0.35, hx + hr * 0.75, hy - 0.11); g.closePath(); fs(vg(a, hy - 0.62, hy - 0.1)); el(hx + 0.02, hy - 0.3, 0.025, 0.025, b, false); el(hx - 0.07, hy - 0.18, 0.018, 0.018, b, false); break;
-        case 'crown': P(); g.moveTo(hx - 0.16, hy - hr + 0.04); g.lineTo(hx - 0.17, hy - hr - 0.14); g.lineTo(hx - 0.08, hy - hr - 0.05); g.lineTo(hx, hy - hr - 0.18); g.lineTo(hx + 0.08, hy - hr - 0.05); g.lineTo(hx + 0.17, hy - hr - 0.14); g.lineTo(hx + 0.16, hy - hr + 0.04); g.closePath(); fs(vg(a, hy - hr - 0.18, hy - hr + 0.04)); el(hx, hy - hr - 0.02, 0.025, 0.025, b, false); break;
-        case 'flowers': [-0.18, -0.09, 0, 0.09, 0.18].forEach((x, i) => { const y = hy - hr * 0.85 + Math.abs(x) * 0.5; el(hx + x, y, 0.045, 0.045, i % 2 ? '#ffd84a' : a); el(hx + x, y, 0.016, 0.016, '#ffffff', false); }); [-0.13, 0.04, 0.14].forEach((x) => el(hx + x, hy - hr * 0.78 + Math.abs(x) * 0.5, 0.03, 0.015, b, false)); break;
         case 'hood': {
-          P(); g.ellipse(hx, hy - 0.005, hr + 0.05, hr + 0.045, 0, 0, 7);
-          if (!back) g.ellipse(hx + (side ? -0.08 : 0), hy + 0.06, hr * (side ? 0.62 : 0.74), hr * 0.78, 0, 0, 7, true);
-          g.fillStyle = vg(a, hy - hr, hy + hr); g.fill('evenodd'); g.stroke();
-          P(); g.moveTo(hx + (side ? 0.12 : -0.05), hy - hr - 0.03); g.quadraticCurveTo(hx + (side ? 0.3 : 0.05), hy - hr - 0.08, hx + (side ? 0.26 : 0.0), hy - hr + 0.08); fs(a);
-          rr(hx - hr * 1.05, hy + hr * 0.8, hr * 2.1, 0.09, 0.045, vg(a, hy + hr * 0.8, hy + hr + 0.1));
-          if (!side && !back) { P(); g.moveTo(hx - 0.07, hy + hr + 0.0); g.lineTo(hx, hy + hr + 0.06); g.lineTo(hx + 0.07, hy + hr); g.strokeStyle = b; g.lineWidth = 0.018; g.stroke(); g.strokeStyle = OL; g.lineWidth = LW; }
+          P(); g.moveTo(hx - HRX - 0.03, HY + 0.11); g.quadraticCurveTo(hx - HRX - 0.04, TOP - 0.03, hx + (side ? 0.03 : 0), TOP - 0.035); g.quadraticCurveTo(hx + HRX + 0.04 + (side ? 0.03 : 0), TOP - 0.02, hx + HRX + 0.03 + (side ? 0.02 : 0), HY + 0.11);
+          if (!back) { if (side) { g.quadraticCurveTo(hx + 0.02, HY + 0.08, hx - 0.02, HY - 0.04); g.quadraticCurveTo(hx - 0.07, HY - 0.08, hx - HRX - 0.01, HY - 0.02); } else { g.quadraticCurveTo(hx + 0.08, HY + 0.06, hx + 0.085, HY - 0.0); g.quadraticCurveTo(hx + 0.07, HY - 0.085, hx, HY - 0.09); g.quadraticCurveTo(hx - 0.07, HY - 0.085, hx - 0.085, HY - 0.0); g.quadraticCurveTo(hx - 0.08, HY + 0.06, hx - HRX - 0.03, HY + 0.11); } }
+          g.closePath(); fs(cyl(a, hx - HRX - 0.04, hx + HRX + 0.04));
+          if (!back && !side) { P(); g.moveTo(hx - 0.085, HY - 0.0); g.quadraticCurveTo(hx - 0.07, HY - 0.085, hx, HY - 0.09); g.quadraticCurveTo(hx + 0.07, HY - 0.085, hx + 0.085, HY); stroke('#000', LW * 2.5, 0.35); }
+          fold([[hx - 0.05, TOP - 0.01], [hx - 0.09, HY + 0.05]], 0.3); fold([[hx + 0.05, TOP - 0.01], [hx + 0.095, HY + 0.05]], 0.3);
+          rr(hx - HRX - 0.035, HY + 0.1, (HRX + 0.035) * 2, 0.05, 0.02, vg(mix(a, -6), HY + 0.1, HY + 0.15));
           break;
         }
-        case 'kettle': dome(a, hy - 0.03, hr + 0.02); P(); g.ellipse(hx, hy - 0.04, hr + 0.13, 0.055, 0, 0, 7); fs(vg(a, hy - 0.09, hy)); P(); g.moveTo(hx - hr, hy - 0.06); g.lineTo(hx + hr, hy - 0.06); g.strokeStyle = b; g.lineWidth = 0.014; g.stroke(); g.strokeStyle = OL; g.lineWidth = LW; el(hx, hy - hr - 0.01, 0.022, 0.016, b, false); break;
-        case 'headphones': P(); g.ellipse(hx, hy, hr + 0.03, hr + 0.02, 0, Math.PI * 1.05, Math.PI * 1.95); g.lineWidth = 0.04; g.strokeStyle = b; g.stroke(); g.lineWidth = LW; g.strokeStyle = OL; if (side) rr(hx + 0.02, hy - 0.02, 0.08, 0.13, 0.035, a); else { rr(hx - hr - 0.05, hy - 0.03, 0.08, 0.14, 0.035, a); rr(hx + hr - 0.03, hy - 0.03, 0.08, 0.14, 0.035, a); } break;
+        case 'kettle': dome(a, HY - 0.025, HRX + 0.018, HRY + 0.012); P(); g.ellipse(hx, HY - 0.025, HRX + 0.065, 0.024, 0, 0, 7); fs(metal(a, hx - HRX - 0.06, hx + HRX + 0.06)); ln([[hx - 0.03, TOP - 0.005], [hx - 0.05, HY - 0.04]], '#fff', LW * 1.5, 0.3); el(hx, TOP - 0.035, 0.008, 0.006, b, false); break;
+        case 'knight': P(); g.ellipse(hx, HY - 0.0, HRX + 0.018, HRY + 0.012, 0, 0, 7); fs(metal(a, hx - HRX, hx + HRX)); if (!back) { rr(hx - (side ? 0.1 : 0.07), EY - 0.01, side ? 0.07 : 0.14, 0.018, 0.006, '#120c08', false); for (let i = 0; i < 4; i++) ln([[hx - (side ? 0.09 : 0.03) + i * 0.012, HY + 0.06], [hx - (side ? 0.09 : 0.03) + i * 0.012, HY + 0.1]], '#120c08', LW * 1.2, 0.7); ln([[hx + (side ? -0.03 : 0), TOP], [hx + (side ? -0.03 : 0), HY + HRY]], '#fff', LW, 0.25); }
+          P(); g.moveTo(hx - 0.01, TOP - 0.005); g.quadraticCurveTo(hx + 0.04, TOP - 0.1, hx + 0.12, TOP - 0.05); g.quadraticCurveTo(hx + 0.05, TOP - 0.03, hx + 0.02, TOP + 0.01); fs(b); break;
+        case 'cap': case 'visorcap': dome(a, HY - 0.015, HRX + 0.012, HRY * 0.95); if (!back) { P(); if (side) g.ellipse(hx - 0.1, HY - 0.02, 0.06, 0.016, 0, 0, 7); else g.ellipse(hx, HY - 0.012, HRX - 0.01, 0.03, 0, 0, Math.PI); fs(hat.s === 'visorcap' ? b : mix(a, -18)); } el(hx, TOP - 0.008, 0.008, 0.005, b, false); fold([[hx - 0.05, TOP + 0.02], [hx - 0.06, HY - 0.02]], 0.25); break;
+        case 'beanie': dome(a, HY - 0.0, HRX + 0.014, HRY + 0.01); rr(hx - HRX - 0.014, HY - 0.035, (HRX + 0.014) * 2, 0.035, 0.012, b); for (let x = -HRX; x < HRX; x += 0.014) ln([[hx + x, HY - 0.032], [hx + x, HY - 0.003]], '#000', LW * 0.7, 0.25); el(hx, TOP - 0.02, 0.022, 0.02, b); break;
+        case 'bandana': dome(a, HY - 0.0, HRX + 0.008, HRY + 0.006); [[-0.06, -0.06], [0.02, -0.1], [0.06, -0.04], [-0.01, -0.03]].forEach(([x, y]) => el(hx + x, HY + y, 0.006, 0.006, b, false)); if (!side) { el(hx + HRX - 0.01, HY - 0.0, 0.022, 0.014, a); P(); g.moveTo(hx + HRX - 0.01, HY); g.lineTo(hx + HRX + 0.03, HY + 0.05); g.lineTo(hx + HRX + 0.005, HY + 0.05); g.closePath(); fs(a); } break;
+        case 'hardhat': case 'miner': dome(a, HY - 0.015, HRX + 0.016, HRY + 0.006); rr(hx - HRX - 0.03 - (side ? 0.03 : 0), HY - 0.025, (HRX + 0.03) * 2, 0.02, 0.008, mix(a, -14)); ln([[hx, TOP - 0.012], [hx, HY - 0.03]], '#fff', LW * 2, 0.2); if (hat.s === 'miner' && !back) { el(hx + (side ? -0.07 : 0), HY - 0.07, 0.022, 0.02, metal('#8a7a5a', hx - 0.02, hx + 0.02)); el(hx + (side ? -0.07 : 0), HY - 0.07, 0.014, 0.012, b, false); } break;
+        case 'aviator': dome(a, HY + 0.005, HRX + 0.012, HRY + 0.01); if (!back) { rr(hx - HRX - 0.016, HY - 0.0, 0.032, 0.11, 0.012, vg(a, HY, HY + 0.11)); if (!side) rr(hx + HRX - 0.016, HY - 0.0, 0.032, 0.11, 0.012, vg(a, HY, HY + 0.11)); rr(hx - HRX - 0.005, HY - 0.03, (HRX + 0.005) * 2, 0.018, 0.008, b); el(hx - 0.04, HY - 0.06, 0.022, 0.018, metal('#9a7a3a', hx - 0.06, hx - 0.02)); el(hx + 0.04, HY - 0.06, 0.022, 0.018, metal('#9a7a3a', hx + 0.02, hx + 0.06)); } break;
+        case 'beret': P(); g.ellipse(hx + 0.015, TOP + 0.02, HRX + 0.025, 0.04, -0.12, 0, 7); fs(vg(a, TOP - 0.02, TOP + 0.06)); el(hx + 0.02, TOP - 0.018, 0.006, 0.006, b, false); break;
+        case 'cowboy': brimF(HY - 0.03, HRX + 0.075, 0.025, a); P(); g.roundRect(hx - HRX * 0.75, TOP - 0.05, HRX * 1.5, HRY - 0.0, [0.04, 0.04, 0.01, 0.01]); fs(cyl(a, hx - HRX, hx + HRX)); rr(hx - HRX * 0.75, HY - 0.055, HRX * 1.5, 0.016, 0.004, b, false); fold([[hx, TOP - 0.045], [hx, TOP - 0.01]], 0.35); break;
+        case 'tophat': brimF(HY - 0.04, HRX + 0.04, 0.018, a); rr(hx - HRX * 0.68, TOP - 0.11, HRX * 1.36, HRY + 0.03, 0.01, cyl(a, hx - HRX, hx + HRX)); rr(hx - HRX * 0.68, HY - 0.075, HRX * 1.36, 0.02, 0, b, false); break;
+        case 'wizard': brimF(HY - 0.045, HRX + 0.07, 0.024, a); P(); g.moveTo(hx - HRX * 0.75, HY - 0.05); g.quadraticCurveTo(hx - 0.01, TOP - 0.12, hx + 0.08, TOP - 0.2); g.quadraticCurveTo(hx + 0.04, TOP - 0.06, hx + HRX * 0.75, HY - 0.05); g.closePath(); fs(cyl(a, hx - HRX, hx + HRX)); rr(hx - HRX * 0.74, HY - 0.075, HRX * 1.48, 0.02, 0.005, b, false); el(hx + 0.01, TOP - 0.04, 0.009, 0.009, b, false); break;
+        case 'crown': P(); g.moveTo(hx - 0.075, TOP + 0.03); g.lineTo(hx - 0.08, TOP - 0.05); g.lineTo(hx - 0.04, TOP - 0.01); g.lineTo(hx, TOP - 0.07); g.lineTo(hx + 0.04, TOP - 0.01); g.lineTo(hx + 0.08, TOP - 0.05); g.lineTo(hx + 0.075, TOP + 0.03); g.closePath(); fs(metal(a, hx - 0.08, hx + 0.08)); el(hx, TOP + 0.005, 0.01, 0.01, b, false); break;
+        case 'bow': { const bx = hx + (side ? 0.03 : 0.06), by2 = TOP + 0.02; P(); g.moveTo(bx, by2); g.quadraticCurveTo(bx - 0.06, by2 - 0.05, bx - 0.055, by2 + 0.025); g.closePath(); fs(a); P(); g.moveTo(bx, by2); g.quadraticCurveTo(bx + 0.06, by2 - 0.05, bx + 0.055, by2 + 0.025); g.closePath(); fs(a); el(bx, by2, 0.012, 0.012, b); break; }
+        case 'chef': rr(hx - HRX * 0.85, HY - 0.07, HRX * 1.7, 0.05, 0.01, b); [[-0.05, -0.12, 0.05], [0.045, -0.12, 0.05], [0, -0.155, 0.058]].forEach(([x, y, r]) => el(hx + x, HY + y, r, r * 0.9, cyl(a, hx + x - r, hx + x + r))); rr(hx - HRX * 0.85, HY - 0.07, HRX * 1.7, 0.04, 0.01, a); break;
+        case 'flowers': [-0.08, -0.04, 0, 0.04, 0.08].forEach((x, i) => { const y = TOP + 0.02 + Math.abs(x) * 0.5; el(hx + x, y, 0.02, 0.02, i % 2 ? '#b8a05a' : a); el(hx + x, y, 0.007, 0.007, '#f0e6c8', false); }); break;
+        case 'headphones': P(); g.ellipse(hx, HY, HRX + 0.012, HRY + 0.01, 0, Math.PI * 1.05, Math.PI * 1.95); stroke(b, LW * 3.5); if (side) rr(hx + 0.015, HY - 0.01, 0.04, 0.06, 0.016, a); else { rr(hx - HRX - 0.022, HY - 0.015, 0.04, 0.065, 0.016, a); rr(hx + HRX - 0.018, HY - 0.015, 0.04, 0.065, 0.016, a); } break;
       }
     }
-    g.restore();
+    // back view: capes and packs drape over the body
+    if (back) backGear(true);
     g.restore();
   };
 
@@ -368,7 +659,7 @@
         <div class="row">${isNew ? '<button class="btn" data-cr="random">Randomize</button>' : ''}<button class="btn ghost" data-cr="cancel">${isNew ? 'Back' : 'Cancel'}</button><button class="btn primary" data-cr="done">${isNew ? 'Start adventure' : 'Save look'}</button></div>
       </div>
       <div class="cr-opts">
-        <section><h3>Body</h3><div class="opts"><button class="opt${lk.body === 'm' ? ' on' : ''}" data-look="body" data-v="m">Male</button><button class="opt${lk.body === 'f' ? ' on' : ''}" data-look="body" data-v="f">Female</button></div></section>
+        <section><h3>Body</h3><div class="opts"><button class="opt${lk.body === 'm' ? ' on' : ''}" data-look="body" data-v="m">Male</button><button class="opt${lk.body === 'f' ? ' on' : ''}" data-look="body" data-v="f">Female</button></div><h3>Build</h3><div class="opts">${opts('build', L.build)}</div></section>
         <section><h3>Skin</h3><div class="swatches">${sw('skin', L.skin)}</div></section>
         <section><h3>Hair</h3><div class="opts">${opts('hair', L.hair)}</div><div class="swatches">${sw('hairColor', L.hairColor)}</div></section>
         <section><h3>Facial hair</h3><div class="opts">${opts('beard', L.beard)}</div></section>

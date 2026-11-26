@@ -41,7 +41,7 @@
   let S = 64, rs = 1, cache = {}, chunkOrder = [];
   function resize(canvas) {
     const cw = canvas.clientWidth, chh = canvas.clientHeight;
-    const T = Math.max(40, Math.min(76, Math.round(Math.min(cw / 15, chh / 10))));
+    const T = Math.max(34, Math.min(62, Math.round(Math.min(cw / 19, chh / 12.5))));
     rs = Math.min(window.devicePixelRatio || 1, 2);
     const w = Math.round(cw * rs), h = Math.round(chh * rs);
     if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }

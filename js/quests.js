@@ -6,22 +6,22 @@
   // ---------- Townsfolk (x, y in town tiles) ----------
   AF.NPCS = {
     mara: { name: 'Engineer Mara', x: 8, y: 24, dir: 'left', look: AF.npcLook({ body: 'f', skin: 2, hair: 6, hairColor: 5, eyes: 1, eyeColor: 1 }, ['welding_goggles', 'forge_apron', 'work_pants', 'steel_boots', 'work_gloves', 'forge_hammer']) },
-    bram: { name: 'Mayor Bram', x: 24, y: 7, dir: 'down', look: AF.npcLook({ skin: 3, hair: 0, hairColor: 9, eyes: 2 }, ['top_hat', 'monocle', 'scholar_coat', 'slacks', 'loafers']) },
-    lune: { name: 'Archivist Lune', x: 13, y: 7, dir: 'down', look: AF.npcLook({ body: 'f', skin: 0, hair: 4, hairColor: 7, eyes: 0, eyeColor: 3 }, ['mage_hood', 'glasses', 'mage_robe', 'slacks', 'loafers', 'tome']) },
-    pip: { name: 'Pip', x: 14, y: 24, dir: 'down', look: AF.npcLook({ skin: 1, hair: 2, hairColor: 3, eyes: 1, eyeColor: 5 }, ['wanderer_hood', 'linen_tunic', 'breeches', 'dust_boots', 'backpack']) },
-    rook: { name: 'Guard Rook', x: 18, y: 26, dir: 'left', look: AF.npcLook({ skin: 4, hair: 1, hairColor: 0, eyes: 3 }, ['iron_helm', 'chainmail', 'breeches', 'steel_boots', 'traveler_cloak', 'longsword']) },
+    bram: { name: 'Mayor Bram', x: 24, y: 7, dir: 'down', look: AF.npcLook({ build: 2, skin: 3, hair: 0, hairColor: 9, eyes: 2 }, ['top_hat', 'monocle', 'scholar_coat', 'slacks', 'loafers']) },
+    lune: { name: 'Archivist Lune', x: 13, y: 7, dir: 'down', look: AF.npcLook({ build: 0, body: 'f', skin: 0, hair: 4, hairColor: 7, eyes: 0, eyeColor: 3 }, ['mage_hood', 'glasses', 'mage_robe', 'slacks', 'loafers', 'tome']) },
+    pip: { name: 'Pip', x: 14, y: 24, dir: 'down', look: AF.npcLook({ build: 0, skin: 1, hair: 2, hairColor: 3, eyes: 1, eyeColor: 5 }, ['wanderer_hood', 'linen_tunic', 'breeches', 'dust_boots', 'backpack']) },
+    rook: { name: 'Guard Rook', x: 18, y: 26, dir: 'left', look: AF.npcLook({ build: 2, skin: 4, hair: 1, hairColor: 0, eyes: 3 }, ['iron_helm', 'chainmail', 'breeches', 'steel_boots', 'traveler_cloak', 'longsword']) },
     tess: { name: 'Tess', x: 9, y: 16, wander: true, look: AF.npcLook({ body: 'f', skin: 2, hair: 6, hairColor: 6, eyes: 1, eyeColor: 3 }, ['ribbon_bow', 'pastel_dress', 'ribbon_shoes']),
       lines: ["I'm gonna be a pilot too someday! My automaton will have a JETPACK.", 'Did you know the pond fish glow at night? Mara says it\'s arc runoff.', 'Gus says the Titan used to light up the whole sky.'] },
-    gus: { name: 'Old Gus', x: 24, y: 16, wander: true, look: AF.npcLook({ skin: 0, hair: 0, hairColor: 9, eyes: 2 }, ['cowboy_hat', 'leather_jerkin', 'breeches', 'trail_boots']),
+    gus: { name: 'Old Gus', x: 24, y: 16, wander: true, look: AF.npcLook({ build: 0, skin: 0, hair: 0, hairColor: 9, eyes: 2 }, ['cowboy_hat', 'leather_jerkin', 'breeches', 'trail_boots']),
       lines: ['Back in my day, the Arc Fountain could power the whole town.', 'Bots out there act on a pattern. Watch what they plan to do next, then stay out of reach.', 'Bank your credits, kid. The wilds take a cut if your automaton goes down.'] },
     nell: { name: 'Nell', x: 29, y: 15, wander: true, look: AF.npcLook({ body: 'f', skin: 5, hair: 7, hairColor: 0, eyes: 0, eyeColor: 2 }, ['flower_crown', 'chef_apron', 'frilly_skirt', 'clogs']),
       lines: ['The Diner\'s Focus Tea is the only thing keeping me awake.', 'Copper veins show up in the rubble east of here. You\'ll need Treads.', 'The Deckhouse restocks every so often. Check back!'] },
-    vik: { name: 'Vik', x: 12, y: 26, wander: true, look: AF.npcLook({ skin: 3, hair: 8, hairColor: 1, eyes: 3, eyeColor: 4 }, ['eyepatch', 'flight_jacket', 'flight_pants', 'dust_boots', 'traveler_cloak', 'gear_crossbow']),
+    vik: { name: 'Vik', x: 12, y: 26, wander: true, look: AF.npcLook({ build: 1, skin: 3, hair: 8, hairColor: 1, eyes: 3, eyeColor: 4 }, ['eyepatch', 'flight_jacket', 'flight_pants', 'dust_boots', 'traveler_cloak', 'gear_crossbow']),
       lines: ['Spark Spitters shoot from far away. Get a Rail Shot or close the gap fast!', 'Ruins have a little blue light while nobody\'s searched them yet.', 'I traded three Scrap for a sandwich once. Worth it.'] },
     // Brasshaven (town 2)
     sable: { town: 2, name: 'Guildmaster Sable', x: 5, y: 8, dir: 'down', look: AF.npcLook({ body: 'f', skin: 3, hair: 4, hairColor: 9, eyes: 3, eyeColor: 4 }, ['wanderer_hood', 'leather_jerkin', 'breeches', 'trail_boots', 'shadow_cloak', 'gear_crossbow']) },
-    corwin: { town: 2, name: 'Artificer Corwin', x: 21, y: 8, dir: 'down', look: AF.npcLook({ skin: 1, hair: 3, hairColor: 9, eyes: 2, beard: 5 }, ['monocle', 'lab_coat', 'slacks', 'loafers', 'power_gauntlets', 'spark_staff']) },
-    hollis: { town: 2, name: 'Gatewarden Hollis', x: 13, y: 20, dir: 'down', look: AF.npcLook({ skin: 4, hair: 1, hairColor: 0, eyes: 3, beard: 4 }, ['iron_helm', 'chainmail', 'breeches', 'steel_boots', 'hero_cape', 'longsword']) },
+    corwin: { town: 2, name: 'Artificer Corwin', x: 21, y: 8, dir: 'down', look: AF.npcLook({ build: 0, skin: 1, hair: 3, hairColor: 9, eyes: 2, beard: 5 }, ['monocle', 'lab_coat', 'slacks', 'loafers', 'power_gauntlets', 'spark_staff']) },
+    hollis: { town: 2, name: 'Gatewarden Hollis', x: 13, y: 20, dir: 'down', look: AF.npcLook({ build: 2, skin: 4, hair: 1, hairColor: 0, eyes: 3, beard: 4 }, ['iron_helm', 'chainmail', 'breeches', 'steel_boots', 'hero_cape', 'longsword']) },
     mira: { town: 2, name: 'Mira the Hedge-Witch', x: 8, y: 11, wander: true, look: AF.npcLook({ body: 'f', skin: 0, hair: 4, hairColor: 9, eyes: 2, eyeColor: 3 }, ['wizard_hat', 'archmage_robe', 'pleated_skirt', 'loafers', 'spark_staff']),
       lines: ['The Foundry hums with old rune-work. Gears and spells, braided together. Nasty combination.', 'Crystals down there drink the dark. Touch one and you\'ll feel it.', 'Rune Golems guard themselves before they strike. Hit them when the shield drops.'] },
     tobin: { town: 2, name: 'Tobin the Tinker', x: 18, y: 17, wander: true, look: AF.npcLook({ skin: 2, hair: 2, hairColor: 2, eyes: 0, beard: 1 }, ['leather_cap', 'forge_apron', 'work_pants', 'dust_boots', 'wrench']),
@@ -152,7 +152,7 @@
     D.full = ln.text.replace(/\{name\}/g, name);
     D.shown = 0;
     $('#dialog').innerHTML = `<div class="dlg">${npc ? '<canvas class="dlg-face"></canvas>' : ''}<div class="dlg-body">${who ? `<b class="who">${AF.esc(who)}</b>` : ''}<p class="txt"></p></div><span class="more">▼</span></div><div class="choices"></div>`;
-    if (npc) { const c = $('#dialog .dlg-face'); c.width = 128; c.height = 128; AF.drawPilotAt(c.getContext('2d'), 64, 250, 240, npc.look, 'down', 0, {}); }
+    if (npc) { const c = $('#dialog .dlg-face'); c.width = 128; c.height = 128; AF.drawPilotAt(c.getContext('2d'), 64, 318, 312, npc.look, 'down', 0, {}); }
     clearInterval(D.timer);
     D.timer = setInterval(() => {
       D.shown += 2;
