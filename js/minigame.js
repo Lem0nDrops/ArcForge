@@ -20,7 +20,7 @@
   const sheet = () => root().querySelector('.sheet');
   M.isOpen = () => M.open;
   function show(html) { root().hidden = false; M.open = true; sheet().innerHTML = html; }
-  function close() { root().hidden = true; M.open = false; M.key = null; cancelAnimationFrame(M.raf); }
+  function close() { if (document.activeElement && root().contains(document.activeElement)) document.activeElement.blur(); root().hidden = true; M.open = false; M.key = null; cancelAnimationFrame(M.raf); }
   M.close = close;
 
   const RESN = (k) => AF.RES[k].name;

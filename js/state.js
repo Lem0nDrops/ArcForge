@@ -113,6 +113,7 @@
     return s;
   };
 
+  AF.SAVE_VERSION = 8;   // bump with every save-format change (loadSlot and save codes accept up to this)
   AF.save = function (state) {
     try { state.saved = Date.now(); localStorage.setItem(slotKey(state.slot), JSON.stringify(state)); return true; } catch (e) { return false; }
   };
@@ -121,7 +122,7 @@
       const raw = localStorage.getItem(slotKey(n));
       if (!raw) return null;
       const s = JSON.parse(raw);
-      return s && s.version >= 1 && s.version <= 7 ? AF.upgradeSave(Object.assign(s, { slot: n })) : null;
+      return s && s.version >= 1 && s.version <= AF.SAVE_VERSION ? AF.upgradeSave(Object.assign(s, { slot: n })) : null;
     } catch (e) { return null; }
   };
   AF.deleteSlot = function (n) { try { localStorage.removeItem(slotKey(n)); } catch (e) {} };
@@ -141,7 +142,7 @@
   AF.importCode = function (code, slot) {
     try {
       const s = JSON.parse(decodeURIComponent(escape(atob(code.trim()))));
-      if (!s || !s.parts || !(s.version >= 1 && s.version <= 7)) return null;
+      if (!s || !s.parts || !(s.version >= 1 && s.version <= AF.SAVE_VERSION)) return null;
       s.slot = slot;
       return AF.upgradeSave(s);
     } catch (e) { return null; }

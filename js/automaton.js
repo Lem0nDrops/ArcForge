@@ -95,7 +95,7 @@
     S.core0 = state.look.core;
     el().hidden = false; S.render();
   };
-  S.close = function () { el().hidden = true; };
+  S.close = function () { if (document.activeElement && el().contains(document.activeElement)) document.activeElement.blur(); el().hidden = true; };
   S.preview = function () { const p = el().querySelector('.bot-pre'); if (p) p.innerHTML = AF.robotSVG(S.state.parts, { core: AF.coreColor(S.state.look), bot: Object.assign({}, S.bot, { construct: S.con }) }); };
   S.render = function () {
     const s = S.state, b = S.bot;
