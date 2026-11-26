@@ -80,7 +80,7 @@
     s.owned = s.owned || []; s.equip = Object.assign(AF.EMPTY_EQUIP(), s.equip || {}); s.presets = s.presets || [null, null, null];
     if (s.starter !== 'given') {
       // Starter clothes: the base wardrobe plus the outfit picked in the creator, worn right away.
-      const kit = (AF.STARTER_OUTFITS[s.starter] || AF.STARTER_OUTFITS.tinker).items;
+      const kit = Array.isArray(s.starter) ? s.starter.filter((id) => AF.ITEMS[id]) : (AF.STARTER_OUTFITS[s.starter] || AF.STARTER_OUTFITS.tinker).items;
       [...AF.BASE_WARDROBE, ...kit].forEach((id) => { if (!s.owned.includes(id)) s.owned.push(id); });
       if (!AF.equippedIds(s).some((id) => AF.ITEMS[id].slot !== 'charm')) {
         kit.forEach((id) => { s.equip[AF.ITEMS[id].slot] = id; });

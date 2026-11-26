@@ -12,16 +12,42 @@
     eyes: ['Classic', 'Sparkle', 'Sleepy', 'Sharp', 'Dot'],
     beard: ['None', 'Stubble', 'Mustache', 'Goatee', 'Short beard', 'Full beard', 'Long beard', 'Braided beard'],
     build: ['Slim', 'Average', 'Broad'],
+    brows: ['Natural', 'Thick', 'Thin', 'Arched', 'Raised', 'Angry', 'None'],
+    nose: ['Button', 'Straight', 'Broad', 'Pointed', 'Hooked'],
+    mouth: ['Smile', 'Neutral', 'Grin', 'Smirk', 'Frown', 'Open'],
+    ears: ['Round', 'Pointed', 'Long'],
+    marks: ['None', 'Freckles', 'Scar', 'Cheek scar', 'War paint', 'Beauty mark'],
     core: [['#ffd75e', 'Solar'], ['#5ef2e1', 'Arc blue'], ['#ff6b5c', 'Ember'], ['#7ee08a', 'Toxic'], ['#c27bff', 'Void'], ['#7fb8ff', 'Glacier'], ['#ff9ad5', 'Bubblegum'], ['#ffffff', 'Starlight']],
   });
   AF.defaultLook = (body) => ({ name: '', body: body || 'f', build: 1, skin: 1, hair: body === 'm' ? 0 : 5, hairColor: 2, eyes: 0, eyeColor: 0, core: 1 });
+  // Colours can be a list index (older saves, NPCs) or any '#rrggbb' picked in the creator.
+  const HEXLIST = { skin: () => L.skin, hairColor: () => L.hairColor, eyeColor: () => L.eyeColor };
+  AF.lookHex = function (look, field) {
+    const v = look && look[field];
+    if (typeof v === 'string' && v[0] === '#') return v;
+    const list = HEXLIST[field](); return list[Math.max(0, Math.min(list.length - 1, v || 0))];
+  };
+  // Body shape 0 (broad-shouldered) .. 1 (narrow-waisted). Older looks only have body 'm'/'f'.
+  AF.lookShape = (look) => (look && look.shape != null ? +look.shape : look && look.body === 'f' ? 1 : 0);
+  // Skin tone slider 0..1 walks the skin ramp smoothly.
+  AF.skinAt = function (t) {
+    const r = L.skin, x = Math.max(0, Math.min(1, t)) * (r.length - 1), i = Math.min(r.length - 2, Math.floor(x)), f = x - i;
+    const a = r[i], b = r[i + 1], h = (c, k) => parseInt(c.slice(1 + k * 2, 3 + k * 2), 16);
+    return '#' + [0, 1, 2].map((k) => Math.round(h(a, k) + (h(b, k) - h(a, k)) * f).toString(16).padStart(2, '0')).join('');
+  };
   AF.randomLook = function () {
-    const p = (n) => Math.floor(Math.random() * n), body = Math.random() < 0.5 ? 'm' : 'f';
-    return { name: '', body, build: p(3), skin: p(L.skin.length), hair: p(L.hair.length), hairColor: p(L.hairColor.length), eyes: p(L.eyes.length), eyeColor: p(L.eyeColor.length), core: p(L.core.length), beard: body === 'm' && Math.random() < 0.6 ? p(L.beard.length) : 0 };
+    const r = Math.random, p = (n) => Math.floor(r() * n), shape = r() < 0.5 ? r() * 0.35 : 0.65 + r() * 0.35, fem = shape >= 0.5;
+    const hsl = (h, s, l) => { s /= 100; l /= 100; const f = (n) => { const k = (n + h / 30) % 12, c = l - s * Math.min(l, 1 - l) * Math.max(-1, Math.min(k - 3, 9 - k, 1)); return Math.round(c * 255).toString(16).padStart(2, '0'); }; return '#' + f(0) + f(8) + f(4); };
+    const natural = r() < 0.75;
+    return { name: '', body: fem ? 'f' : 'm', shape: +shape.toFixed(2), build: +(r() * 2).toFixed(2), height: +r().toFixed(2), headSize: +(0.3 + r() * 0.4).toFixed(2),
+      skin: AF.skinAt(r()), hair: p(L.hair.length), hairColor: natural ? hsl(20 + r() * 25, 30 + r() * 50, 12 + r() * 60) : hsl(r() * 360, 55 + r() * 30, 40 + r() * 25),
+      eyes: p(L.eyes.length), eyeColor: hsl(r() * 360, 40 + r() * 40, 30 + r() * 25), core: p(L.core.length),
+      beard: !fem && r() < 0.6 ? p(L.beard.length) : 0, brows: p(L.brows.length - 1), nose: p(L.nose.length), mouth: r() < 0.5 ? 0 : p(L.mouth.length),
+      ears: r() < 0.8 ? 0 : p(L.ears.length), marks: r() < 0.6 ? 0 : p(L.marks.length), lashes: fem, lips: fem && r() < 0.7, blush: r() < 0.7 };
   };
   // NPC helper: base features + a list of worn item ids.
   AF.npcLook = (o, items) => { const out = {}; (items || []).forEach((id) => { const it = AF.ITEMS[id]; if (it && it.slot !== 'charm') out[it.slot] = id; }); return Object.assign({ name: '', body: 'm', skin: 1, hair: 0, hairColor: 1, eyes: 0, eyeColor: 0, core: 1 }, o, { outfit: out }); };
-  AF.coreColor = (look) => L.core[(look && look.core) || 0][0];
+  AF.coreColor = (look) => { const v = look && look.core; return typeof v === 'string' && v[0] === '#' ? v : L.core[Math.max(0, Math.min(L.core.length - 1, v || 0))][0]; };
   const mix = (c, a) => (typeof c === 'string' ? AF.shadeHex(c, a) : c);
   // Darker, earthier palette: pull every clothing colour toward a weathered brown and drop the brightness.
   const MUTE = {};
@@ -50,8 +76,8 @@
     g.lineJoin = 'round'; g.lineCap = 'round';
     const OL = '#1a120c', LW = Math.max(0.0055, 0.85 / H);
     g.strokeStyle = OL; g.lineWidth = LW;
-    const sk = L.skin[look.skin || 0], skD = mix(sk, -34), hc = AF.mute(L.hairColor[look.hairColor || 0], 0.22), ec = L.eyeColor[look.eyeColor || 0];
-    const fem = look.body === 'f', side = dir === 'left', back = dir === 'up', front = !side && !back;
+    const sk = AF.lookHex(look, 'skin'), skD = mix(sk, -34), hc = AF.mute(AF.lookHex(look, 'hairColor'), 0.22), ec = AF.lookHex(look, 'eyeColor');
+    const fem = AF.lookShape(look) >= 0.5, side = dir === 'left', back = dir === 'up', front = !side && !back;
     const moving = !!opt.moving, s1 = Math.sin(phase || 0), t = opt.t || 0;
     // ---- tiny drawing kit ----
     const P = () => g.beginPath();
@@ -70,7 +96,7 @@
     const metal = (c, x0, x1) => { const gr = g.createLinearGradient(x0, 0, x1, 0); gr.addColorStop(0, mix(c, 40)); gr.addColorStop(0.3, mix(c, 10)); gr.addColorStop(0.55, mix(c, -25)); gr.addColorStop(0.8, mix(c, 12)); gr.addColorStop(1, mix(c, -40)); gr._b = c; return gr; };
 
     // ---- proportions ----
-    const BI = look.build == null ? 1 : look.build, BS = [0.9, 1, 1.15][BI], BW = [0.86, 1, 1.2][BI], BL = [0.88, 1, 1.16][BI];
+    const BI = look.build == null ? 1 : Math.max(0, Math.min(2, Math.round(+look.build))), BS = [0.9, 1, 1.15][BI], BW = [0.86, 1, 1.2][BI], BL = [0.88, 1, 1.16][BI];
     const HY = 0.18, HRX = side ? 0.112 : 0.117, HRY = 0.134;           // head centre and radii
     const SY = 0.34, SW = (fem ? 0.122 : 0.142) * BS;                            // shoulder line, half-width
     const WY = 0.56, WW = (fem ? 0.083 : 0.098) * BW, HIP = 0.6, HW = (fem ? 0.112 : 0.104) * (BW * 0.5 + 0.5); // waist and hip
@@ -619,24 +645,31 @@
     AF.drawPilotAt(g, x + s * 0.36, y + s * 0.99, s * 0.97, look, dir || 'down', dir && t ? t / 180 : 0, { moving: !!(dir && t), t, blink: t ? (t % 3400) < 140 : false });
   };
 
-  // ---------- Character creator (new pilot) and Salon (change hair/face later) ----------
-  const C = (AF.Creator = { look: null, mode: 'new', outfit: 'tinker', con: null, raf: 0 });
+  // ---------- Character creator (new pilot) and Salon (change your look later) ----------
+  // No presets: every feature is set directly with sliders, shape buttons and free colour pickers.
+  const C = (AF.Creator = { look: null, mode: 'new', tab: 'pilot', kit: null, con: null, bot: null, raf: 0 });
+  const root = () => document.querySelector('#creator');
   C.open = function (opts) {
     C.mode = opts.mode === 'boutique' ? 'salon' : opts.mode; C.state = opts.state || null; C.onDone = opts.onDone; C.onCancel = opts.onCancel;
-    C.look = Object.assign(AF.defaultLook(Math.random() < 0.5 ? 'm' : 'f'), opts.look || {});
-    if (C.mode === 'new') { C.con = null; C.warn = false; }
-    document.querySelector('#creator').hidden = false;
+    C.look = JSON.parse(JSON.stringify(Object.assign(AF.defaultLook(Math.random() < 0.5 ? 'm' : 'f'), opts.look || {})));
+    if (C.look.shape == null) C.look.shape = AF.lookShape(C.look);
+    C.look.dye = C.look.dye || {};
+    C.tab = 'pilot';
+    if (C.mode === 'new') { C.con = null; C.warn = false; C.kit = Object.assign({}, AF.STARTER_KIT); C.bot = AF.defaultBot(null); C.botTouched = false; }
+    const r = root();
+    if (!r.dataset.wired) { r.dataset.wired = '1'; r.addEventListener('input', C.onInput); }
+    r.hidden = false;
     C.render();
     cancelAnimationFrame(C.raf);
-    const loop = (t) => { C.drawPreview(t); if (!document.querySelector('#creator').hidden) C.raf = requestAnimationFrame(loop); };
+    const loop = (t) => { C.drawPreview(t); if (!root().hidden) C.raf = requestAnimationFrame(loop); };
     C.raf = requestAnimationFrame(loop);
   };
-  C.close = function () { document.querySelector('#creator').hidden = true; cancelAnimationFrame(C.raf); };
+  C.close = function () { root().hidden = true; cancelAnimationFrame(C.raf); };
+  C.wornIds = () => (C.mode === 'new' ? Object.values(C.kit).filter(Boolean) : AF.equippedIds(C.state).filter((id) => AF.ITEMS[id].slot !== 'charm'));
   C.previewLook = function () {
     const o = {};
-    const items = C.mode === 'new' ? AF.STARTER_OUTFITS[C.outfit].items : AF.equippedIds(C.state);
-    items.forEach((id) => { const sl = AF.ITEMS[id].slot; if (sl !== 'charm') o[sl] = id; });
-    if (C.mode === 'new' && !o.top) o.top = 'basic_tee';
+    C.wornIds().forEach((id) => { o[AF.ITEMS[id].slot] = id; });
+    if (!o.top) o.top = 'basic_tee';
     return Object.assign({}, C.look, { outfit: o });
   };
   C.drawPreview = function (t) {
@@ -644,43 +677,150 @@
     const dpr = window.devicePixelRatio || 1, w = cv.clientWidth, h = cv.clientHeight;
     if (cv.width !== Math.round(w * dpr)) { cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr); }
     const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, w, h);
-    const dirs = ['down', 'left', 'up', 'right'], dir = dirs[Math.floor(t / 1800) % 4];
-    AF.drawPilotAt(g, w / 2, h - 16, Math.min(h * 0.84, w * 1.3), C.previewLook(), dir, t / 170, { moving: true, t, blink: (t % 3400) < 140 });
+    const dirs = ['down', 'left', 'up', 'right'];
+    const dir = C.facing || dirs[Math.floor(t / 1800) % 4], moving = C.walk !== false;
+    AF.drawPilotAt(g, w / 2, h - 16, Math.min(h * 0.7, w * 1.1), C.previewLook(), dir, moving ? t / 170 : 0, { moving, t, blink: (t % 3400) < 140 });
   };
-  const sw = (field, list) => list.map((c, i) => `<button class="sw${C.look[field] === i ? ' on' : ''}" data-look="${field}" data-i="${i}" style="--c:${Array.isArray(c) ? c[0] : c}" aria-label="${field} ${i + 1}"></button>`).join('');
-  const opts = (field, list) => list.map((n, i) => `<button class="opt${C.look[field] === i ? ' on' : ''}" data-look="${field}" data-i="${i}">${n}</button>`).join('');
+  C.botPreview = function () {
+    const e = document.querySelector('#cr-bot'); if (!e) return;
+    const parts = { arc: 2, frame: 2, legs: C.con === 'bulwark' ? 2 : 1, arms: 2, weapon: 2, shield: C.con === 'bulwark' ? 3 : 1 };
+    e.innerHTML = AF.robotSVG(C.mode === 'new' ? parts : C.state.parts, { core: AF.coreColor(C.look), bot: Object.assign({}, C.mode === 'new' ? C.bot : C.state.bot, { construct: C.mode === 'new' ? C.con : C.state.construct }) });
+  };
+
+  // controls
+  const pct = (v, d) => Math.round((v == null ? d : v) * 100);
+  const slider = (field, label, lo, hi, val, scale) => `<label class="slide"><span>${label}</span><small>${lo}</small><input type="range" min="0" max="100" value="${val}" data-lk="${field}" data-scale="${scale || 1}"><small>${hi}</small></label>`;
+  const color = (field, label, val) => `<label class="pick"><span>${label}</span><input type="color" data-lkc="${field}" value="${val}"></label>`;
+  const opts = (field, list, cur) => list.map((n, i) => `<button class="opt${(cur == null ? 0 : cur) === i ? ' on' : ''}" data-look="${field}" data-i="${i}">${n}</button>`).join('');
+  const toggle = (field, label, on) => `<button class="opt tog${on ? ' on' : ''}" data-look="${field}" data-tog="1">${label}: ${on ? 'On' : 'Off'}</button>`;
+  const fem = () => AF.lookShape(C.look) >= 0.5;
+  // skin slider position from the current colour (closest point on the ramp)
+  const skinPos = () => { const v = C.look.skin; if (typeof v !== 'string') return Math.round(((v || 0) / (L.skin.length - 1)) * 100); if (C.skinT != null) return C.skinT; return 50; };
+
+  C.pilotTab = function () {
+    const lk = C.look;
+    return `
+      <section><h3>Body</h3><div class="slides">
+        ${slider('shape', 'Body shape', 'Broad', 'Curvy', pct(lk.shape, AF.lookShape(lk)))}
+        ${slider('build', 'Build', 'Slim', 'Hefty', pct((lk.build == null ? 1 : lk.build) / 2, 0.5), 2)}
+        ${slider('height', 'Height', 'Short', 'Tall', pct(lk.height, 0.5))}
+        ${slider('headSize', 'Head size', 'Small', 'Large', pct(lk.headSize, 0.5))}</div></section>
+      <section><h3>Skin</h3><div class="slides">${slider('skinT', 'Skin tone', 'Light', 'Deep', skinPos())}</div>
+        <div class="picks">${color('skin', 'Exact colour', AF.lookHex(lk, 'skin'))}</div></section>
+      <section><h3>Hair</h3><div class="opts">${opts('hair', L.hair, lk.hair)}</div>
+        <div class="picks">${color('hairColor', 'Hair colour', AF.lookHex(lk, 'hairColor'))}</div>
+        <h4>Facial hair</h4><div class="opts">${opts('beard', L.beard, lk.beard)}</div></section>
+      <section><h3>Eyes &amp; brows</h3><div class="opts">${opts('eyes', L.eyes, lk.eyes)}</div>
+        <div class="picks">${color('eyeColor', 'Eye colour', AF.lookHex(lk, 'eyeColor'))}</div>
+        <h4>Brows</h4><div class="opts">${opts('brows', L.brows, lk.brows)}</div>
+        <div class="opts">${toggle('lashes', 'Lashes', lk.lashes == null ? fem() : lk.lashes)}</div></section>
+      <section><h3>Face</h3>
+        <h4>Nose</h4><div class="opts">${opts('nose', L.nose, lk.nose)}</div>
+        <h4>Mouth</h4><div class="opts">${opts('mouth', L.mouth, lk.mouth)}</div>
+        <h4>Ears</h4><div class="opts">${opts('ears', L.ears, lk.ears)}</div>
+        <h4>Marks</h4><div class="opts">${opts('marks', L.marks, lk.marks)}</div>
+        <div class="opts">${toggle('lips', 'Lip colour', lk.lips == null ? fem() : lk.lips)}${toggle('blush', 'Rosy cheeks', lk.blush !== false)}</div></section>`;
+  };
+  const dyeRow = (id) => {
+    const it = AF.ITEMS[id], d = C.look.dye[id] || {}, v = it.vis || {};
+    const base = (k) => (AF.mute ? AF.mute(v[k], 0.22) : v[k]);
+    return `<div class="dye"><span>${AF.esc(it.name)}</span>${v.a ? `<label class="pick"><span>Main</span><input type="color" data-dye="${id}" data-k="a" value="${d.a || base('a')}"></label>` : ''}${v.b ? `<label class="pick"><span>Detail</span><input type="color" data-dye="${id}" data-k="b" value="${d.b || base('b')}"></label>` : ''}${C.look.dye[id] ? `<button class="btn sm ghost" data-undye="${id}">Original</button>` : ''}</div>`;
+  };
+  const SLOTNAME = { hat: 'Head', face: 'Face', top: 'Top', bottom: 'Bottoms', shoes: 'Shoes', gloves: 'Gloves', cape: 'Back', tool: 'Tool' };
+  C.outfitTab = function () {
+    if (C.mode !== 'new') {
+      const ids = C.wornIds();
+      return `<section><h3>Dye your clothes</h3><p class="hint">Recolour anything you're wearing. Each piece remembers its colours, even after you take it off.</p>${ids.length ? ids.map(dyeRow).join('') : '<p class="muted">You aren\'t wearing anything that can be dyed.</p>'}</section>`;
+    }
+    return `<section><h3>Starting clothes</h3><p class="hint">Pick each piece you start with, then dye it any colour. You'll find many more outfits as you play, and everything you wear shows on your pilot.</p></section>
+      ${Object.entries(AF.STARTER_POOL).map(([slot, list]) => `<section><h3>${SLOTNAME[slot]}</h3><div class="opts">${list.map((id) => `<button class="opt${(C.kit[slot] || null) === id ? ' on' : ''}" data-kit="${slot}" data-id="${id || ''}">${id ? AF.esc(AF.ITEMS[id].name) : 'None'}</button>`).join('')}</div>${C.kit[slot] ? dyeRow(C.kit[slot]) : ''}</section>`).join('')}`;
+  };
+  C.botTab = function () {
+    return `<section id="cr-con" class="${C.warn && !C.con ? 'need' : ''}"><h3>Construct</h3>${C.warn && !C.con ? '<p class="warn">Pick one to start your adventure.</p>' : ''}<p class="hint">Engineer Mara will build this for you. It decides your automaton's strengths and your 30-card starting deck. This choice is permanent for this pilot.</p>${AF.constructPicker(C.con, AF.coreColor(C.look))}</section>
+      <section><h3>Name</h3><div class="row"><input id="cr-botname" class="txt" maxlength="14" value="${AF.esc(C.bot.name)}" autocomplete="off"><button class="btn" data-cr="botname">Random name</button><button class="btn" data-cr="botrandom">Randomize look</button></div></section>
+      ${AF.botEditorHTML(C.bot, C.look)}`;
+  };
   C.render = function () {
     const lk = C.look, isNew = C.mode === 'new';
-    document.querySelector('#creator .cr').innerHTML = `
+    const tabs = [['pilot', 'Pilot'], ['outfit', isNew ? 'Outfit' : 'Dye'], ...(isNew ? [['bot', 'Automaton']] : [])];
+    const y = document.querySelector('#creator') ? document.querySelector('#creator').scrollTop : 0;
+    root().querySelector('.cr').innerHTML = `
       <div class="cr-side">
         <h2>${isNew ? 'Create your pilot' : 'Salon'}</h2>
-        <div class="cr-stage"><canvas id="cr-preview"></canvas></div>
+        <div class="cr-stage${C.tab === 'bot' ? ' botfocus' : ''}"><canvas id="cr-preview"></canvas>${isNew ? '<div id="cr-bot" class="cr-bot"></div>' : ''}
+          <div class="cr-turn">${[['down', 'Front'], ['left', 'Side'], ['up', 'Back'], ['', 'Spin']].map(([d, n]) => `<button class="opt sm${(C.facing || '') === d ? ' on' : ''}" data-face="${d}">${n}</button>`).join('')}<button class="opt sm${C.walk === false ? '' : ' on'}" data-walk="1">Walk</button></div></div>
         ${isNew ? `<label class="fld">Pilot name<input id="cr-name" maxlength="16" value="${AF.esc(lk.name)}" placeholder="Name your pilot" autocomplete="off"></label>` : `<p class="cr-name">${AF.esc(lk.name)}</p>`}
-        <div class="row">${isNew ? '<button class="btn" data-cr="random">Randomize</button>' : ''}<button class="btn ghost" data-cr="cancel">${isNew ? 'Back' : 'Cancel'}</button><button class="btn primary" data-cr="done">${isNew ? 'Start adventure' : 'Save look'}</button></div>
+        <div class="row"><button class="btn" data-cr="random">Randomize ${C.tab === 'pilot' ? 'look' : C.tab === 'outfit' ? (isNew ? 'outfit' : 'dyes') : 'automaton'}</button><button class="btn ghost" data-cr="cancel">${isNew ? 'Back' : 'Cancel'}</button><button class="btn primary" data-cr="done">${isNew ? 'Start adventure' : 'Save look'}</button></div>
       </div>
       <div class="cr-opts">
-        <section><h3>Body</h3><div class="opts"><button class="opt${lk.body === 'm' ? ' on' : ''}" data-look="body" data-v="m">Male</button><button class="opt${lk.body === 'f' ? ' on' : ''}" data-look="body" data-v="f">Female</button></div><h3>Build</h3><div class="opts">${opts('build', L.build)}</div></section>
-        <section><h3>Skin</h3><div class="swatches">${sw('skin', L.skin)}</div></section>
-        <section><h3>Hair</h3><div class="opts">${opts('hair', L.hair)}</div><div class="swatches">${sw('hairColor', L.hairColor)}</div></section>
-        <section><h3>Facial hair</h3><div class="opts">${opts('beard', L.beard)}</div></section>
-        <section><h3>Eyes</h3><div class="opts">${opts('eyes', L.eyes)}</div><div class="swatches">${sw('eyeColor', L.eyeColor)}</div></section>
-        ${isNew ? `<section><h3>Starting outfit</h3><p class="hint">You'll collect many more outfits as you play. Everything you wear shows on your pilot.</p><div class="opts">${Object.entries(AF.STARTER_OUTFITS).map(([k, o]) => `<button class="opt${C.outfit === k ? ' on' : ''}" data-outfit="${k}">${o.name}</button>`).join('')}</div></section>
-        <section id="cr-con" class="${C.warn && !C.con ? 'need' : ''}"><h3>Your automaton's Construct</h3>${C.warn && !C.con ? '<p class="warn">Pick one to start your adventure.</p>' : ''}<p class="hint">Engineer Mara will build this for you. It decides your automaton's strengths and your 30-card starting deck. This choice is permanent for this pilot.</p>${AF.constructPicker(C.con, AF.coreColor(lk))}</section>
-        <section><h3>Core glow</h3><div class="swatches">${sw('core', L.core)}</div></section>` : ''}
+        <nav class="cr-tabs">${tabs.map(([k, n]) => `<button class="tab${C.tab === k ? ' on' : ''}" data-crtab="${k}">${n}</button>`).join('')}</nav>
+        ${C.tab === 'pilot' ? C.pilotTab() : C.tab === 'outfit' ? C.outfitTab() : C.botTab()}
         <div class="row cr-end"><button class="btn ghost" data-cr="cancel">${isNew ? 'Back' : 'Cancel'}</button><button class="btn primary" data-cr="done">${isNew ? 'Start adventure' : 'Save look'}</button></div>
       </div>`;
+    if (document.querySelector('#creator')) document.querySelector('#creator').scrollTop = y;
+    C.botPreview();
+  };
+  // Sliders and colour pickers update live without rebuilding the page.
+  C.onInput = function (ev) {
+    const e = ev.target, lk = C.look;
+    if (e.dataset.lk) {
+      const v = +e.value / 100, f = e.dataset.lk;
+      if (f === 'skinT') { C.skinT = +e.value; lk.skin = AF.skinAt(v); const pk = root().querySelector('[data-lkc="skin"]'); if (pk) pk.value = lk.skin; return; }
+      lk[f] = +(v * +e.dataset.scale).toFixed(2);
+      if (f === 'shape') lk.body = v >= 0.5 ? 'f' : 'm';
+      return;
+    }
+    if (e.dataset.lkc) { lk[e.dataset.lkc] = e.value; if (e.dataset.lkc === 'skin') C.skinT = null; return; }
+    if (e.dataset.dye) { lk.dye[e.dataset.dye] = Object.assign({}, lk.dye[e.dataset.dye], { [e.dataset.k]: e.value }); return; }
+    if (C.mode === 'new' && AF.botEditorInput(C.bot, lk, e)) { C.botTouched = true; C.botPreview(); return; }
+    if (e.id === 'cr-botname') C.bot.name = e.value;
   };
   C.handle = function (t) {
-    const el = t.closest('[data-look],[data-cr],[data-outfit],[data-construct]');
-    if (!el) return false;
+    const el = t.closest('[data-look],[data-cr],[data-kit],[data-construct],[data-crtab],[data-face],[data-walk],[data-undye],[data-bot]');
+    if (!el || !root().contains(el)) return false;
     const nameEl = document.querySelector('#cr-name'); if (nameEl) C.look.name = nameEl.value;
-    if (el.dataset.outfit) { C.outfit = el.dataset.outfit; C.render(); return true; }
-    if (el.dataset.construct) { C.con = el.dataset.construct; AF.sfx('card'); C.render(); return true; }
-    if (el.dataset.look) { C.look[el.dataset.look] = el.dataset.v || +el.dataset.i; C.render(); return true; }
-    if (el.dataset.cr === 'random') { const n = C.look.name; C.look = AF.randomLook(); C.look.name = n; C.outfit = Object.keys(AF.STARTER_OUTFITS)[Math.floor(Math.random() * 3)]; C.con = C.con || Object.keys(AF.CONSTRUCTS)[Math.floor(Math.random() * 3)]; C.render(); return true; }
-    if (el.dataset.cr === 'cancel') { C.close(); C.onCancel && C.onCancel(); return true; }
-    if (el.dataset.cr === 'done' && C.mode === 'new' && !C.con) { C.warn = true; C.render(); const sec = document.querySelector('#cr-con'); if (sec) sec.scrollIntoView({ behavior: 'smooth', block: 'center' }); return true; }
-    if (el.dataset.cr === 'done') { C.look.name = (C.look.name || '').trim().slice(0, 16) || 'Pilot'; C.close(); C.onDone(C.look, C.outfit, C.con); return true; }
+    const bn = document.querySelector('#cr-botname'); if (bn) C.bot.name = bn.value;
+    const lk = C.look;
+    if (el.dataset.crtab) { C.tab = el.dataset.crtab; root().scrollTop = 0; C.render(); return true; }
+    if (el.dataset.face != null) { C.facing = el.dataset.face || null; C.render(); return true; }
+    if (el.dataset.walk) { C.walk = C.walk === false; C.render(); return true; }
+    if (el.dataset.kit) { C.kit[el.dataset.kit] = el.dataset.id || null; AF.sfx('card'); C.render(); return true; }
+    if (el.dataset.undye) { delete lk.dye[el.dataset.undye]; C.render(); return true; }
+    if (el.dataset.construct) {
+      C.con = el.dataset.construct; AF.sfx('card');
+      if (!C.botTouched) { const d = AF.defaultBot(C.con); Object.assign(C.bot, { chassis: d.chassis, head: d.head, eyes: d.eyes, antenna: d.antenna }); }
+      C.render(); return true;
+    }
+    if (el.dataset.bot) { if (AF.botEditorClick(C.bot, lk, el)) { C.botTouched = true; AF.sfx('card'); C.render(); } return true; }
+    if (el.dataset.look) {
+      const f = el.dataset.look;
+      if (el.dataset.tog) lk[f] = !(f === 'blush' ? lk.blush !== false : lk[f] == null ? fem() : lk[f]);
+      else lk[f] = +el.dataset.i;
+      C.render(); return true;
+    }
+    const act = el.dataset.cr;
+    if (act === 'botname') { C.bot.name = AF.BOT_NAMES[Math.floor(Math.random() * AF.BOT_NAMES.length)]; C.render(); return true; }
+    if (act === 'botrandom') { AF.randomBot(C.bot); C.botTouched = true; C.render(); return true; }
+    if (act === 'random') {
+      // Randomizes only the tab you're on. The Construct itself is never picked for you.
+      if (C.tab === 'pilot') { C.look = Object.assign(AF.randomLook(), { name: lk.name, dye: lk.dye }); C.skinT = null; }
+      else if (C.tab === 'outfit') {
+        const hue = () => '#' + [0, 1, 2].map(() => Math.floor(40 + Math.random() * 170).toString(16).padStart(2, '0')).join('');
+        if (C.mode === 'new') { Object.entries(AF.STARTER_POOL).forEach(([slot, list]) => { C.kit[slot] = list[Math.floor(Math.random() * list.length)]; }); if (!C.kit.top) C.kit.top = 'basic_tee'; }
+        C.wornIds().forEach((id) => { if (Math.random() < 0.6) lk.dye[id] = { a: hue(), b: hue() }; else delete lk.dye[id]; });
+      } else { AF.randomBot(C.bot); C.botTouched = true; }
+      AF.sfx('card'); C.render(); return true;
+    }
+    if (act === 'cancel') { C.close(); C.onCancel && C.onCancel(); return true; }
+    if (act === 'done' && C.mode === 'new' && !C.con) { C.warn = true; C.tab = 'bot'; C.render(); const sec = document.querySelector('#cr-con'); if (sec) sec.scrollIntoView({ behavior: 'smooth', block: 'center' }); return true; }
+    if (act === 'done') {
+      lk.name = (lk.name || '').trim().slice(0, 16) || 'Pilot';
+      lk.body = AF.lookShape(lk) >= 0.5 ? 'f' : 'm';
+      C.close();
+      if (C.mode === 'new') { C.bot.name = (C.bot.name || '').trim().slice(0, 14) || 'Rivet'; C.onDone(lk, C.wornIds(), C.con, C.bot); }
+      else C.onDone(lk);
+      return true;
+    }
     return false;
   };
 })();

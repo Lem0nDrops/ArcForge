@@ -208,12 +208,13 @@
           N('mara', `Every pilot in Rivet Hollow needs an automaton, and this one's yours: ${state.construct ? `a ${AF.CONSTRUCTS[state.construct].short} construct, just like you asked for` : 'a fresh frame'}, a Spark Cell core and a set of trusty wheels.`),
           N('mara', state.construct === 'bulwark' ? "Bulwarks are slow, but they can take a beating and they hit back hard. Let the bots break themselves on your shield." : state.construct === 'sprocket' ? "Sprockets are quick and fragile. Chain your cards together and they'll hit harder and harder each turn." : state.construct === 'arcwright' ? "Arcwrights hate being up close. Keep your distance and blast away. The farther you are, the harder you hit." : 'Every construct fights differently. Learn yours.'),
           T('Mara flips a switch. The automaton\'s core flickers to life and glows in your favourite colour.'),
-          N('mara', 'Every automaton needs a name, and a look all its own. Go on, make it yours!'),
+          ...(state.bot && state.bot.named ? [N('mara', `I built it just the way you drew it up. Say hello to ${AF.botName(state)}!`)] : [N('mara', 'Every automaton needs a name, and a look all its own. Go on, make it yours!')]),
           N('mara', "It's bonded to you now. It'll follow you anywhere."),
         ], { onDone: () => {
           state.flags.robot = true; AF.World.placeRobot(state); AF.sfx('win'); AF.gainXP(state, 20);
           advance(state); AF.game.persist(); AF.game.refresh();
-          AF.Studio.open(state, { first: true, onDone: () => D.show([N('mara', `${AF.botName(state)}! Perfect. You can restyle them any time at the Garage.`), N('mara', 'Oh! Mayor Bram wanted to see you. He\'s outside Town Hall, up north.')]) });
+          const next = () => D.show([N('mara', `${AF.botName(state)}! Perfect. You can restyle them any time at the Garage.`), N('mara', 'Oh! Mayor Bram wanted to see you. He\'s outside Town Hall, up north.')]);
+          if (state.bot && state.bot.named) next(); else AF.Studio.open(state, { first: true, onDone: next });
         } });
         return say([N('mara', pick([
           'Bring me materials and I\'ll forge cards for you. Step up to the Forge door and press the action button.',

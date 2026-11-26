@@ -147,7 +147,7 @@
   }
   function newPilot(n) {
     $('#title').hidden = true;
-    AF.Creator.open({ mode: 'new', onDone: (look, outfit, con) => game.start(AF.newGame(look, n, null, outfit, con)), onCancel: () => { $('#title').hidden = false; renderSlots(); } });
+    AF.Creator.open({ mode: 'new', onDone: (look, kit, con, bot) => { const st = AF.newGame(look, n, null, kit, con); if (bot) st.bot = Object.assign(st.bot, bot, { construct: con, named: true }); game.start(st); }, onCancel: () => { $('#title').hidden = false; renderSlots(); } });
   }
 
   // ---------- Keyboard ----------
