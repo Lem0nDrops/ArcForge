@@ -36,7 +36,7 @@
     { id: 'haggler', name: 'Haggler', price: 500, text: '15% off in every shop.' },
     { id: 'tactician', name: 'Tactician', price: 600, text: 'Draw 1 extra card on your first turn of each battle.' },
     { id: 'salvager', name: 'Salvage Expert', price: 600, text: '+25% money from battles.' },
-    { id: 'hunter', name: 'Blueprint Hunter', price: 700, text: 'Blueprints drop more often, even from small bots.' },
+    { id: 'hunter', name: 'Blueprint Hunter', price: 700, text: 'Tough bots and bounty targets carry blueprints more often, and mid-tier bots sometimes do too.' },
   ];
   T.PART_CREDITS = (lvl) => AF.UPGRADE_COST[lvl] ? AF.UPGRADE_COST[lvl].credits : 0;
 
@@ -128,12 +128,12 @@
   }
   function garage(s) {
     const st = AF.stats(s), missing = st.maxHp - s.hp, repairCost = price(s, missing * 4);
-    const swatches = AF.LOOK.core.map(([c, n], i) => `<button class="sw${s.look.core === i ? ' on' : ''}" data-core="${i}" style="--c:${c}" aria-label="${n}" title="${n}"></button>`).join('');
+    const swatches = AF.LOOK.core.map(([c, n], i) => `<button class="sw${s.look.core === i || String(AF.coreColor(s.look)).toLowerCase() === c.toLowerCase() ? ' on' : ''}" data-core="${i}" style="--c:${c}" aria-label="${n}" title="${n}"></button>`).join('');
     return `<div class="garage-top">
         <div class="row-item"><div><b>Repairs</b><span class="muted">Automaton HP ${s.hp} / ${st.maxHp}</span></div>
           <div class="row">${missing ? cr(repairCost, s.credits < repairCost) + btn('Repair fully', 'data-repair="1"', s.credits >= repairCost, true) : '<span class="own">Good as new</span>'}</div></div>
         <div class="row-item"><div><b>Automaton Studio</b><span class="muted">Restyle ${AF.esc(AF.botName(s))}: chassis, head, eyes, antenna, paint and decals · free</span></div><div class="row"><button class="btn primary" data-act="studio">Open studio</button></div></div>
-        <div class="row-item"><div><b>Core paint</b><span class="muted">${AF.LOOK.core[s.look.core][1]} · free</span></div><div class="swatches">${swatches}</div></div>
+        <div class="row-item"><div><b>Core paint</b><span class="muted">${(AF.LOOK.core.find(([c], i) => s.look.core === i || String(s.look.core).toLowerCase() === c.toLowerCase()) || [0, 'Custom colour'])[1]} · free</span></div><div class="swatches">${swatches}</div></div>
       </div>
       <h3>Part upgrades</h3>${AF.UI.robotTab(s, true)}`;
   }

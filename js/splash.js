@@ -9,7 +9,7 @@
   const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   // ---------- assets ----------
-  const logo = new Image(); logo.src = 'assets/logo.png?v=0.17.0';
+  const logo = new Image(); logo.src = 'assets/logo.png?v=0.17.1';
   let botImg = null;
   function makeBot() {
     try {

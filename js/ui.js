@@ -202,7 +202,7 @@
         <h3>Load a save code into this slot</h3>
         <textarea id="loadcode" rows="3" placeholder="Paste a save code"></textarea>
         <div class="row"><button class="btn" data-act="load">Load</button></div>
-        <p class="ver">Automata: ArcForge · v0.17</p>
+        <p class="ver">Automata: ArcForge · v0.17.1</p>
       </div>`;
     $('#savecode').value = AF.exportCode(AF.game.state);
   };
