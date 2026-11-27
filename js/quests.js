@@ -26,6 +26,11 @@
       lines: ['The Foundry hums with old rune-work. Gears and spells, braided together. Nasty combination.', 'Crystals down there drink the dark. Touch one and you\'ll feel it.', 'Rune Golems guard themselves before they strike. Hit them when the shield drops.'] },
     tobin: { town: 2, name: 'Tobin the Tinker', x: 18, y: 17, wander: true, look: AF.npcLook({ skin: 2, hair: 2, hairColor: 2, eyes: 0, beard: 1 }, ['leather_cap', 'forge_apron', 'work_pants', 'dust_boots', 'wrench']),
       lines: ['Steam, springs and a little spellwork. That\'s how Brasshaven runs.', 'The Smithy here does the same upgrades as Rivet Hollow\'s Garage. Same prices, better tea.', 'Your account at the Ironclad Bank works here too. Handy, eh?'] },
+    // ----- Gearwind Outpost -----
+    wren: { town: 3, name: 'Scout Wren', x: 6, y: 10, wander: true, look: AF.npcLook({ body: 'f', skin: 2, hair: 5, hairColor: 2, eyes: 3, eyeColor: 2 }, ['aviator_cap', 'leather_jerkin', 'breeches', 'trail_boots', 'traveler_cloak', 'gear_crossbow']),
+      lines: ['Frostpeak bots chill your joints. Fight one and you\'ll have less energy next turn. Bring cheap cards.', 'Mirewood\'s Bog Crawlers corrode your Block clean off. Hit them hard instead of hiding.', 'In the Ashlands, everything burns. Burns tick at the start of your turn, but they can\'t finish you off.', 'Each region has its own deposits. Glacier hearts hold arcite; the bogs hide old copper.'] },
+    hask: { town: 3, name: 'Old Hask', x: 18, y: 10, wander: true, look: AF.npcLook({ build: 2, skin: 5, hair: 13, hairColor: 9, eyes: 2, beard: 6 }, ['wanderer_hood', 'padded_vest', 'work_pants', 'steel_boots', 'traveler_cloak']),
+      lines: ['I walked the Ashlands once. The Titan\'s lair glows red past the last lava river.', 'Treads get you over ice, bog and basalt. Don\'t go south without them.', 'Gearwind\'s Bounty Board pays the best in the land. The targets are nastier too.'] },
   };
 
   // ---------- Quests ----------

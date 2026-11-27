@@ -211,6 +211,41 @@
         <path d="M34 30 L40 6 L50 24 L60 2 L70 24 L80 6 L86 30 Z" fill="#a07a3a" ${OL}/><circle cx="60" cy="16" r="4" fill="#ff4a2a"/>
         <rect x="0" y="50" width="18" height="46" rx="6" fill="#6a5028" ${OL}/><rect x="102" y="50" width="18" height="46" rx="6" fill="#6a5028" ${OL}/>
         <rect x="40" y="36" width="12" height="8" rx="3" fill="#ff4a2a"/><rect x="68" y="36" width="12" height="8" rx="3" fill="#ff4a2a"/>`; break;
+      // ----- new bots -----
+      case 'cogrunner': s = `<circle cx="60" cy="96" r="18" fill="#3a3430" ${OL}/><circle cx="60" cy="96" r="10" fill="none" stroke="#8a8274" stroke-width="5" stroke-dasharray="5 4"/>
+        <path d="M30 70 Q30 40 60 38 Q90 40 90 70 Q90 84 60 84 Q30 84 30 70 Z" fill="${c}" ${OL}/><path d="M86 56 l22 -8 l-4 12 z" fill="#d8c08a" ${OL}/><path d="M10 64 h18 M6 74 h20" stroke="#d8c08a" stroke-width="4" stroke-linecap="round" opacity=".7"/>${angry(52, 62, 1.1)}${angry(72, 62, 1.1)}`; break;
+      case 'hexer': s = `<path d="M30 112 L40 60 H80 L90 112 Z" fill="#3a2e4a" ${OL}/><path d="M40 60 Q60 14 80 60 Z" fill="${c}" ${OL}/><path d="M48 18 L60 -2 L72 18" fill="${c}" ${OL}/>
+        <rect x="44" y="44" width="32" height="14" rx="6" fill="#1a1426" ${OL}/><circle cx="53" cy="51" r="3.5" fill="#c890ff"/><circle cx="67" cy="51" r="3.5" fill="#c890ff"/>
+        <path d="M92 50 L104 26" stroke="#8a6a3a" stroke-width="5" stroke-linecap="round"/><circle cx="105" cy="22" r="8" fill="#c890ff" ${OL}/><circle cx="105" cy="22" r="14" fill="#c890ff" opacity=".25"/>`; break;
+      case 'frostling': s = `${[34, 86].map((x) => `<rect x="${x - 8}" y="92" width="16" height="22" rx="6" fill="#4a6a7a" ${OL}/>`).join('')}
+        <path d="M22 96 L28 42 L46 30 L60 16 L74 30 L92 42 L98 96 Z" fill="${c}" ${OL}/><path d="M46 30 L52 4 L60 16 L68 2 L74 30" fill="#d8f0ff" ${OL}/>
+        <path d="M28 60 h64" stroke="#d8f0ff" stroke-width="3" opacity=".6"/>${angry(48, 52, 1.15)}${angry(72, 52, 1.15)}<path d="M50 74 l5 6 l5 -6 l5 6 l5 -6" fill="none" stroke="#16100c" stroke-width="3"/>`; break;
+      case 'icewing': s = `<path d="M60 56 L4 30 L22 58 L2 70 L44 70 Z" fill="#d8f0ff" ${OL}/><path d="M60 56 L116 30 L98 58 L118 70 L76 70 Z" fill="#d8f0ff" ${OL}/>
+        <ellipse cx="60" cy="64" rx="22" ry="20" fill="${c}" ${OL}/><path d="M60 84 L54 104 L60 98 L66 104 Z" fill="#4a7a9a" ${OL}/><circle cx="60" cy="62" r="9" fill="#16242e" ${OL}/><circle cx="60" cy="62" r="4.5" fill="#7ae0ff"/>`; break;
+      case 'glacier': s = `<path d="M12 112 L18 46 L36 22 L60 14 L86 22 L104 46 L108 112 Z" fill="${c}" ${OL}/><path d="M36 22 L42 0 L54 16 L64 -2 L74 16 L86 22" fill="#e8f8ff" ${OL}/>
+        <path d="M18 70 L44 64 L60 76 L80 62 L104 68" fill="none" stroke="#d8f0ff" stroke-width="4" opacity=".7"/>${[[8, 70], [112, 70]].map(([x, y]) => `<path d="M${x} ${y - 16} L${x + (x < 60 ? -6 : 6)} ${y + 18} L${x + (x < 60 ? 12 : -12)} ${y + 20} Z" fill="#a8d8f0" ${OL}/>`).join('')}
+        ${angry(46, 46, 1.3)}${angry(74, 46, 1.3)}<rect x="44" y="84" width="32" height="10" rx="3" fill="#16242e"/>`; break;
+      case 'bogcrawler': s = `${[18, 34, 86, 102].map((x, i) => `<path d="M${x} 84 q${i < 2 ? -10 : 10} 12 ${i < 2 ? -6 : 6} 26" fill="none" stroke="#2a3020" stroke-width="6" stroke-linecap="round"/>`).join('')}
+        <ellipse cx="60" cy="74" rx="46" ry="28" fill="${c}" ${OL}/><path d="M24 64 q16 -14 36 -6 q20 -10 36 6" fill="none" stroke="#7a8a4a" stroke-width="5"/>${[[38, 60], [80, 58], [58, 52]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r="5" fill="#8aa04a" ${OL}/>`).join('')}
+        <path d="M30 88 q-10 8 -4 18 M90 88 q10 8 4 18" fill="none" stroke="#6a8a3a" stroke-width="4"/>${angry(46, 78, 1)}${angry(74, 78, 1)}<path d="M50 94 h20" stroke="#16100c" stroke-width="3"/><circle cx="60" cy="100" r="3" fill="#a8d060"/>`; break;
+      case 'sporedrone': s = `<path d="M60 80 L60 104" stroke="#3a3a2a" stroke-width="4"/><ellipse cx="60" cy="56" rx="40" ry="28" fill="${c}" ${OL}/>
+        ${[[34, 40], [58, 32], [84, 42], [44, 60], [76, 62]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r="7" fill="#c8d870" ${OL}/>`).join('')}<ellipse cx="60" cy="82" rx="24" ry="6" fill="#3a3a2a" ${OL}/>
+        ${[[30, 96], [52, 106], [74, 100], [92, 108]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r="3" fill="#c8d870" opacity=".7"/>`).join('')}${angry(50, 64, 0.9)}${angry(70, 64, 0.9)}`; break;
+      case 'mossgiant': s = `${[30, 90].map((x) => `<rect x="${x - 12}" y="88" width="24" height="26" rx="8" fill="#3a4a2a" ${OL}/>`).join('')}
+        <path d="M14 92 Q8 30 60 14 Q112 30 106 92 Z" fill="${c}" ${OL}/><path d="M14 60 q20 -22 46 -10 q26 -14 46 10 q-10 -40 -46 -44 q-36 4 -46 44" fill="#6a8a3a" ${OL}/>
+        ${[[30, 36], [72, 26], [94, 50]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r="5" fill="#d8a0c8" ${OL}/>`).join('')}<path d="M20 70 q-14 18 -6 40 M100 70 q14 18 6 40" fill="none" stroke="#4a6a2a" stroke-width="5"/>
+        ${angry(46, 62, 1.25)}${angry(74, 62, 1.25)}<path d="M44 80 q16 8 32 0" fill="none" stroke="#16100c" stroke-width="3.5"/>`; break;
+      case 'cinderimp': s = `<path d="M60 12 Q72 30 66 38 Q84 32 82 56 Q96 70 84 92 Q72 112 60 112 Q48 112 36 92 Q24 70 38 56 Q36 32 54 38 Q48 28 60 12 Z" fill="${c}" ${OL}/>
+        <path d="M60 30 Q68 44 64 50 Q76 52 74 70 Q78 86 60 96 Q42 86 46 70 Q44 52 56 50 Q52 44 60 30 Z" fill="#ffb040"/><path d="M60 56 Q66 68 60 84 Q54 68 60 56 Z" fill="#fff2a0"/>
+        <path d="M34 40 L22 20 L40 32 M86 40 L98 20 L80 32" fill="#3a1a0a" ${OL}/>${angry(50, 62, 1)}${angry(70, 62, 1)}`; break;
+      case 'magmahound': s = `${[28, 46, 78, 96].map((x) => `<rect x="${x - 6}" y="86" width="12" height="26" rx="5" fill="#3a2420" ${OL}/>`).join('')}
+        <path d="M14 84 Q10 54 36 50 L72 46 Q90 30 110 40 Q118 52 106 64 L96 66 Q100 84 86 90 H24 Z" fill="${c}" ${OL}/>
+        <path d="M30 60 l10 8 l12 -6 l12 8 l12 -6" fill="none" stroke="#ffb040" stroke-width="4" stroke-linejoin="round"/><path d="M14 70 q-12 -6 -12 -22 q8 8 14 6" fill="#ff7a20" ${OL}/>
+        <path d="M78 40 L84 22 L92 38" fill="#3a2420" ${OL}/>${angry(98, 50, 1.1)}<path d="M100 64 l4 6 l4 -6" fill="#fff" stroke="#16100c" stroke-width="2"/>`; break;
+      case 'furnaceknight': s = `${[36, 84].map((x) => `<rect x="${x - 10}" y="92" width="20" height="22" rx="5" fill="#3a2a24" ${OL}/>`).join('')}
+        <rect x="20" y="42" width="80" height="56" rx="12" fill="${c}" ${OL}/><rect x="34" y="54" width="52" height="34" rx="6" fill="#1a0c08" ${OL}/><rect x="38" y="60" width="44" height="22" rx="4" fill="#ff7a20"/>
+        ${[44, 54, 64, 74].map((x) => `<path d="M${x} 60 v22" stroke="#1a0c08" stroke-width="3"/>`).join('')}<path d="M30 42 Q30 8 60 6 Q90 8 90 42 Z" fill="#5a3a30" ${OL}/><rect x="40" y="22" width="40" height="8" rx="3" fill="#ff7a20" ${OL}/>
+        <path d="M100 60 l18 -40" stroke="#8a8274" stroke-width="7" stroke-linecap="round"/><path d="M104 22 l20 -10 l-6 18 z" fill="#d8c8b8" ${OL}/>`; break
       default: s = `<circle cx="60" cy="60" r="54" fill="#3a1420" ${OL}/>${[0, 45, 90, 135, 180, 225, 270, 315].map((a) => `<rect x="55" y="0" width="10" height="18" rx="4" fill="#6a6e7a" ${OL} transform="rotate(${a} 60 60)"/>`).join('')}
         <circle cx="60" cy="60" r="42" fill="${c}" ${OL}/><circle cx="60" cy="66" r="18" fill="#ffcf5e" ${OL}/><circle cx="60" cy="66" r="8" fill="#ffffff"/>${angry(40, 40, 1.3)}${angry(80, 40, 1.3)}`;
     }

@@ -12,7 +12,7 @@
 
   game.start = function (state) {
     if (document.activeElement && document.activeElement !== document.body) document.activeElement.blur();   // drop focus left in the creator
-    if (!state.world) state.world = AF.World.init();
+    if (!state.world) state.world = AF.World.init(); else AF.World.validate(state);
     game.state = state; game.battle = null;
     ['#title', '#battle', '#result', '#creator'].forEach((s) => ($(s).hidden = true));
     $('#game').hidden = false;
@@ -55,6 +55,7 @@
     $('#lvl').title = `${s.xp} / ${need} XP`;
     $('#hudres').innerHTML = AF.UI.resBar(s);
     $('#ration-btn').textContent = `Eat ration (${s.pilot.rations})`;
+    document.body.classList.toggle('admin-on', !!(AF.Admin && AF.Admin.any()));
     const L = s.pilot.lures || {}, wild = !AF.World.inTown(s) && s.flags.robot;
     $('#lure-btns').innerHTML = wild ? Object.entries(AF.LURES).filter(([k]) => L[k] > 0).map(([k, d]) => `<button class="btn sm lure" data-act="lure" data-kind="${k}" title="${AF.esc(d.text)}">${d.name} (${L[k]})</button>`).join('') : '';
     const bh = AF.World.bountyHint(s);
@@ -67,7 +68,7 @@
     $('#hudbuffs').innerHTML = buffs + (s.pilot.vit <= 0 ? '<span class="bad">Exhausted</span>' : '');
   };
 
-  const canAct = () => game.state && !game.battle && !AF.UI.isOpen() && $('#menu').hidden && !(AF.Mini && AF.Mini.isOpen()) && $('#creator').hidden && !AF.Studio.isOpen() && !AF.Dialog.open && !$('#game').hidden;
+  const canAct = () => game.state && !game.battle && !AF.UI.isOpen() && $('#menu').hidden && !(AF.Mini && AF.Mini.isOpen()) && !(AF.Admin && AF.Admin.isOpen()) && $('#creator').hidden && !AF.Studio.isOpen() && !AF.Dialog.open && !$('#game').hidden;
 
   // ---------- Movement (one tile at a time, chained smoothly while a direction is held) ----------
   const VEC = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
@@ -194,6 +195,7 @@
   const ACT = ['e', 'E', ' ', 'Enter', 'z', 'Z'];
   document.addEventListener('keydown', (e) => {
     input.touch = false;
+    if (AF.Admin && AF.Admin.isOpen()) return;
     // Only swallow keys while someone is really typing in a visible text box. A name box left focused in a
     // closed screen (Safari keeps focus there when you click a button) must not block movement.
     const tg = e.target, typing = (tg.tagName === 'TEXTAREA' || (tg.tagName === 'INPUT' && /^(text|number|search|email|password|)$/i.test(tg.type || ''))) && tg.offsetParent !== null;

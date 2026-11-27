@@ -45,7 +45,12 @@
     const kept = this.p.retain ? this.p.block : this.con === 'bulwark' ? Math.floor(this.p.block / 2) : 0;
     this.p.block = this.p.fortify + kept;
     this.p.retain = false; this.p.thorns = 0; this.p.combo = 0; this.turnPlays = 0;
-    this.p.energy = Math.max(1, this.st.energy - (m.tired ? 1 : 0) + (first ? m.firstEnergy : 0));
+    this.p.energy = Math.max(1, this.st.energy - (m.tired ? 1 : 0) + (first ? m.firstEnergy : 0) - (this.p.chill || 0));
+    this.p.chill = 0;
+    if (AF.Admin && AF.Admin.energy()) this.p.energy = 99;
+    if (AF.Admin && AF.Admin.god()) this.p.burnT = 0;
+    // burning / poisoned: damage that ignores Block, never below 1 HP
+    if (this.p.burnT > 0) { const before = this.p.hp; this.p.hp = Math.max(1, this.p.hp - this.p.burn); this.p.burnT--; this.burnTick = before - this.p.hp; if (this.burnTick) this.hurt = true; if (!this.p.burnT) this.p.burn = 0; }
     this.drawCards(this.st.hand + m.drawEach + (first ? m.firstDraw : 0));
   };
   B.whyNot = function (inst) {
@@ -55,8 +60,9 @@
     if (d.kind === 'attack' && this.dist > d.range) return `Out of range (${AF.RANGE_NAMES[this.dist]})`;
     return '';
   };
-  B.hitEnemy = function (n) { const soak = Math.min(this.e.block, n); this.e.block -= soak; this.e.hp -= n - soak; return { dealt: n - soak, soaked: soak }; };
+  B.hitEnemy = function (n) { if (AF.Admin && AF.Admin.onehit()) n = 999; const soak = Math.min(this.e.block, n); this.e.block -= soak; this.e.hp -= n - soak; return { dealt: n - soak, soaked: soak }; };
   B.hitPlayer = function (n) {
+    if (AF.Admin && AF.Admin.god()) n = 0;
     const soak = Math.min(this.p.block, n); this.p.block -= soak; this.p.hp -= n - soak; if (n - soak > 0) this.hurt = true;
     if (this.p.hp <= 0) { this.p.hp = 0; this.over = 'lose'; }
     return { dealt: n - soak, soaked: soak };
@@ -143,6 +149,7 @@
         let total = 0;
         const frail = this.con === 'arcwright' && this.dist === 0 ? 2 : 0;
         let back = 0;
+        if (it.fx === 'corrode' && this.p.block) { ev.corroded = this.p.block; this.p.block = 0; }
         for (let h = 0; h < (it.hits || 1) && !this.over; h++) {
           const r = this.hitPlayer(it.dmg + e.aim + e.power + frail); ev.hits.push(r); total += r.dealt;
           if (this.over) break;
@@ -150,8 +157,14 @@
         }
         if (back && !this.over) { ev.counter = this.hitEnemy(back); if (e.hp <= 0) { e.hp = 0; this.over = 'win'; } }
         e.aim = 0;
+        // elemental after-effects land only if the attack got through
+        if (!this.over && total > 0) {
+          if (it.fx === 'chill') { this.p.chill = 1; ev.fx = 'chill'; }
+          if (it.fx === 'burn' || it.fx === 'poison') { this.p.burn = Math.max(this.p.burn || 0, it.burn || 3); this.p.burnT = 2; this.p.burnKind = it.fx; ev.fx = it.fx; }
+        }
         if (it.a === 'drain') { const before = e.hp; e.hp = Math.min(e.max, e.hp + it.dmg); ev.heal = e.hp - before; }
-        this.say(`${name} ${it.a === 'hit' ? 'strikes' : it.a === 'drain' ? 'drains you' : 'fires'}: ${total} damage${it.a === 'drain' ? `, heals ${ev.heal}` : ''}${ev.counter ? `. You strike back for ${ev.counter.dealt}` : ''}.`);
+        const fxTxt = ev.fx === 'chill' ? ' You are chilled: -1 energy next turn.' : ev.fx === 'burn' ? ` You catch fire: ${this.p.burn} damage for 2 turns.` : ev.fx === 'poison' ? ` Spores! ${this.p.burn} poison damage for 2 turns.` : '';
+        this.say(`${name} ${it.a === 'hit' ? 'strikes' : it.a === 'drain' ? 'drains you' : 'fires'}${ev.corroded ? ` (corroding away ${ev.corroded} Block)` : ''}: ${total} damage${it.a === 'drain' ? `, heals ${ev.heal}` : ''}${ev.counter ? `. You strike back for ${ev.counter.dealt}` : ''}.${fxTxt}`);
         AF.sfx('hit');
         break;
       }
@@ -164,14 +177,16 @@
     return ev;
   };
 
+  const fxTag = (it) => (it.fx === 'chill' ? ' ❄' : it.fx === 'burn' ? ' 🔥' : it.fx === 'poison' ? ' ☣' : it.fx === 'corrode' ? ' ⚗' : '');
+  const fxSub = (it) => (it.fx === 'chill' ? 'Chills: -1 energy next turn' : it.fx === 'burn' ? `Burns ${it.burn || 3} for 2 turns` : it.fx === 'poison' ? `Poisons ${it.burn || 3} for 2 turns` : it.fx === 'corrode' ? 'Corrodes all your Block' : '');
   B.intentText = function () {
     const it = this.intent(), e = this.e;
     if (e.stun) return { text: 'Stunned', tone: 'calm' };
     const dmg = (it.dmg || 0) + e.aim + e.power, x = it.hits > 1 ? ` ×${it.hits}` : '';
     const reach = it.r == null ? 2 : it.r, out = this.dist > reach;
     switch (it.a) {
-      case 'hit': return { text: `Strike ${dmg}${x}`, sub: out ? 'Out of reach: will close in' : 'Needs Close', tone: out ? 'calm' : 'danger' };
-      case 'shoot': return { text: `Fire ${dmg}${x}`, sub: out ? 'Out of reach: will close in' : reach === 2 ? 'Hits at any range' : 'Reaches Close–Mid', tone: out ? 'calm' : 'danger' };
+      case 'hit': return { text: `Strike ${dmg}${x}${fxTag(it)}`, sub: out ? 'Out of reach: will close in' : fxSub(it) || 'Needs Close', tone: out ? 'calm' : 'danger' };
+      case 'shoot': return { text: `Fire ${dmg}${x}${fxTag(it)}`, sub: fxSub(it) && !out ? fxSub(it) : out ? 'Out of reach: will close in' : reach === 2 ? 'Hits at any range' : 'Reaches Close–Mid', tone: out ? 'calm' : 'danger' };
       case 'drain': return { text: `Drain ${dmg}`, sub: out ? 'Out of reach: will close in' : 'Steals HP · Close–Mid', tone: out ? 'calm' : 'danger' };
       case 'block': return { text: `Shield ${it.block}`, sub: 'Defending', tone: 'calm' };
       case 'aim': return { text: 'Aiming', sub: `+${it.dmg} to next attack`, tone: 'warn' };
@@ -189,7 +204,7 @@
       // Drops are chances, not guarantees. Drop luck from gear raises every chance.
       const st = AF.stats(s), luck = st.luck, boss = !!this.def.boss;
       for (const [k, [lo, hi]] of Object.entries(this.def.loot)) {
-        if (!boss && !this.ref.hot && !this.ref.lure && !this.ref.bounty && Math.random() > AF.DROP.material + luck) continue;
+        if (!boss && !this.ref.lure && !this.ref.bounty && Math.random() > AF.DROP.material + luck) continue;
         const n = Math.max(1, lo + Math.floor(Math.random() * (hi - lo + 1))); out.loot[k] = n;
       }
       if (this.salvage) out.loot.scrap = (out.loot.scrap || 0) + this.salvage;
@@ -205,7 +220,9 @@
       }
       out.xp = AF.gainXP(s, AF.XP_BY_TIER[this.def.tier]);
       const locked = AF.lockedCards(s), hunter = AF.hasPerk(s, 'hunter');
-      if ((this.def.tier >= 2 || hunter) && locked.length && Math.random() < (hunter ? 0.5 : 0.3)) { out.blueprint = locked[Math.floor(Math.random() * locked.length)]; s.known.push(out.blueprint); }
+      // Blueprints are rare now: tough bots and bounty targets sometimes carry one (Hunter perk improves the odds).
+      const bpChance = this.ref.bounty ? AF.DROP.blueprint.bounty : this.def.tier >= 3 ? AF.DROP.blueprint[3] : hunter && this.def.tier >= 2 ? 0.05 : 0;
+      if (locked.length && Math.random() < bpChance * (hunter ? 1.6 : 1)) { out.blueprint = locked[Math.floor(Math.random() * locked.length)]; s.known.push(out.blueprint); }
       s.stats.wins++;
       AF.maxStat(s, 'bestHit', this.bestHit); AF.maxStat(s, 'bestTurn', this.bestTurn);
       if (!this.hurt) AF.bumpStat(s, 'flawless');
@@ -241,7 +258,8 @@
 
   UI.start = function (root, b, onOver) {
     UI.root = root; UI.b = b; UI.onOver = onOver; UI.busy = true; UI.shown = new Set(); UI.intro = true; UI.lastDist = b.dist; UI.lastEnergy = null;
-    const scene = { forest: 'forest', grass: 'grass', lawn: 'grass', path: 'grass', sand: 'sand', water: 'sand', rubble: 'rubble', mountain: 'mountain', dfloor: 'dungeon' }[b.terrain] || 'grass';
+    const scene = { forest: 'forest', grass: 'grass', lawn: 'grass', path: 'grass', sand: 'sand', water: 'sand', rubble: 'rubble', mountain: 'mountain', dfloor: 'dungeon',
+      snow: 'snow', pine: 'snow', ice: 'ice', bog: 'bog', mire: 'bog', ash: 'ash', basalt: 'ash', lava: 'ash' }[b.terrain] || 'grass';
     const back = AF.cardStyle(b.state).back, tag = b.ref.bounty ? 'Bounty target' : b.def.boss ? 'Boss battle' : b.ref.hot ? 'Disturbance' : b.ref.lure ? 'Lured out' : 'Wild encounter';
     root.innerHTML = `
       <div class="scene sc-${scene} intro">
@@ -312,7 +330,7 @@
       <div class="ib-top"><b>${AF.esc(AF.botName(st))}</b>${p.block ? `<span class="blk">Block ${p.block}</span>` : '<span></span>'}</div>
       <div class="hp"><em>HP</em><div class="hpbar${hpCls(p.hp, p.max)}"><i style="width:${pct(p.hp, p.max)}%"></i></div></div>
       <div class="ib-sub"><span>${p.hp} / ${p.max}</span></div>
-      <div class="buffs">${p.charge ? `<span>Charge +${p.charge}</span>` : ''}${p.tune ? `<span>Tuned +${p.tune}</span>` : ''}${p.fortify ? `<span>Fortify ${p.fortify}</span>` : ''}${p.combo && b.con === 'sprocket' ? `<span class="combo">Combo ×${p.combo}</span>` : ''}${p.thorns ? `<span>Thorns ${p.thorns}</span>` : ''}${p.retain ? '<span>Holding Block</span>' : ''}${p.field ? `<span>Field ${p.field}</span>` : ''}${b.mods.tired ? '<span class="bad">Pilot exhausted</span>' : ''}${b.mods.drawEach ? '<span>Focus Tea</span>' : ''}</div>`;
+      <div class="buffs">${p.charge ? `<span>Charge +${p.charge}</span>` : ''}${p.tune ? `<span>Tuned +${p.tune}</span>` : ''}${p.fortify ? `<span>Fortify ${p.fortify}</span>` : ''}${p.combo && b.con === 'sprocket' ? `<span class="combo">Combo ×${p.combo}</span>` : ''}${p.thorns ? `<span>Thorns ${p.thorns}</span>` : ''}${p.retain ? '<span>Holding Block</span>' : ''}${p.field ? `<span>Field ${p.field}</span>` : ''}${b.mods.tired ? '<span class="bad">Pilot exhausted</span>' : ''}${p.chill ? '<span class="bad">❄ Chilled</span>' : ''}${p.burnT ? `<span class="bad">${p.burnKind === 'poison' ? '☣ Poisoned' : '🔥 Burning'} ${p.burn}</span>` : ''}${b.mods.drawEach ? '<span>Focus Tea</span>' : ''}</div>`;
     const fw = $('.foe-wrap'); fw.className = `foe-wrap d${b.dist}`;
     $('.foe-spr').classList.toggle('stun', !!e.stun);
     $('.msgbar p').textContent = b.log[0] || '';
@@ -386,7 +404,9 @@
     UI.update();
     if (b.over) { UI.busy = false; return UI.finish(); }
     await wait(150);
+    b.burnTick = 0;
     b.startTurn();
+    if (b.burnTick) { const t = center('.bot-spr'); FX.burst(t.x, t.y, b.p.burnKind === 'poison' ? ['#a8d060', '#6a8a2a', '#e0f0a0'] : ['#ffb040', '#ff5a20', '#ffe080'], 16, 1); FX.text(t.x, t.y - t.h * 0.5, `-${b.burnTick} ${b.p.burnKind === 'poison' ? 'poison' : 'burn'}`, b.p.burnKind === 'poison' ? '#a8d060' : '#ff7a30'); anim($('.bot-spr'), 'hit', 380); await wait(500); }
     await UI.banner('Your turn');
     UI.busy = false;
     UI.update();
@@ -477,7 +497,7 @@
       ${!out.credits && !lootRows && !out.gear ? '<p class="muted">No drops this time.</p>' : ''}
       ${out.gear ? `<p class="gear-drop" style="--rc:${AF.RARITY[AF.ITEMS[out.gear].rarity].color}">${AF.itemIcon(out.gear)}<span>${out.dup ? 'Duplicate' : 'New outfit piece!'} <b>${AF.esc(AF.ITEMS[out.gear].name)}</b><small>${out.dup ? `Already in your wardrobe, turned into ${AF.moneyText(out.dup)}` : AF.itemText(out.gear) + ' · added to your Wardrobe'}</small></span></p>` : ''}
       ${out.bagFull ? '<p class="muted">Gear dropped, but your bag is full.</p>' : ''}
-      ${out.blueprint ? `<p class="bp">Blueprint recovered: <b>${AF.esc(AF.CARDS[out.blueprint].name)}</b></p>` : ''}
+      ${out.blueprint ? AF.blueprintReveal(out.blueprint) : ''}
       ${out.bounty ? `<p class="bounty-done">Bounty complete! <b>${out.bounty}</b></p>` : ''}
       ${achHtml(out.ach)}
       <button class="btn primary" data-act="close-result">Continue</button>`;

@@ -55,6 +55,16 @@
       items: [{ k: 'rack', x: 1, y: 4 }, { k: 'rack', x: 1, y: 5 }, { k: 'rack', x: 9, y: 5 }, { k: 'mirror', x: 9, y: 2, act: 'wardrobe', label: 'Mirror' }, { k: 'wardrobe', x: 1, y: 2 }] },
   };
 
+  // ----- Gearwind Outpost -----
+  Object.assign(AF.INTERIORS, {
+    trader: { floor: 'planks', wall: '#a88a64', trim: '#5a3a20', keeper: { name: 'Trader Juno', look: AF.npcLook({ body: 'f', skin: 4, hair: 6, hairColor: 0, eyes: 0, eyeColor: 1 }, ['red_bandana', 'scrap_vest', 'cargo_pants', 'dust_boots', 'backpack']), talk: false },
+      items: [{ k: 'crate', x: 1, y: 4 }, { k: 'crate', x: 1, y: 5 }, { k: 'heap', x: 9, y: 3 }, { k: 'barrel', x: 9, y: 5 }, { k: 'barrel', x: 1, y: 2 }, { k: 'map', x: 8, y: 2, w: 2, act: 'flavor', label: 'Study', text: 'A trade map. Arrows point north-east to Frostpeak, south-west to Mirewood, south-east to the Ashlands. Someone has circled the Titan\'s lair in red, twice.' }] },
+    lodge: { floor: 'planks', wall: '#7a6a5a', trim: '#3a2a1e', keeper: { name: 'Lodgekeeper Brannoc', look: AF.npcLook({ build: 2, skin: 1, hair: 1, hairColor: 2, eyes: 2, beard: 5 }, ['chef_apron', 'linen_tunic', 'work_pants', 'trail_boots']), talk: false },
+      items: [{ k: 'hearth', x: 1, y: 2, w: 2 }, { k: 'dtable', x: 2, y: 5 }, { k: 'dtable', x: 8, y: 5 }, { k: 'barrel', x: 9, y: 2 }] },
+    waystation: { floor: 'concrete', wall: '#8a9aa8', trim: '#2a3a4a', keeper: { name: 'Mechanic Rook', look: AF.npcLook({ skin: 3, hair: 11, hairColor: 0, eyes: 3 }, ['welding_goggles', 'overalls_denim', 'work_gloves', 'steel_boots', 'wrench']), talk: false },
+      items: [{ k: 'lift', x: 1, y: 5, w: 2 }, { k: 'toolboard', x: 9, y: 2 }, { k: 'tires', x: 9, y: 5 }, { k: 'furnace', x: 1, y: 2 }] },
+  });
+
   const I = (AF.Interiors = { W: RW, H: RH, DOOR });
   I.room = (id) => AF.INTERIORS[id];
   I.keeperPos = (id) => { const r = I.room(id); return r.keeper ? [r.keeper.x || 5, r.keeper.y || 2] : null; };

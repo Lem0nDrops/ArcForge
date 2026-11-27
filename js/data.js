@@ -81,20 +81,47 @@
     mountain: { name: 'Crags',        legs: 4, color: '#5e564e' },
     path:     { name: 'Old road',     legs: 1, color: '#8a7a62' },
     lawn:     { name: 'Town',         legs: 1, color: '#66804c' },
+    snow:     { name: 'Snowfield',    legs: 1, color: '#c8d0d4' },
+    pine:     { name: 'Frost pines',  legs: 1, color: '#3e5a52' },
+    ice:      { name: 'Glacier ice',  legs: 2, color: '#9cc4d8' },
+    bog:      { name: 'Bog',          legs: 2, color: '#4a5a3a' },
+    mire:     { name: 'Mirewood',     legs: 1, color: '#34442e' },
+    ash:      { name: 'Ash plains',   legs: 1, color: '#6a5e58' },
+    basalt:   { name: 'Basalt flows', legs: 2, color: '#3e3a3a' },
+    lava:     { name: 'Lava',         legs: 9, color: '#e0582a' },
     dfloor:   { name: 'Foundry halls', legs: 1, color: '#4a4440' },
     dwall:    { name: 'Wall',          legs: 9, color: '#1e1a1a' },
   };
   AF.TERRAIN_BY_LEGS = {
-    1: 'grass, sand & forest', 2: '+ rubble', 3: '+ water', 4: '+ mountains', 5: 'everything, fast',
+    1: 'grass, sand, forest, snow, pines, mire & ash', 2: '+ rubble, ice, bog & basalt', 3: '+ water', 4: '+ mountains', 5: 'everything, fast',
   };
 
   // Resource nodes on the map.
+  // Gathering is a mini-game (js/minigame.js): scrap piles are rummaged, ore and crystal are struck.
+  // mult: how much of the mini-game score becomes material. bonus: the rare find for a flawless job.
   AF.NODES = {
-    scrap:   { res: 'scrap',   amount: [1, 3], respawn: 220, label: 'Scrap pile' },
-    copper:  { res: 'copper',  amount: [1, 2], respawn: 260, label: 'Copper vein' },
-    silicon: { res: 'silicon', amount: [1, 2], respawn: 280, label: 'Silicon crystals' },
-    arcite:  { res: 'arcite',  amount: [1, 1], respawn: 400, label: 'Arcite crystal', arms: 2 },
+    scrap:   { res: 'scrap',   game: 'rummage', respawn: 450, label: 'Scrap pile', mult: 1, bonus: 'circuits' },
+    copper:  { res: 'copper',  game: 'strike', zone: 0.26, speed: 1.0, respawn: 550, label: 'Copper vein', mult: 0.7, bonus: 'silicon' },
+    silicon: { res: 'silicon', game: 'strike', zone: 0.22, speed: 1.15, respawn: 600, label: 'Silica crystals', mult: 0.7, bonus: 'circuits' },
+    arcite:  { res: 'arcite',  game: 'strike', zone: 0.15, speed: 1.35, respawn: 900, label: 'Arcite crystal', arms: 2, mult: 0.4, bonus: 'arcite' },
   };
+  // Where each resource is found: a few named deposits instead of nodes scattered over the whole map.
+  AF.DEPOSITS = {
+    scrap:   { sites: 16, heart: 5, per: [4, 5], minDist: 18, names: {
+      heart: ['Rustfield Scrapyard', 'Wreck Hollow', 'Gearbone Heap', 'Old Convoy Wreck', 'Tinker\'s Graveyard', 'Slag Flats'],
+      mire: ['Sunken Barge', 'Drowned Foundry', 'Rotwater Wrecks', 'Mudlark Heap'], ash: ['Slag Mountain', 'Cinder Junkyard', 'Melted Convoy', 'Ashfall Heap'], frost: ['Frozen Wreck'] } },
+    copper:  { sites: 14, heart: 4, per: [3, 4], minDist: 24, names: {
+      heart: ['Redrock Copper Seam', 'Verdigris Cut', 'Ember Quarry', 'Old Miner\'s Seam', 'Kettle Gorge Lode'],
+      mire: ['Bog-Iron Shallows', 'Greenrust Mere', 'Peatcopper Fen'], ash: ['Molten Vein', 'Glowing Seam', 'Basalt Lode', 'Scorch Quarry'], frost: ['Rimecopper Seam'] } },
+    silicon: { sites: 13, heart: 4, per: [3, 4], minDist: 22, names: {
+      heart: ['Glassdune Silica Beds', 'Mirror Flats', 'Shardsand Hollow', 'Sunglass Basin'],
+      frost: ['Hoarfrost Crystal Beds', 'Singing Ice Field', 'Rimeglass Drift', 'Snowquartz Hollow'], ash: ['Obsidian Shore', 'Blackglass Beach', 'Fused Sand Flats'], mire: ['Glassreed Pool'] } },
+    arcite:  { sites: 12, heart: 3, per: [2, 3], minDist: 34, names: {
+      heart: ['Arcspire Grotto', 'Stormcrown Ledge', 'Violet Hollow', 'Thunder Crag'],
+      frost: ['Glacier Heart', 'Aurora Ledge', 'Frozen Lightning Vault'], ash: ['Magma-Lit Geode', 'Ember Crystal Rift', 'Titan\'s Teeth'], mire: ['Witchlight Hollow'] } },
+  };
+
+  AF.RUINS = 32;   // ruins on the overworld (each holds a blueprint while you still have some to find)
 
   // ---------- Cards ----------
   // kind: attack | defend | move | repair | tech
@@ -298,17 +325,55 @@
       loot: { arcite: [5, 5], circuits: [4, 4], copper: [8, 8] } },
   });
   AF.DUNGEON_POOL = ['cogspider', 'cogspider', 'gearghoul', 'runegolem'];
+  // ----- New bots: the Heartland and the three outer regions -----
+  // fx on an attack: chill = you lose 1 energy next turn, burn/poison = damage at the start of your next 2 turns,
+  // corrode = strips all your Block before the hit.
+  Object.assign(AF.ENEMIES, {
+    cogrunner: { name: 'Cog Runner', tier: 1, hp: 16, start: 2, body: '#b08a3a', region: 'heart',
+      pattern: [{ a: 'hit', dmg: 4, hits: 2, r: 0 }, { a: 'retreat' }, { a: 'shoot', dmg: 5, r: 1 }],
+      loot: { scrap: [2, 4], copper: [1, 2] } },
+    hexer: { name: 'Scrap Hexer', tier: 2, hp: 36, start: 2, body: '#6a5a8a', region: 'heart',
+      pattern: [{ a: 'aim', dmg: 6 }, { a: 'shoot', dmg: 11, r: 2 }, { a: 'drain', dmg: 8, r: 1 }],
+      loot: { silicon: [2, 3], circuits: [0, 1] } },
+    frostling: { name: 'Frostling', tier: 2, hp: 40, start: 1, body: '#8ac0d8', region: 'frost',
+      pattern: [{ a: 'hit', dmg: 9, r: 0, fx: 'chill' }, { a: 'block', block: 8 }, { a: 'hit', dmg: 6, hits: 2, r: 0 }],
+      loot: { silicon: [2, 4], copper: [1, 2] } },
+    icewing: { name: 'Icewing Drone', tier: 2, hp: 32, start: 2, body: '#a8d8f0', region: 'frost',
+      pattern: [{ a: 'shoot', dmg: 8, r: 2, fx: 'chill' }, { a: 'retreat' }, { a: 'aim', dmg: 5 }, { a: 'shoot', dmg: 12, r: 2 }],
+      loot: { silicon: [2, 4], circuits: [0, 1] } },
+    glacier: { name: 'Glacier Golem', tier: 3, hp: 110, start: 1, body: '#6a9ab8', region: 'frost',
+      pattern: [{ a: 'block', block: 18 }, { a: 'hit', dmg: 20, r: 0, fx: 'chill' }, { a: 'hit', dmg: 10, hits: 2, r: 0 }, { a: 'block', block: 10 }],
+      loot: { arcite: [2, 3], silicon: [3, 5] } },
+    bogcrawler: { name: 'Bog Crawler', tier: 2, hp: 46, start: 1, body: '#5a6a3a', region: 'mire',
+      pattern: [{ a: 'hit', dmg: 10, r: 0, fx: 'corrode' }, { a: 'block', block: 10 }, { a: 'hit', dmg: 7, hits: 2, r: 0 }],
+      loot: { scrap: [4, 7], copper: [2, 3] } },
+    sporedrone: { name: 'Spore Drone', tier: 2, hp: 30, start: 2, body: '#8a9a4a', region: 'mire',
+      pattern: [{ a: 'shoot', dmg: 5, r: 2, fx: 'poison', burn: 3 }, { a: 'retreat' }, { a: 'shoot', dmg: 9, r: 2 }],
+      loot: { silicon: [1, 3], circuits: [0, 1] } },
+    mossgiant: { name: 'Moss Colossus', tier: 3, hp: 120, start: 1, body: '#4a6a3a', region: 'mire',
+      pattern: [{ a: 'hit', dmg: 16, r: 0, fx: 'corrode' }, { a: 'block', block: 14 }, { a: 'drain', dmg: 12, r: 1 }, { a: 'hit', dmg: 22, r: 0 }],
+      loot: { scrap: [8, 12], copper: [3, 5], arcite: [0, 2] } },
+    cinderimp: { name: 'Cinder Imp', tier: 2, hp: 34, start: 1, body: '#d86a2a', region: 'ash',
+      pattern: [{ a: 'hit', dmg: 7, r: 0, fx: 'burn', burn: 3 }, { a: 'hit', dmg: 5, hits: 2, r: 0 }, { a: 'retreat' }],
+      loot: { copper: [2, 4], scrap: [2, 4] } },
+    magmahound: { name: 'Magma Hound', tier: 3, hp: 82, start: 1, body: '#b8401a', region: 'ash',
+      pattern: [{ a: 'hit', dmg: 14, r: 0, fx: 'burn', burn: 4 }, { a: 'hit', dmg: 8, hits: 2, r: 0 }, { a: 'aim', dmg: 6 }, { a: 'hit', dmg: 18, r: 0 }],
+      loot: { copper: [3, 6], arcite: [1, 2] } },
+    furnaceknight: { name: 'Furnace Knight', tier: 3, hp: 120, start: 1, body: '#6a3a2a', region: 'ash',
+      pattern: [{ a: 'block', block: 20 }, { a: 'hit', dmg: 22, r: 0, fx: 'burn', burn: 5 }, { a: 'shoot', dmg: 12, r: 1 }, { a: 'overcharge', dmg: 3 }],
+      loot: { arcite: [2, 3], circuits: [1, 2], copper: [3, 5] } },
+  });
   // Credits dropped per enemy tier [min, max]
   // Money dropped (in Bolts) and the chance that a bot drops money / each material at all.
   AF.CREDITS_BY_TIER = { 1: [40, 90], 2: [100, 180], 3: [220, 340], 4: [2500, 2500] };
-  AF.DROP = { money: 0.6, material: 0.35, gear: { 1: 0.04, 2: 0.07, 3: 0.11 } };
+  AF.DROP = { money: 0.6, material: 0.22, gear: { 1: 0.04, 2: 0.07, 3: 0.11 }, blueprint: { 3: 0.12, bounty: 0.4 } };
 
   // ---------- The shared world ----------
   // Every player explores the same map: it's always built from this seed.
   AF.WORLD_SEED = 20261125;
   // Encounters: a few roaming bots, plus disturbances you choose to step into, Bounty Board hunts and lures.
-  AF.ROAMERS = 28;            // roaming bots on the overworld at once (was 130)
-  AF.HOTSPOTS = 46;           // disturbances on the overworld
+  AF.ROAMERS = 70;            // roaming bots on the 256×256 overworld at once
+  AF.HOTSPOTS = 120;          // disturbances on the overworld
   AF.HOTSPOT_COOLDOWN = 300;  // steps before a cleared disturbance stirs again
   AF.BOUNTY_EVERY = 400;      // the Bounty Boards post new jobs this often (steps)
   AF.LURES = {
@@ -342,11 +407,22 @@
     smithy:  { town: 2, name: 'Brass Anvil Smithy',     sign: 'SMITHY',   x: 2,  y: 13, w: 5, h: 4, roof: '#4a4a52', shop: 'garage', blurb: 'Part upgrades, repairs and core paint.' },
     vault:   { town: 2, name: 'Ironclad Bank (Brasshaven)', sign: 'BANK', x: 7, y: 15, w: 4, h: 4, roof: '#3a5a42', shop: 'bank', blurb: 'Your account, from either town.' },
     tailor:  { town: 2, name: 'Velvet & Valve Tailor',  sign: 'TAILOR',   x: 19, y: 13, w: 5, h: 4, roof: '#6a2a4a', shop: 'boutique', blurb: 'Fine clothes for travellers.' },
+    // ----- Gearwind Outpost (town 3) -----
+    trader:  { town: 3, name: 'Frontier Trading Post', sign: 'TRADER', x: 2,  y: 2,  w: 6, h: 5, roof: '#6a4a2a', shop: 'salvage', blurb: 'Materials and lures for the wilds.' },
+    lodge:   { town: 3, name: 'Gearwind Lodge',        sign: 'LODGE',  x: 15, y: 2,  w: 6, h: 5, roof: '#4a5a6a', shop: 'diner', blurb: 'Stew, rest and a warm fire.' },
+    waystation: { town: 3, name: 'Waystation Garage',  sign: 'GARAGE', x: 16, y: 12, w: 5, h: 4, roof: '#3a4a5a', shop: 'garage', blurb: 'Repairs and upgrades on the road.' },
   });
-  AF.TOWN_NAMES = { 1: 'Rivet Hollow', 2: 'Brasshaven' };
+  AF.TOWN_NAMES = { 1: 'Rivet Hollow', 2: 'Brasshaven', 3: 'Gearwind Outpost' };
   AF.shopOf = (id) => (AF.BUILDINGS[id] && AF.BUILDINGS[id].shop) || id;
   // Buildings that open a panel. The others start a conversation instead.
-  AF.SHOPS = ['home', 'cards', 'bank', 'salvage', 'garage', 'diner', 'forge', 'academy', 'boutique', 'inn', 'arcanum', 'smithy', 'vault', 'tailor'];
+  AF.SHOPS = ['home', 'cards', 'bank', 'salvage', 'garage', 'diner', 'forge', 'academy', 'boutique', 'inn', 'arcanum', 'smithy', 'vault', 'tailor', 'trader', 'lodge', 'waystation'];
 
-  AF.TIERS = { 1: ['scrapling', 'spitter'], 2: ['rustbiter', 'sniper', 'shellback'], 3: ['wraith', 'juggernaut'] };
+  AF.TIERS = { 1: ['scrapling', 'spitter', 'cogrunner'], 2: ['rustbiter', 'sniper', 'shellback', 'hexer'], 3: ['wraith', 'juggernaut'] };
+  // Each region has its own bots. Tier 1 = near Rivet Hollow only.
+  AF.REGION_POOLS = {
+    heart: AF.TIERS,
+    frost: { 2: ['frostling', 'icewing', 'sniper'], 3: ['glacier', 'frostling', 'wraith'] },
+    mire: { 2: ['bogcrawler', 'sporedrone', 'shellback'], 3: ['mossgiant', 'bogcrawler', 'wraith'] },
+    ash: { 2: ['cinderimp', 'cinderimp', 'rustbiter'], 3: ['magmahound', 'furnaceknight', 'juggernaut'] },
+  };
 })();

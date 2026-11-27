@@ -43,7 +43,7 @@
     { id: 'forge10', name: 'Smith', text: 'Forge 10 cards.', unlock: { back: 'rune' }, stat: 'forged', goal: 10 },
     { id: 'upgrade5', name: 'Tempered', text: 'Upgrade 5 cards.', unlock: { frame: 'runestone' }, stat: 'upgraded', goal: 5 },
     { id: 'blueprints', name: 'Archivist', text: 'Learn every card for your Construct.', unlock: { finish: 'prism' }, test: (s) => s.construct && AF.lockedCards(s).length === 0 },
-    { id: 'explorer', name: 'Cartographer', text: 'Explore half of the overworld map.', unlock: { back: 'starmap' }, test: (s) => explored(s) >= 50 },
+    { id: 'explorer', name: 'Cartographer', text: 'Explore a third of the overworld map.', unlock: { back: 'starmap' }, test: (s) => explored(s) >= 33 },
     { id: 'level10', name: 'Seasoned', text: 'Reach pilot level 10.', unlock: { finish: 'holo' }, test: (s) => s.level >= 10 },
     { id: 'collector', name: 'Fashion Forward', text: 'Collect 30 outfit pieces.', unlock: { back: 'royal' }, test: (s) => (s.owned || []).length >= 30 },
     { id: 'warden', name: 'Foundry Breaker', text: 'Defeat the Clockwork Warden.', unlock: { frame: 'gilded' }, test: (s) => (s.stats.bosses || []).includes('warden') },
