@@ -6,7 +6,7 @@
   const $ = (s) => document.querySelector(s);
 
   UI.resBar = function (s) {
-    return `<span class="res">${AF.moneyHtml(s.credits, false, true)}</span>` +
+    return `<span class="res money-res">${AF.moneyHtml(s.credits, false, true)}</span>` +
       AF.RES_KEYS.map((k) => `<span class="res" title="${AF.RES[k].name}"><i class="chip" style="--c:${AF.RES[k].color}"></i><b>${s.res[k] || 0}</b><em>${AF.RES[k].name}</em></span>`).join('');
   };
 
@@ -191,6 +191,8 @@
       <div class="pbody menu">
         <button class="btn" data-act="help">How to play</button>
         <button class="btn" data-act="sound">Sound: ${AF.muted ? 'off' : 'on'}</button>
+        <button class="btn" data-act="audio-set">Music &amp; sound volume</button>
+        <button class="btn" data-act="controls">Controls</button>
         ${AF.Sprites && AF.Sprites.hasArt() ? `<button class="btn" data-act="charart">Character art: ${AF.Sprites.use() ? 'sprites' : 'classic'}</button>` : ''}
         <button class="btn" data-act="to-title">Save and switch pilot</button>
         <h3>Save code</h3>
@@ -200,7 +202,7 @@
         <h3>Load a save code into this slot</h3>
         <textarea id="loadcode" rows="3" placeholder="Paste a save code"></textarea>
         <div class="row"><button class="btn" data-act="load">Load</button></div>
-        <p class="ver">Automata: ArcForge · v0.15</p>
+        <p class="ver">Automata: ArcForge · v0.17</p>
       </div>`;
     $('#savecode').value = AF.exportCode(AF.game.state);
   };
@@ -235,7 +237,9 @@
     const act = el.dataset.act;
     if (act === 'close-menu') { $('#menu').hidden = true; return true; }
     if (act === 'help') { UI.help(); return true; }
-    if (act === 'sound') { AF.muted = !AF.muted; try { localStorage.setItem('arcforge.muted', AF.muted ? '1' : '0'); } catch (e) {} UI.menu(); return true; }
+    if (act === 'sound') { AF.muted = !AF.muted; try { localStorage.setItem('arcforge.muted', AF.muted ? '1' : '0'); } catch (e) {} AF.Audio && AF.Audio.levels(); UI.menu(); return true; }
+    if (act === 'audio-set') { AF.Splash.settings(true); return true; }
+    if (act === 'controls') { AF.Controls.render(false); return true; }
     if (act === 'charart') { AF.Sprites.setMode(AF.Sprites.use() ? 'classic' : 'sprites'); UI.menu(); AF.game.toast(AF.Sprites.use() ? 'Using sprite art.' : 'Using classic art.'); return true; }
     if (act === 'to-title') { $('#menu').hidden = true; AF.game.toTitle(); return true; }
     if (act === 'copy') {

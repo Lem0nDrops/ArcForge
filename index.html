@@ -15,23 +15,56 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Fredoka:wght@500;600;700&family=Nunito:wght@500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=0.15.0">
+  <link rel="stylesheet" href="css/style.css?v=0.17.0">
 </head>
 <body>
-  <!-- Title screen + save slots -->
-  <section id="title" class="screen">
+  <!-- Title screen (studio card, animated logo, title menu) -->
+  <section id="splash" class="screen" data-stage="studio" hidden>
+    <canvas id="splash-bg" aria-hidden="true"></canvas>
+    <div class="sp-studio" aria-hidden="true">
+      <svg class="sp-mark" viewBox="0 0 120 120">
+        <defs><linearGradient id="spg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffd27a"/><stop offset="1" stop-color="#c8742a"/></linearGradient></defs>
+        <polygon class="hex" points="60,6 107,33 107,87 60,114 13,87 13,33" fill="none" stroke="url(#spg)" stroke-width="5" stroke-linejoin="round"/>
+        <path class="anvil" d="M30 58 h52 c0 8 -8 12 -16 12 v8 h10 v8 h-40 v-8 h10 v-8 c-10 0 -16 -6 -16 -12z" fill="url(#spg)"/>
+        <path class="ham" d="M66 26 l16 16 l-6 6 l-16 -16z M70 40 l-14 14" stroke="#ffd27a" stroke-width="5" fill="#ffd27a" stroke-linecap="round"/>
+        <g class="spk"><circle cx="58" cy="54" r="2.4" fill="#fff3c4"/><circle cx="48" cy="46" r="1.8" fill="#ffd27a"/><circle cx="70" cy="48" r="1.6" fill="#ffd27a"/><circle cx="54" cy="40" r="1.4" fill="#fff3c4"/></g>
+      </svg>
+      <div class="sp-studio-name">getdataforge<span>.com</span></div>
+      <div class="sp-presents">presents</div>
+    </div>
+    <div class="sp-main">
+      <canvas id="splash-logo" role="img" aria-label="Automata: ArcForge"></canvas>
+      <p class="sp-tag">Dress your pilot. Build your automaton. Forge your deck.</p>
+      <div class="sp-press"><span class="kb">Press any key</span><span class="tp">Tap to start</span></div>
+      <nav class="sp-menu" aria-label="Title menu">
+        <button class="btn sp-btn" data-sp="play">Play</button>
+        <button class="btn sp-btn ghost" data-sp="help">How to play</button>
+        <button class="btn sp-btn ghost" data-sp="settings">Settings</button>
+        <button class="btn sp-btn ghost" data-sp="credits">Credits</button>
+      </nav>
+      <div id="sp-credits" class="sp-credits" hidden>
+        <p><b>Automata: ArcForge</b> by getdataforge.com</p>
+        <p>Design, art direction and testing: Renee</p>
+        <p>Music and sound are composed live in your browser, so every town, region and battle has its own tune.</p>
+      </div>
+    </div>
+    <p class="sp-ver ver">v0.17</p>
+  </section>
+
+  <!-- Save slots -->
+  <section id="title" class="screen" hidden>
     <div class="title-inner">
       <div class="title-brand">
         <div id="title-bot" class="title-bot"></div>
-        <h1><img class="logo" src="assets/logo.png?v=0.15.0" alt="Automata: ArcForge"></h1>
+        <h1><img class="logo" src="assets/logo.png?v=0.17.0" alt="Automata: ArcForge"></h1>
         <p class="tag">Dress your pilot. Build your automaton. Forge your deck.</p>
       </div>
       <div class="title-slots frame">
         <h2>Choose a pilot</h2>
         <div id="slots" class="slots"></div>
         <p id="boot-error" class="note" hidden>Some game files didn't load or are out of date. Refresh the page (on a computer: Ctrl+Shift+R, or Cmd+Shift+R on a Mac). If you just uploaded an update, wait a few minutes for GitHub Pages to finish, then refresh.</p>
-        <div class="row center"><button class="btn ghost" data-act="title-help">How to play</button></div>
-        <p class="credit">A getdataforge.com game · v0.15</p>
+        <div class="row center"><button class="btn ghost" data-sp="to-splash">Back to title</button><button class="btn ghost" data-act="title-help">How to play</button></div>
+        <p class="credit">A getdataforge.com game · v0.17</p>
       </div>
     </div>
   </section>
@@ -44,19 +77,23 @@
     <canvas id="world" aria-label="World map"></canvas>
     <header class="hud">
       <div class="hud-l">
-        <div id="hp" class="bar me"><i></i><span></span></div>
-        <div id="vit" class="bar vit"><i></i><span></span></div>
-        <div id="lvl" class="lvlbar"><b>Lv 1</b><div class="bar xp"><i></i></div></div>
-        <div id="where" class="where"></div>
-        <div id="tracker" class="tracker" hidden></div>
+        <div class="hud-card">
+          <div class="hc-top">
+            <b id="lvl-badge" class="lvl-badge" title="Level">1</b>
+            <div class="hc-id"><span id="where" class="where"></span><div id="lvl" class="xpline"><i></i></div></div>
+          </div>
+          <div id="hp" class="bar me"><i></i><span></span></div>
+          <div id="vit" class="bar vit"><i></i><span></span></div>
+          <div id="hudres" class="resbar"></div>
+          <div class="hud-row"><button class="hchip" id="ration-btn" data-act="ration" title="Eat a field ration"></button><span id="lure-btns"></span><div id="hudbuffs" class="buffs"></div></div>
+        </div>
+        <button id="tracker" class="tracker" data-act="tracker" hidden></button>
       </div>
       <div class="hud-r">
         <button class="btn" id="workshop-btn" data-act="workshop">Party</button>
         <button class="btn" data-act="map">Map</button>
         <button class="btn ghost" data-act="menu">Menu</button>
       </div>
-      <div id="hudres" class="resbar"></div>
-      <div class="hud-row"><button class="btn sm" id="ration-btn" data-act="ration">Eat ration</button><span id="lure-btns"></span><div id="hudbuffs" class="buffs"></div></div>
     </header>
     <div class="pad" aria-label="Controls">
       <div class="dpad" aria-label="Move">
@@ -70,6 +107,7 @@
         <button id="btn-a" class="abtn a" aria-label="Interact">A<small>Use</small></button>
       </div>
     </div>
+    <div id="stick" class="stick" hidden aria-hidden="true"><i></i></div>
     <div id="toast" role="status" aria-live="polite"></div>
     <div id="dialog" class="dialog" hidden></div>
     <div id="fade" class="fade"></div>
@@ -83,26 +121,29 @@
   <div id="menu" class="modal" hidden><div class="sheet narrow"></div></div>
   <div id="result" class="modal" hidden><div class="sheet narrow result"></div></div>
 
-  <script src="js/data.js?v=0.15.0"></script>
-  <script src="js/state.js?v=0.15.0"></script>
-  <script src="js/items.js?v=0.15.0"></script>
-  <script src="js/art.js?v=0.15.0"></script>
-  <script src="js/automaton.js?v=0.15.0"></script>
-  <script src="js/pilot.js?v=0.15.0"></script>
-  <script src="js/avatar.js?v=0.15.0"></script>
-  <script src="assets/chars/manifest.js?v=0.15.0"></script>
-  <script src="js/sprites.js?v=0.15.0"></script>
-  <script src="js/town.js?v=0.15.0"></script>
-  <script src="js/quests.js?v=0.15.0"></script>
-  <script src="js/interiors.js?v=0.15.0"></script>
-  <script src="js/render.js?v=0.15.0"></script>
-  <script src="js/world.js?v=0.15.0"></script>
-  <script src="js/battle.js?v=0.15.0"></script>
-  <script src="assets/cards/manifest.js?v=0.15.0"></script>
-  <script src="js/cards.js?v=0.15.0"></script>
-  <script src="js/minigame.js?v=0.15.0"></script>
-  <script src="js/admin.js?v=0.15.0"></script>
-  <script src="js/ui.js?v=0.15.0"></script>
-  <script src="js/main.js?v=0.15.0"></script>
+  <script src="js/data.js?v=0.17.0"></script>
+  <script src="js/state.js?v=0.17.0"></script>
+  <script src="js/audio.js?v=0.17.0"></script>
+  <script src="js/items.js?v=0.17.0"></script>
+  <script src="js/art.js?v=0.17.0"></script>
+  <script src="js/automaton.js?v=0.17.0"></script>
+  <script src="js/pilot.js?v=0.17.0"></script>
+  <script src="js/avatar.js?v=0.17.0"></script>
+  <script src="assets/chars/manifest.js?v=0.17.0"></script>
+  <script src="js/sprites.js?v=0.17.0"></script>
+  <script src="js/town.js?v=0.17.0"></script>
+  <script src="js/quests.js?v=0.17.0"></script>
+  <script src="js/interiors.js?v=0.17.0"></script>
+  <script src="js/render.js?v=0.17.0"></script>
+  <script src="js/world.js?v=0.17.0"></script>
+  <script src="js/battle.js?v=0.17.0"></script>
+  <script src="assets/cards/manifest.js?v=0.17.0"></script>
+  <script src="js/cards.js?v=0.17.0"></script>
+  <script src="js/minigame.js?v=0.17.0"></script>
+  <script src="js/admin.js?v=0.17.0"></script>
+  <script src="js/controls.js?v=0.17.0"></script>
+  <script src="js/splash.js?v=0.17.0"></script>
+  <script src="js/ui.js?v=0.17.0"></script>
+  <script src="js/main.js?v=0.17.0"></script>
 </body>
 </html>

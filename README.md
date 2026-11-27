@@ -71,10 +71,11 @@ Saves are kept in each player's browser. The Menu has a **save code** you can co
 index.html          screens and script tags
 css/style.css       all styling
 js/data.js          ★ content: resources, parts, cards, enemies, costs. Balance lives here.
-js/state.js         new game, save/load, save codes, sound effects
+js/state.js         new game, save/load, save codes
+js/audio.js         ★ music and sound: every track (towns, regions, battles, menus) is synthesised live; edit TRACKS to retune
 js/items.js         ★ money tiers, levels & XP, gear catalog, equipment & bag
 js/interiors.js     ★ building rooms: layouts, keepers, furniture actions
-js/art.js           robot and enemy drawings (SVG, built from part levels)
+js/art.js           automaton (dieselpunk, arc-lit seams) and enemy drawings (SVG, built from part levels)
 js/render.js        ★ the world renderer: terrain, buildings, props, lights, particles, prompts
 js/pilot.js         pilot looks catalog, classic renderer, character creator (Pilot / Outfit / Automaton tabs)
 js/avatar.js        ★ storybook-painted characters (pilot and townsfolk), all faces, hair and worn items
@@ -86,6 +87,8 @@ js/cards.js         ★ card faces, art slots + painted emblems, rarity, frames,
 assets/cards/       card art images + manifest.js + ART-GUIDE.md
 js/minigame.js      ★ gathering mini-games (Strike, Rummage) and the blueprint reveal
 js/admin.js         ★ hidden admin / developer panel (Ctrl+Shift+A)
+js/controls.js      ★ control settings: rebindable keys, touch joystick / d-pad / tap-to-walk, sizes, handedness
+js/splash.js        title screen: studio card, animated logo, title menu, music settings
 js/ui.js            Workshop (robot / forge / deck / map), menu, help
 js/main.js          boot, input, game loop
 electron-main.js    desktop wrapper (ignored by the web version)

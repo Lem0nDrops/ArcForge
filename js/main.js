@@ -5,8 +5,9 @@
   try { AF.muted = localStorage.getItem('arcforge.muted') === '1'; } catch (e) {}
 
   const game = (AF.game = { state: null, battle: null });
+  try { const v = localStorage.getItem('arcforge.trackerMin'); game.trackerMin = v == null ? matchMedia('(max-width: 760px), (max-height: 520px)').matches : !!v; } catch (e) {}
   const input = (AF.input = { held: [], run: false, touch: false, nextStep: 0 });
-  const WALK = 190, RUN = 115;
+  const WALK = 215, RUN = 130;   // ms per tile
 
   game.persist = () => game.state && AF.save(game.state);
 
@@ -50,14 +51,15 @@
     $('#vit').classList.toggle('low', s.pilot.vit <= 5);
     $('#where').textContent = AF.World.describeHere(s);
     const need = AF.xpNeed(s.level);
-    $('#lvl b').textContent = 'Lv ' + s.level;
+    $('#lvl-badge').textContent = s.level; $('#lvl-badge').title = `Level ${s.level}`;
     $('#lvl i').style.width = (s.level >= AF.MAX_LEVEL ? 100 : Math.round((s.xp / need) * 100)) + '%';
     $('#lvl').title = `${s.xp} / ${need} XP`;
     $('#hudres').innerHTML = AF.UI.resBar(s);
-    $('#ration-btn').textContent = `Eat ration (${s.pilot.rations})`;
+    $('#ration-btn').innerHTML = `<i class="ic-food"></i>${s.pilot.rations}`; $('#ration-btn').title = `Eat a field ration (${s.pilot.rations} left)`;
+    $('#tracker').classList.toggle('min', !!game.trackerMin);
     document.body.classList.toggle('admin-on', !!(AF.Admin && AF.Admin.any()));
     const L = s.pilot.lures || {}, wild = !AF.World.inTown(s) && s.flags.robot;
-    $('#lure-btns').innerHTML = wild ? Object.entries(AF.LURES).filter(([k]) => L[k] > 0).map(([k, d]) => `<button class="btn sm lure" data-act="lure" data-kind="${k}" title="${AF.esc(d.text)}">${d.name} (${L[k]})</button>`).join('') : '';
+    $('#lure-btns').innerHTML = wild ? Object.entries(AF.LURES).filter(([k]) => L[k] > 0).map(([k, d]) => `<button class="hchip lure" data-act="lure" data-kind="${k}" title="${AF.esc(d.name + ': ' + d.text)}"><i class="ic-lure${k === 'arclure' ? ' arc' : ''}"></i>${L[k]}</button>`).join('') : '';
     const bh = AF.World.bountyHint(s);
     if (bh) { $('#tracker').innerHTML += `<span class="bty-track">${bh}</span>`; $('#tracker').hidden = false; }
     for (const a of AF.checkAchievements(s)) game.toast(`★ Achievement: ${a.name}! Unlocked: ${AF.unlockText(a.unlock)}.`, 4500);
@@ -83,6 +85,7 @@
       return;
     }
     input.nextStep = now + dur;
+    if (ev && ev.type !== 'msg') input.path = null;
     if (ev && ev.type === 'exit') { input.held = []; fade(); }
     if (ev && ev.type === 'talk') { input.held = []; AF.Quests.talk(s, ev.npc); }
     if (ev && ev.type === 'msg') game.toast(ev.text);
@@ -191,8 +194,9 @@
   }
 
   // ---------- Keyboard ----------
-  const KEYDIR = { ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right', w: 'up', s: 'down', a: 'left', d: 'right', W: 'up', S: 'down', A: 'left', D: 'right' };
-  const ACT = ['e', 'E', ' ', 'Enter', 'z', 'Z'];
+  // keys come from the Controls settings (rebindable); see js/controls.js
+  const actOf = (k) => (AF.Controls ? AF.Controls.actionOf(k) : null);
+  const MOVES = ['up', 'down', 'left', 'right'];
   document.addEventListener('keydown', (e) => {
     input.touch = false;
     if (AF.Admin && AF.Admin.isOpen()) return;
@@ -201,34 +205,34 @@
     const tg = e.target, typing = (tg.tagName === 'TEXTAREA' || (tg.tagName === 'INPUT' && /^(text|number|search|email|password|)$/i.test(tg.type || ''))) && tg.offsetParent !== null;
     if (typing) return;
     if ((tg.tagName === 'INPUT' || tg.tagName === 'TEXTAREA') && tg.offsetParent === null) tg.blur();
-    if (e.key === 'Shift') input.run = true;
+    const act = actOf(e.key);
+    if (act === 'run') input.run = true;
     if (AF.Dialog.open) {
       if (e.target.matches && e.target.matches('[data-choice]') && (e.key === 'Enter' || e.key === ' ')) return;
-      if (ACT.includes(e.key)) { e.preventDefault(); if (!e.repeat) AF.Dialog.advance(); }
+      if (act === 'interact') { e.preventDefault(); if (!e.repeat) AF.Dialog.advance(); }
       return;
     }
     if (e.key === 'Escape') { if (!$('#menu').hidden) $('#menu').hidden = true; else if (AF.UI.isOpen()) AF.UI.close(); return; }
     if (!$('#result').hidden && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); closeResult(); return; }
     if (game.battle) {
       if (/^[1-9]$/.test(e.key)) { AF.BattleUI.play(+e.key - 1); return; }
-      if (['e', 'E', ' '].includes(e.key) && !e.repeat) { e.preventDefault(); AF.BattleUI.endTurn(); }
+      if (act === 'interact' && e.key !== 'Enter' && !e.repeat) { e.preventDefault(); AF.BattleUI.endTurn(); }
       return;
     }
     if (!game.state || $('#game').hidden || AF.Studio.isOpen() || !$('#creator').hidden) return;
-    const dir = KEYDIR[e.key];
-    if (dir) { e.preventDefault(); if (!input.held.includes(dir)) input.held.push(dir); return; }
-    if (ACT.includes(e.key) && !e.repeat && !AF.UI.isOpen() && $('#menu').hidden) { e.preventDefault(); game.interact(); return; }
-    if ((e.key === 'q' || e.key === 'Q' || e.key === 'Tab') && !AF.UI.isOpen()) { e.preventDefault(); AF.UI.open('deck'); }
-    if ((e.key === 'i' || e.key === 'I') && !AF.UI.isOpen()) AF.UI.open('pilot');
-    if ((e.key === 'o' || e.key === 'O') && !AF.UI.isOpen()) AF.UI.open('wardrobe');
-    if (e.key === 'm' || e.key === 'M') AF.UI.isOpen() ? AF.UI.close() : AF.UI.open('map');
-    if ((e.key === 'l' || e.key === 'L') && canAct()) { game.useLure(); return; }
-    if (e.key === 'r' || e.key === 'R') { game.toast(AF.Town.eatRation(game.state)); game.persist(); game.refresh(); }
+    if (MOVES.includes(act)) { e.preventDefault(); input.path = null; if (!input.held.includes(act)) input.held.push(act); return; }
+    if (act === 'interact' && !e.repeat && !AF.UI.isOpen() && $('#menu').hidden) { e.preventDefault(); game.interact(); return; }
+    if (act === 'deck' && !AF.UI.isOpen()) { e.preventDefault(); AF.UI.open('deck'); }
+    if (act === 'pilot' && !AF.UI.isOpen()) AF.UI.open('pilot');
+    if (act === 'wardrobe' && !AF.UI.isOpen()) AF.UI.open('wardrobe');
+    if (act === 'map') AF.UI.isOpen() ? AF.UI.close() : AF.UI.open('map');
+    if (act === 'lure' && canAct()) { game.useLure(); return; }
+    if (act === 'ration' && $('#menu').hidden) { game.toast(AF.Town.eatRation(game.state)); game.persist(); game.refresh(); }
   });
   document.addEventListener('keyup', (e) => {
-    if (e.key === 'Shift') input.run = false;
-    const dir = KEYDIR[e.key];
-    if (dir) input.held = input.held.filter((d) => d !== dir);
+    const act = actOf(e.key);
+    if (act === 'run') input.run = false;
+    if (MOVES.includes(act)) input.held = input.held.filter((d) => d !== act);
   });
   window.addEventListener('blur', () => { input.held = []; input.run = false; });
 
@@ -240,37 +244,66 @@
     ['pointerup', 'pointerleave', 'pointercancel'].forEach((ev) => b.addEventListener(ev, stop));
   });
   $('#btn-a').addEventListener('pointerdown', (e) => { e.preventDefault(); input.touch = e.pointerType !== 'mouse'; if (AF.Dialog.open) AF.Dialog.advance(); else game.interact(); });
-  $('#btn-b').addEventListener('pointerdown', (e) => { e.preventDefault(); input.run = true; $('#btn-b').classList.add('on'); });
-  ['pointerup', 'pointerleave', 'pointercancel'].forEach((ev) => $('#btn-b').addEventListener(ev, () => { input.run = false; $('#btn-b').classList.remove('on'); }));
+  const toggleRun = () => AF.Controls && AF.Controls.touch.run === 'toggle';
+  $('#btn-b').addEventListener('pointerdown', (e) => { e.preventDefault(); input.run = toggleRun() ? !input.run : true; input.runLock = toggleRun() && input.run; $('#btn-b').classList.toggle('on', input.run); });
+  ['pointerup', 'pointerleave', 'pointercancel'].forEach((ev) => $('#btn-b').addEventListener(ev, () => { if (toggleRun()) return; input.run = false; $('#btn-b').classList.remove('on'); }));
 
-  // Drag on the map like a joystick; tap next to the pilot to interact.
+  // Touch on the map. Joystick: a stick appears under your thumb. Tap to walk: tap a spot to walk there.
+  // D-pad: drag on the map steers from the pilot. In every scheme a quick tap next to the pilot interacts.
   let drag = null;
   const world = $('#world');
   const dirFrom = (dx, dy) => (Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up'));
+  const scheme = () => (AF.Controls ? AF.Controls.touch.scheme : 'dpad');
+  const autoRun = () => !AF.Controls || AF.Controls.touch.autoRun;
+  function tapAt(e) {
+    const r = world.getBoundingClientRect(), w = game.state.world;
+    const tile = AF.Render.screenToTile(world, e.clientX - r.left, e.clientY - r.top);
+    if (!tile) return false;
+    if (Math.abs(tile.x - w.px) + Math.abs(tile.y - w.py) === 1) {
+      const dir = dirFrom(tile.x - w.px, tile.y - w.py), save = w.dir; w.dir = dir;
+      if (AF.World.facing(game.state)) { game.interact(); return true; }
+      w.dir = save;
+    }
+    if (scheme() === 'tap') {
+      const path = AF.World.pathTo(game.state, tile.x, tile.y);
+      if (path && path.length) { input.path = path; input.held = []; AF.Render.marker = { x: tile.x, y: tile.y, t: performance.now() }; return true; }
+    }
+    return false;
+  }
   world.addEventListener('pointerdown', (e) => {
     if (!canAct()) return;
     input.touch = e.pointerType !== 'mouse';
+    input.path = null;
     const r = world.getBoundingClientRect(), w = game.state.world;
-    const tile = AF.Render.screenToTile(world, e.clientX - r.left, e.clientY - r.top);
-    if (tile && Math.abs(tile.x - w.px) + Math.abs(tile.y - w.py) === 1) {
-      const dir = dirFrom(tile.x - w.px, tile.y - w.py);
-      const save = w.dir; w.dir = dir;
-      if (AF.World.facing(game.state)) { game.interact(); return; }
-      w.dir = save;
-    }
-    const me = AF.Render.tileToScreen(world, w.px + 0.5, w.py + 0.5);
-    drag = { id: e.pointerId, cx: me ? me.x + r.left : r.left + r.width / 2, cy: me ? me.y + r.top : r.top + r.height / 2 };
+    drag = { id: e.pointerId, t: performance.now(), sx: e.clientX, sy: e.clientY, moved: false };
     world.setPointerCapture(e.pointerId);
-    upd(e);
+    if (scheme() === 'stick') { AF.Controls.stickStart(e, $('#game')); return; }
+    if (scheme() === 'dpad' && tapAt(e)) { drag = null; return; }
+    const me = AF.Render.tileToScreen(world, w.px + 0.5, w.py + 0.5);
+    drag.cx = me ? me.x + r.left : r.left + r.width / 2; drag.cy = me ? me.y + r.top : r.top + r.height / 2;
+    if (scheme() === 'dpad') upd(e);
   });
   const upd = (e) => {
-    if (!drag) return;
+    if (!drag || e.pointerId !== drag.id) return;
+    if (Math.hypot(e.clientX - drag.sx, e.clientY - drag.sy) > 12) drag.moved = true;
+    if (scheme() === 'stick') {
+      const v = AF.Controls.stickMove(e); if (!v) return;
+      input.held = v.d < 14 ? [] : [dirFrom(v.dx, v.dy)];
+      if (!input.runLock) input.run = autoRun() && v.full;
+      return;
+    }
+    if (scheme() === 'tap' && !drag.moved) return;
     const dx = e.clientX - drag.cx, dy = e.clientY - drag.cy;
     input.held = Math.hypot(dx, dy) < 18 ? [] : [dirFrom(dx, dy)];
-    input.run = Math.hypot(dx, dy) > 170;
+    if (!input.runLock) input.run = autoRun() && Math.hypot(dx, dy) > 170;
   };
   world.addEventListener('pointermove', upd);
-  ['pointerup', 'pointercancel'].forEach((ev) => world.addEventListener(ev, () => { drag = null; input.held = []; input.run = false; }));
+  ['pointerup', 'pointercancel'].forEach((ev) => world.addEventListener(ev, (e) => {
+    const d = drag; drag = null;
+    if (AF.Controls) AF.Controls.stickEnd(e);
+    input.held = []; if (!input.runLock) input.run = false;
+    if (ev === 'pointerup' && d && !d.moved && performance.now() - d.t < 350 && scheme() !== 'dpad' && canAct()) tapAt(e);
+  }));
 
   // ---------- Clicks ----------
   document.addEventListener('click', (e) => {
@@ -317,6 +350,7 @@
       case 'menu': AF.UI.menu(); break;
       case 'ration': game.toast(AF.Town.eatRation(game.state)); game.persist(); game.refresh(); break;
       case 'lure': game.useLure(act.dataset.kind); break;
+      case 'tracker': game.trackerMin = !game.trackerMin; try { localStorage.setItem('arcforge.trackerMin', game.trackerMin ? '1' : ''); } catch (er) {} game.refresh(); break;
     }
   });
   document.addEventListener('keydown', (e) => {
@@ -327,6 +361,12 @@
   function frame(now) {
     if (game.state && !$('#game').hidden && $('#battle').hidden) {
       if (canAct() && input.held.length && now >= input.nextStep) step(input.held[input.held.length - 1], now);
+      else if (canAct() && input.path && input.path.length && now >= input.nextStep) {
+        const w = game.state.world, at = w.px + ',' + w.py;
+        step(input.path.shift(), now);
+        if (w.px + ',' + w.py === at || game.battle || AF.Dialog.open) input.path = null;   // blocked or interrupted: stop walking
+      }
+      if (input.path && !input.path.length) { if (input.path.face) game.state.world.dir = input.path.face; input.path = null; }
       AF.World.draw($('#world'), game.state, now);
     }
     requestAnimationFrame(frame);
@@ -335,9 +375,10 @@
 
   // ---------- Boot ----------
   const ready = AF.Render && AF.Quests && AF.Town && AF.Creator && AF.World && AF.World.init && AF.WORLD_SEED && AF.drawPilotAt && AF.BattleUI && AF.Studio && AF.appearance;
-  if (!ready) { $('#boot-error').hidden = false; return; }
+  if (!ready) { $('#title').hidden = false; $('#boot-error').hidden = false; return; }
   AF.migrateOldSave();
   try { renderSlots(); } catch (e) { $('#boot-error').hidden = false; console.error(e); }
+  try { AF.Splash ? AF.Splash.boot() : ($('#title').hidden = false); } catch (e) { console.error(e); $('#title').hidden = false; }
   try {
     $('#title-bot').innerHTML = AF.robotSVG({ arc: 3, frame: 3, legs: 2, arms: 2, weapon: 3, shield: 2 }, { core: '#3ad0ff', bot: { paint: 11, trim: 10, chassis: 'round', head: 'dome', eyes: 'happy', antenna: 'bolt', decal: 'bolt' } });
   } catch (e) { console.error(e); }

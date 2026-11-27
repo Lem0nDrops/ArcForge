@@ -797,6 +797,49 @@
       const titan = w.enemies.find((e) => e.type === 'titan'); if (titan) { titan.x = mp.lair.x; titan.y = mp.lair.y; }
     } else if (w.store && w.store.over) { w.store.over.enemies = fix(w.store.over.enemies); const titan = w.store.over.enemies.find((e) => e.type === 'titan'); if (titan) { titan.x = mp.lair.x; titan.y = mp.lair.y; } }
   }
+  // Tap-to-walk: the shortest walkable route to a tile (or next to it, if the tile itself is blocked).
+  function passable(state, x, y) {
+    const w = state.world;
+    if (w.inside) return !AF.Interiors.solid(w.inside, x, y);
+    const mp = map(state), c = terr(mp, x, y);
+    if (!c || c === 'dwall' || mp.solid[y * mp.w + x]) return false;
+    const th = thingAt(state, x, y); if (th && th.kind !== 'talk') return false;
+    if (w.enemies.some((e) => e.x === x && e.y === y)) return false;
+    return AF.TERRAIN[c].legs <= AF.stats(state).legs || !!(AF.Admin && AF.Admin.noclip());
+  }
+  function pathTo(state, tx, ty) {
+    const w = state.world, sx = w.px, sy = w.py, LIM = 40;
+    if (Math.abs(tx - sx) > LIM || Math.abs(ty - sy) > LIM || (tx === sx && ty === sy)) return null;
+    const goalOK = passable(state, tx, ty);
+    const k = (x, y) => x + ',' + y, prev = new Map([[k(sx, sy), null]]), q = [[sx, sy]];
+    const D = [[0, -1, 'up'], [0, 1, 'down'], [-1, 0, 'left'], [1, 0, 'right']];
+    let end = null;
+    while (q.length && prev.size < 6000) {
+      const [x, y] = q.shift();
+      if ((x === tx && y === ty) || (!goalOK && Math.abs(x - tx) + Math.abs(y - ty) === 1)) { end = [x, y]; break; }
+      for (const [dx, dy, d] of D) {
+        const nx = x + dx, ny = y + dy, kk = k(nx, ny);
+        if (prev.has(kk) || Math.abs(nx - sx) > LIM || Math.abs(ny - sy) > LIM) continue;
+        if (!(nx === tx && ny === ty && goalOK) && !passable(state, nx, ny)) continue;
+        prev.set(kk, [x, y, d]); q.push([nx, ny]);
+      }
+    }
+    if (!end) return null;
+    const out = []; let cur = end;
+    while (true) { const pv = prev.get(k(cur[0], cur[1])); if (!pv) break; out.unshift(pv[2]); cur = [pv[0], pv[1]]; }
+    // finish facing the blocked thing you tapped, so a tap on a shop door walks up and faces it
+    if (!goalOK && end) { const dx = tx - end[0], dy = ty - end[1]; out.face = dx > 0 ? 'right' : dx < 0 ? 'left' : dy > 0 ? 'down' : 'up'; }
+    return out;
+  }
+  // which music fits where the pilot stands: a building, a town, the Foundry, or the region of the wilds
+  function musicZone(state) {
+    const w = state.world, mp = map(state);
+    if (mp.area === 'foundry') return 'foundry';
+    if (w.inside) return 'inside';
+    const T = inTownXY(state, w.px, w.py) && townAt(w.px, w.py);
+    if (T) return 'town' + T.id;
+    return regionId(mp, w.px, w.py);
+  }
   function regionName(state) { const mp = map(state), w = state.world; return mp.region && !w.inside ? REGIONS[mp.region[w.py * mp.w + w.px]].name : ''; }
   function terrainHere(state) { if (state.world.inside) return 'path'; return terr(map(state), state.world.px, state.world.py); }
 
@@ -828,6 +871,6 @@
     return Math.round(((w.fog.split('1').length - 1) / (mp.w * mp.h)) * 100);
   }
 
-  AF.World = { validate, regionName, REGIONS, poolFor: (x, y, r) => poolFor(over(), x, y, r || Math.random), finishGather, siteOf: (k) => siteOf(over(), k), clearHotspot, hotReady, bountyOffers, acceptBounty, dropBounty, completeBounty, bountyHint, useLure, map: () => map(), init, placeRobot, move, interact, facing, face, drawMap, draw: (c, s, t) => AF.Render.draw(c, s, t), removeEnemy, sendHome, inTown, describeHere, terrainHere, npcList,
+  AF.World = { validate, regionName, musicZone, pathTo, passable, REGIONS, poolFor: (x, y, r) => poolFor(over(), x, y, r || Math.random), finishGather, siteOf: (k) => siteOf(over(), k), clearHotspot, hotReady, bountyOffers, acceptBounty, dropBounty, completeBounty, bountyHint, useLure, map: () => map(), init, placeRobot, move, interact, facing, face, drawMap, draw: (c, s, t) => AF.Render.draw(c, s, t), removeEnemy, sendHome, inTown, describeHere, terrainHere, npcList,
     terrainAt: (state, x, y) => terr(state ? map(state) : map(), x, y), enterDungeon, leaveDungeon, townName, TOWNS, area: (s) => (s.world.area || 'over') };
 })();

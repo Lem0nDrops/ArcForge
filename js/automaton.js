@@ -8,10 +8,10 @@
     ['#6ac86a', 'Moss'], ['#4a7ce8', 'Cobalt'], ['#a070e0', 'Violet'], ['#ff8ac0', 'Bubblegum'], ['#4a4e5a', 'Gunmetal'], ['#c8a060', 'Bronze']];
   // Every option is open from the start: the automaton is yours to style.
   AF.BOT_OPTS = {
-    chassis: [['round', 'Round'], ['boxy', 'Boxy'], ['tall', 'Tall'], ['bug', 'Beetle'], ['barrel', 'Barrel'], ['kite', 'Kite'], ['furnace', 'Furnace']],
-    head: [['dome', 'Dome'], ['square', 'Square'], ['crt', 'Monitor'], ['visor', 'Visor'], ['helm', 'Great helm'], ['lantern', 'Lantern'], ['bucket', 'Bucket'], ['skull', 'Skull']],
-    eyes: [['round', 'Round'], ['happy', 'Happy'], ['visor', 'Bar'], ['pixel', 'Pixel'], ['angry', 'Fierce'], ['heart', 'Heart'], ['lens', 'Cyclops'], ['slit', 'Slit'], ['gear', 'Gear'], ['sleepy', 'Sleepy'], ['cross', 'Cross']],
-    mouth: [['smile', 'Smile'], ['flat', 'Flat'], ['grill', 'Grill'], ['fangs', 'Fangs'], ['stache', 'Mustache'], ['none', 'None']],
+    chassis: [['round', 'Boiler'], ['boxy', 'Armoured box'], ['tall', 'Hunchback'], ['bug', 'Carapace'], ['barrel', 'Banded drum'], ['kite', 'Wedge'], ['furnace', 'Furnace']],
+    head: [['dome', 'Welder'], ['square', 'Block'], ['crt', 'Porthole'], ['visor', 'Visor'], ['helm', 'Great helm'], ['lantern', 'Arc lantern'], ['bucket', 'Furnace helm'], ['skull', 'Skull']],
+    eyes: [['round', 'Twin lenses'], ['happy', 'Crescent'], ['visor', 'Light bar'], ['pixel', 'Indicators'], ['angry', 'Fierce'], ['heart', 'Heart lamps'], ['lens', 'Cyclops'], ['slit', 'Slits'], ['gear', 'Gear lenses'], ['sleepy', 'Shuttered'], ['cross', 'Reticle']],
+    mouth: [['smile', 'Vent'], ['flat', 'Slot'], ['grill', 'Grille'], ['fangs', 'Jaw'], ['stache', 'Mustache'], ['none', 'None']],
     antenna: [['ball', 'Bulb'], ['bolt', 'Bolt'], ['none', 'None'], ['dish', 'Dish'], ['horns', 'Horns'], ['propeller', 'Propeller'], ['plume', 'Plume'], ['chimney', 'Chimney'], ['crown', 'Crown'], ['twin', 'Twin bulbs']],
     shoulders: [['none', 'None'], ['pauldrons', 'Pauldrons'], ['spikes', 'Spikes'], ['bolts', 'Bolt plates'], ['lamps', 'Lamps']],
     back: [['none', 'None'], ['boiler', 'Boiler'], ['exhaust', 'Exhaust pipes'], ['banner', 'Banner'], ['cog', 'Big cog'], ['wings', 'Wings'], ['gears', 'Gears']],

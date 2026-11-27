@@ -4,7 +4,7 @@
    then a darkness layer is cut open by lamps, torches, crystals and your automaton's core. */
 (function () {
   const AF = (window.AF = window.AF || {});
-  const R = (AF.Render = { stepDur: 190 });
+  const R = (AF.Render = { stepDur: 215 });
   const CHK = 8;
   const mixHex = (a, b, t) => {
     const A = parseInt(a.slice(1), 16), B = parseInt(b.slice(1), 16), m = (s) => Math.round(((A >> s) & 255) * (1 - t) + ((B >> s) & 255) * t);
@@ -575,13 +575,32 @@
   function pos(e, now) { const k = Math.min(1, (now - e.t0) / e.dur); return { x: e.fx + (e.tx - e.fx) * k, y: e.fy + (e.ty - e.fy) * k, moving: k < 1 }; }
   R.snap = function () { for (const k in tw) delete tw[k]; cam = null; };
 
+  // ---------- Quest markers ----------
+  function questMark(g, x, y, S, kind, now) {
+    const bob = Math.sin(now / 260) * S * 0.06, yy = y + bob, h = S * 0.42;
+    const gold = kind !== 'wait', sym = kind === 'new' ? '!' : '?';
+    g.save();
+    if (gold) { const gl = g.createRadialGradient(x, yy, 0, x, yy, h * 1.1); gl.addColorStop(0, `rgba(255,220,110,${0.45 + 0.2 * Math.sin(now / 200)})`); gl.addColorStop(1, 'rgba(255,220,110,0)'); g.fillStyle = gl; g.beginPath(); g.arc(x, yy, h * 1.1, 0, 7); g.fill(); }
+    // a little shield badge with the symbol
+    g.beginPath(); g.moveTo(x, yy - h * 0.62); g.quadraticCurveTo(x + h * 0.5, yy - h * 0.6, x + h * 0.46, yy - h * 0.1); g.quadraticCurveTo(x + h * 0.4, yy + h * 0.38, x, yy + h * 0.62); g.quadraticCurveTo(x - h * 0.4, yy + h * 0.38, x - h * 0.46, yy - h * 0.1); g.quadraticCurveTo(x - h * 0.5, yy - h * 0.6, x, yy - h * 0.62); g.closePath();
+    const fill = g.createLinearGradient(0, yy - h * 0.6, 0, yy + h * 0.6);
+    if (gold) { fill.addColorStop(0, '#fff0a8'); fill.addColorStop(1, '#e0a020'); } else { fill.addColorStop(0, '#e8e4dc'); fill.addColorStop(1, '#9a948a'); }
+    g.fillStyle = fill; g.fill(); g.lineWidth = Math.max(1.5, S * 0.035); g.strokeStyle = '#2a1806'; g.stroke();
+    g.fillStyle = gold ? '#4a2a06' : '#3a3630'; g.font = `900 ${Math.round(h * 0.95)}px Cinzel, Georgia, serif`; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillText(sym, x, yy + h * 0.04); g.textBaseline = 'alphabetic';
+    g.restore();
+  }
+
   // ---------- Particles ----------
   const parts = [];
-  R.burst = function (x, y, kind, n) {
+  R.burst = function (x, y, kind, n, kick) {
     const cols = { dust: ['#8a7a5e', '#6a5e48'], leaf: ['#4a6a3a', '#5e7a48'], sparkle: ['#f2d890', '#ffffff', '#c8a050'], scrap: ['#8a8680', '#8a5a34'], copper: ['#c87a3a', '#8a5a34'], silicon: ['#c8dce4', '#7aa0b0'], arcite: ['#d8b8ff', '#9a6ad8'], circuits: ['#6ab87a'], steam: ['#c8c4bc', '#a8a49c'], ember: ['#ffb050', '#ff7a20'] };
     const c = cols[kind] || cols.sparkle;
     for (let i = 0; i < (n || 8); i++) {
       const a = Math.random() * Math.PI * 2, slow = kind === 'dust' || kind === 'steam', sp = slow ? 0.5 : 1.6;
+      if (kick) { // a footstep puff: drifts back the way the pilot came and settles, rather than flying up into them
+        parts.push({ x, y, vx: -kick[0] * (0.25 + Math.random() * 0.3) + (Math.random() - 0.5) * 0.25, vy: -kick[1] * (0.15 + Math.random() * 0.2) - 0.05, life: 1, c: c[i % c.length], kind, r: kind === 'dust' ? 0.06 : 0.04, ground: true }); continue;
+      }
       parts.push({ x, y, vx: Math.cos(a) * sp * Math.random() * (kind === 'steam' ? 0.4 : 1), vy: (kind === 'steam' ? -0.9 : kind === 'ember' ? -1.2 : slow ? -0.3 : -1.8) * Math.random() - 0.3, life: 1, c: c[i % c.length], kind, r: slow ? 0.06 : 0.04 });
     }
   };
@@ -650,6 +669,7 @@
     }
 
     // ----- sprites (sorted by their ground line) -----
+    const overlays = [];
     const sprites = [], lights = [];
     const at = (im, x, y, ax, ay) => g.drawImage(im, Math.round(sx(x) - ax), Math.round(sy(y) - ay));
     const flick = (x, y) => 0.85 + Math.sin(now / 90 + x * 7 + y * 3) * 0.08 + Math.sin(now / 37 + x) * 0.05;
@@ -762,7 +782,7 @@
     }
     // enemies
     for (const e of w.enemies) {
-      const p = tween('e' + e.id, e.x, e.y, now, 260);
+      const p = tween('e' + e.id, e.x, e.y, now, 295);
       if (!inView(p.x, p.y)) continue;
       const def = AF.ENEMIES[e.type], size = Math.round(S * (e.boss ? 2 : 0.95)), im = R.svgImage('e' + e.type, AF.enemySVG(e.type), size);
       sprites.push([p.y + 0.7, () => {
@@ -785,16 +805,18 @@
     if (blinkAt < now) blinkAt = now + 2500 + Math.random() * 2500;
     const blink = blinkAt - now < 130;
     if (!dungeon) for (const n of AF.World.npcList()) {
-      const p = tween('n' + n.id, n.x, n.y, now, 320);
+      const p = tween('n' + n.id, n.x, n.y, now, 360);
       if (!inView(p.x, p.y)) continue;
-      sprites.push([p.y + 0.75, () => AF.drawPilotAt(g, sx(p.x + 0.5), sy(p.y + 1) - S * 0.06, S * 1.3, AF.NPCS[n.id].look, n.dir, now / 320, { moving: p.moving, t: now + n.hx * 300, blink: blink && n.hx % 2 === 0 })]);
+      const mk = AF.Quests.marker ? AF.Quests.marker(state, n.id) : null;
+      sprites.push([p.y + 0.75, () => { AF.drawPilotAt(g, sx(p.x + 0.5), sy(p.y + 1) - S * 0.06, S * 1.3, AF.NPCS[n.id].look, n.dir, now / 360, { moving: p.moving, t: now + n.hx * 300, blink: blink && n.hx % 2 === 0 }); }]);
+      if (mk) { overlays.push(() => questMark(g, sx(p.x + 0.5), sy(p.y + 1) - S * 1.62, S, mk, now + n.hx * 200)); if (mk !== 'wait') lights.push([p.x + 0.5, p.y - 0.4, 1.2, '255,210,90', 0.16]); }
     }
     // automaton
     if (state.flags.robot) {
       const size = Math.round(S * 1.0);
       const im = R.svgImage('rob' + AF.botKey(state), AF.botSVG(state), size);
       if (w.rx !== w.px) R.robotFace = w.rx < w.px ? 1 : -1;
-      if (Rb.moving && Math.random() < 0.25) R.burst(Rb.x + 0.5, Rb.y + 0.95, 'dust', 1);
+      if (Rb.moving && AF.input && AF.input.run && Math.random() < 0.25) R.burst(Rb.x + 0.5, Rb.y + 0.95, 'dust', 1, [0, 0]);
       sprites.push([Rb.y + 0.72, () => {
         const bx = sx(Rb.x + 0.5), by = sy(Rb.y + 1) - S * 0.06, hov = Math.sin(now / 300) * S * 0.03 + (Rb.moving ? Math.abs(Math.sin(now / 90)) * S * 0.03 : 0);
         g.fillStyle = 'rgba(0,0,0,.35)'; g.beginPath(); g.ellipse(bx, by, S * 0.3, S * 0.08, 0, 0, 7); g.fill();
@@ -804,7 +826,9 @@
     }
     // pilot (+ thicket in front of the legs)
     const inGrass = AF.World.terrainAt(null, w.px, w.py) === 'forest';
-    if (P.moving && Math.random() < (inGrass ? 0.5 : 0.18)) R.burst(P.x + 0.5, P.y + 0.95, inGrass ? 'leaf' : 'dust', 1);
+    if (P.moving && AF.input && AF.input.run && Math.random() < (inGrass ? 0.5 : 0.3)) { const dv = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] }[w.dir] || [0, 0]; R.burst(P.x + 0.5 - dv[0] * 0.18 + (Math.random() - 0.5) * 0.2, P.y + 0.97 - dv[1] * 0.1, inGrass ? 'leaf' : 'dust', 1, dv); }
+    // dust and leaves sit on the ground, so they go under every character
+    sprites.push([-1e9, () => drawParts(true)]);
     sprites.push([P.y + 0.76, () => {
       AF.drawPilotAt(g, sx(P.x + 0.5), sy(P.y + 1) - S * 0.06, S * 1.35, AF.appearance(state), w.dir, phase, { moving: P.moving, t: now, blink });
       if (inGrass && !P.moving) {
@@ -819,21 +843,28 @@
     lights.push([P.x + 0.5, P.y + 0.3, dungeon ? 3.0 : 2.2, '255,220,170', dungeon ? 0.1 : 0.05, dungeon ? 1.45 : 1.5]);
     sprites.sort((a, b) => a[0] - b[0]).forEach((s) => s[1]());
 
-    // ----- particles -----
+    // ----- particles in the air (ground dust was drawn under the characters) -----
+    drawParts(false);
+    function drawParts(ground) {
     for (let i = parts.length - 1; i >= 0; i--) {
       const p = parts[i], slow = p.kind === 'dust' || p.kind === 'steam';
+      if (!!p.ground !== ground) continue;
       p.life -= dt * (p.kind === 'steam' ? 0.7 : slow ? 1.6 : 1.1); if (p.life <= 0) { parts.splice(i, 1); continue; }
-      p.x += p.vx * dt; p.y += p.vy * dt; p.vy += (p.kind === 'steam' ? -0.1 : slow ? 0.2 : p.kind === 'ember' ? 0.4 : 3) * dt;
+      p.x += p.vx * dt; p.y += p.vy * dt; if (p.ground) { const f = Math.pow(0.08, dt); p.vx *= f; p.vy *= f; } else p.vy += (p.kind === 'steam' ? -0.1 : slow ? 0.2 : p.kind === 'ember' ? 0.4 : 3) * dt;
       g.globalAlpha = Math.min(1, p.life * (p.kind === 'steam' ? 0.6 : 1.5)); g.fillStyle = p.c;
-      g.beginPath(); g.arc(sx(p.x), sy(p.y), S * p.r * (slow ? 2.2 - p.life : 1), 0, 7); g.fill();
+      g.beginPath(); if (p.ground) g.ellipse(sx(p.x), sy(p.y), S * p.r * (2.4 - p.life), S * p.r * (2.4 - p.life) * 0.6, 0, 0, 7); else g.arc(sx(p.x), sy(p.y), S * p.r * (slow ? 2.2 - p.life : 1), 0, 7); g.fill();
     }
     g.globalAlpha = 1;
+    }
     // ----- dusk / dungeon darkness, cut open by lights -----
     lightPass(g, Wd, Hd, lights, sx, sy, dungeon ? [6, 4, 4, 0.9] : [16, 14, 30, 0.34]);
     // vignette and a touch of fog at the edges
     const vg = g.createRadialGradient(Wd / 2, Hd / 2, Math.min(Wd, Hd) * 0.3, Wd / 2, Hd / 2, Math.max(Wd, Hd) * 0.72);
     vg.addColorStop(0, 'rgba(8,6,10,0)'); vg.addColorStop(1, dungeon ? 'rgba(4,2,2,.7)' : 'rgba(10,8,16,.5)');
     g.fillStyle = vg; g.fillRect(0, 0, Wd, Hd);
+    overlays.forEach((f) => f());
+    // tap-to-walk target ring
+    if (R.marker && now - R.marker.t < 900) { const k = (now - R.marker.t) / 900, mx = sx(R.marker.x + 0.5), my = sy(R.marker.y + 0.5); g.save(); g.globalAlpha = 1 - k; g.strokeStyle = '#ffe08a'; g.lineWidth = Math.max(2, S * 0.05); g.beginPath(); g.ellipse(mx, my + S * 0.2, S * (0.2 + k * 0.25), S * (0.1 + k * 0.12), 0, 0, 7); g.stroke(); g.restore(); }
     drawPrompt(g, AF.World.facing(state), sx, sy, P.moving, now);
   };
 
